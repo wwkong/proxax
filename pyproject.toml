@@ -25,13 +25,15 @@ cuda13 = [
   "jax[cuda13]>=0.5.0",
 ]
 dev = [
+  "mypy>=1.11",
   "pytest>=8.0",
   "ruff>=0.6",
-  "pyright>=1.1",
 ]
 docs = [
-  "mkdocs-material>=9.5",
-  "mkdocstrings[python]>=0.26",
+  "furo>=2024.8",
+  "myst-parser>=4.0",
+  "sphinx>=8.0",
+  "sphinx-autodoc-typehints>=2.4",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -73,7 +75,13 @@ force-single-line = true
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D"]
 
-[tool.pyright]
-include = ["src", "tests"]
-pythonVersion = "3.11"
-typeCheckingMode = "standard"
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests"]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["optax"]
+ignore_missing_imports = true
