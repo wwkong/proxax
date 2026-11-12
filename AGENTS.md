@@ -1,8 +1,8 @@
 # `proxax` — Workspace Rules & Agent Context
 
-`proxax` (https://github.com/wwkong/proxax) is a Python library of **certified first-order proximal point methods** for unconstrained and set/cone-constrained nonconvex composite optimization in **JAX** and **Optax**, inspired by William Kong's MATLAB framework **[`wwkong/nc_opt`](https://github.com/wwkong/nc_opt)**.
+`proxax` (https://github.com/wwkong/proxax) is a Python library of **certified first-order proximal point methods** for unconstrained and set/cone-constrained nonconvex composite optimization in **JAX** and **Optax**, inspired by Weiwei (William) Kong's MATLAB framework **[`wwkong/nc_opt`](https://github.com/wwkong/nc_opt)** and papers (including **`AIPP`**, **`QP-AIPP`**, **`PF.APD` / `APD`** at https://wwkong.github.io/files/publications/apd.pdf, and **`NL-IAPIAL` / `AIDAL`**).
 
-Read `DESIGN.md` for mathematical formulations and `docs/nc_opt_reference.md` for the detailed mapping to `wwkong/nc_opt` algorithms, papers, and Phase 2+ roadmap.
+Read `DESIGN.md` for mathematical formulations and `docs/nc_opt_reference.md` for the detailed mapping to `wwkong/nc_opt`, the complete **`PF.APD` (`apd.pdf`)** specification, and the Phase 2+ roadmap.
 
 ---
 
