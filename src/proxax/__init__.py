@@ -28,6 +28,7 @@ SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
 Solver = solvers.Solver
 StoppingConfig = solvers.StoppingConfig
+UPFAG = solvers.UPFAG
 solve = _solve.solve
 
 __all__ = [
@@ -45,6 +46,7 @@ __all__ = [
     "SolveStatus",
     "Solver",
     "StoppingConfig",
+    "UPFAG",
     "__version__",
     "certificates",
     "constraints",

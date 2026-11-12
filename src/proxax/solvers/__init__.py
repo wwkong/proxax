@@ -32,6 +32,8 @@ Solver = base.Solver
 SolveStats = base.SolveStats
 SolveStatus = base.SolveStatus
 StoppingConfig = base.StoppingConfig
+UPFAG = unconstrained.UPFAG
+UPFAGState = unconstrained.UPFAGState
 
 __all__ = [
     "ACGConfig",
@@ -59,6 +61,8 @@ __all__ = [
     "SolveStatus",
     "Solver",
     "StoppingConfig",
+    "UPFAG",
+    "UPFAGState",
     "constrained",
     "inner",
     "unconstrained",

@@ -14,6 +14,7 @@ from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
 from proxax.solvers.unconstrained import apd
 from proxax.solvers.unconstrained import ecg
+from proxax.solvers.unconstrained import upfag
 
 
 def solve(
@@ -72,6 +73,8 @@ def solve(
       chosen = apd.APD(opt_tol=opt_tol)
     elif key == "ecg":
       chosen = ecg.ECG(opt_tol=opt_tol)
+    elif key == "upfag":
+      chosen = upfag.UPFAG(opt_tol=opt_tol)
     elif key == "qp_aipp":
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     elif key == "qp_apd":
