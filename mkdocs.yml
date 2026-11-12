@@ -1,0 +1,35 @@
+site_name: proxax
+site_description: Certified first-order proximal point methods for composite optimization in JAX and Optax.
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+extra_javascript:
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            separate_signature: true
+            inventories:
+              - https://docs.jax.dev/en/latest/objects.inv
+              - https://optax.readthedocs.io/en/latest/objects.inv
+nav:
+  - Home: index.md
+  - API Reference: api.md

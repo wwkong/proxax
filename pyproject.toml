@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "proxax"
+version = "0.1.0"
+description = "Certified first-order proximal point methods for composite optimization in JAX and Optax."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "William Kong" },
+]
+dependencies = [
+  "jax>=0.4.30",
+  "optax>=0.2.2",
+]
+
+[project.optional-dependencies]
+cuda12 = [
+  "jax[cuda12]>=0.4.30",
+]
+cuda13 = [
+  "jax[cuda13]>=0.5.0",
+]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+  "pyright>=1.1",
+]
+docs = [
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.26",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/proxax"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 80
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "B",
+  "D",
+  "E",
+  "F",
+  "I",
+  "N",
+  "SIM",
+  "TID",
+  "UP",
+  "W",
+]
+ignore = [
+  "N803",
+  "N806",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
