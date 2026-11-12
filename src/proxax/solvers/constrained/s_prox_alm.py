@@ -155,14 +155,12 @@ class SProxALM:
 
     if self.prox_reg is not None:
       p_arr = jnp.asarray(self.prox_reg, dtype=dtype)
+    elif base_oracle.curvature_lower is not None:
+      m_known = jnp.asarray(base_oracle.curvature_lower, dtype=dtype)
+      p_arr = jnp.maximum(2.0 * m_known, jnp.asarray(1.0, dtype=dtype))
     else:
-      m_known = (
-          jnp.asarray(base_oracle.curvature_lower, dtype=dtype)
-          if base_oracle.curvature_lower is not None
-          else jnp.asarray(0.0, dtype=dtype)
-      )
       p_arr = jnp.maximum(
-          jnp.maximum(2.0 * m_known, 2.0 * ref_base.lipschitz_used),
+          2.0 * ref_base.lipschitz_used,
           jnp.asarray(1.0, dtype=dtype),
       )
 

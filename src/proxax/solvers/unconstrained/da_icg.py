@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import dataclasses
-import math
 import typing
 
 import jax
@@ -162,16 +161,18 @@ class DAICG:
     xi0 = (
         jnp.asarray(self.xi_init, dtype=dtype)
         if self.xi_init is not None
-        else jnp.maximum(m1_base, m2_low)
+        else m1_base
     )
     xi0 = jnp.maximum(xi0, jnp.asarray(1e-4, dtype=dtype))
 
     if self.lam_init is not None:
       lam0 = jnp.asarray(self.lam_init, dtype=dtype)
+    elif known_m1 is not None:
+      lam0 = jnp.where(m1_base <= xi0, 5.0 / m1_base, 0.25 / m1_base)
     else:
-      lam0 = jnp.where(m1_base <= xi0, 1.0 / m1_base, 0.25 / m1_base)
+      lam0 = 1.0 / m1_base
 
-    sigma_val = self.sigma if self.sigma is not None else math.sqrt(0.5)
+    sigma_val = self.sigma if self.sigma is not None else 0.3
     acg_cfg = acg.ACGConfig(
         sigma=sigma_val,
         max_iters=self.max_inner_iters,
@@ -224,25 +225,31 @@ class DAICG:
       f1_xt, g1_xt = oracle.f1_redistributed_vag(z_xtilde, st.xi)
       w_mat = z_xtilde - st.lam * g1_xt
       p_mat, x0_vec, qt_mat = jnp.linalg.svd(w_mat, full_matrices=False)
-      d0_vec = jnp.einsum("ir,ij,rj->r", p_mat, z_xtilde, qt_mat)
+      s_xt = jnp.linalg.svdvals(z_xtilde)
 
       vec_oracle = oracle.vector_subproblem_oracle(st.lam, x0_vec, st.xi)
+      d_xt = spectral.diag_pt_mat_q(p_mat, z_xtilde, qt_mat)
+      orth_gap_sq = jnp.maximum(
+          jnp.asarray(0.0, dtype=dtype),
+          jnp.sum(z_xtilde * z_xtilde) - jnp.sum(d_xt * d_xt),
+      )
+      acg_cfg_step = dataclasses.replace(acg_cfg, rhs_offset_sq=orth_gap_sq)
       sub_L_init = st.lam * st.m2_est + 0.5
       acg_st = acg.run_acg(
           vec_oracle,
-          d0_vec,
-          prox_center=d0_vec,
+          s_xt,
+          prox_center=d_xt,
           lam=jnp.asarray(1.0, dtype=dtype),
           lipschitz_init=sub_L_init,
-          config=acg_cfg,
+          config=acg_cfg_step,
           check_convexity=True,
           jit=jit,
       )
 
       z_vec = typing.cast(jax.Array, acg_st.y)
       v_vec = typing.cast(jax.Array, acg_st.u)
-      z_y = (p_mat * z_vec[None, :]) @ qt_mat
-      v_y = (p_mat * v_vec[None, :]) @ qt_mat
+      z_y = spectral.reconstruct(p_mat, z_vec, qt_mat)
+      v_y = spectral.reconstruct(p_mat, v_vec, qt_mat)
 
       noncvx_code = jnp.asarray(
           int(acg.ACGStatus.NONCONVEX_DETECTED), dtype=jnp.int32
@@ -309,7 +316,7 @@ class DAICG:
           y_mat=z_y,
           y_vec=z_vec,
           s_mat=ref.z_hat_mat,
-          s_vec=ref.z_hat_vec,
+          s_vec=jnp.sort(jnp.abs(ref.z_hat_vec))[::-1],
           v_mat=v_y,
       )
       baseh = jnp.maximum(
@@ -334,7 +341,8 @@ class DAICG:
           jnp.logical_or(desc_bad, ref_bad),
       )
 
-      xi_next = jnp.where(rejected, 2.0 * st.xi, st.xi)
+      xi_max = jnp.asarray(1e6, dtype=dtype)
+      xi_next = jnp.where(rejected, jnp.minimum(2.0 * st.xi, xi_max), st.xi)
       m2_base_cur = jnp.maximum(ref.m2_used - st.xi, 0.0)
       m2_est_next = m2_base_cur + xi_next
 
@@ -345,20 +353,22 @@ class DAICG:
           + oracle.f2_redistributed_val(z_vec, st.xi)
           + oracle.prox_vec.value(z_vec)
       )
+      z_svals_sorted = jnp.sort(jnp.abs(z_vec))[::-1]
       if self.monotone:
         take_zy = phi_zy < st.phi_zy0
         zy0_acc = jnp.where(take_zy, z_y, st.z_y0)
-        svals_acc = jnp.where(take_zy, jnp.abs(z_vec), st.zy0_svals)
+        svals_acc = jnp.where(take_zy, z_svals_sorted, st.zy0_svals)
         phi_acc = jnp.where(take_zy, phi_zy, st.phi_zy0)
       else:
         zy0_acc = z_y
-        svals_acc = jnp.abs(z_vec)
+        svals_acc = z_svals_sorted
         phi_acc = phi_zy
 
       if self.step_type == "adaptive":
-        v1_hat = ref.q_hat_mat - (
+        scale_z = (
             st.lam * (m2_base_cur + 2.0 * jnp.maximum(m2_low, 0.0)) + 1.0
-        ) * (z_y - ref.z_hat_mat)
+        ) / st.lam
+        v1_hat = ref.q_hat_mat - scale_z * (z_y - ref.z_hat_mat)
         n_v1 = tree.norm(v1_hat, kind=self.norm_kind)
         n_v2 = tree.norm(ref.v_hat_mat - v1_hat, kind=self.norm_kind)
         ratio = n_v1 / jnp.maximum(n_v2, 1e-30)

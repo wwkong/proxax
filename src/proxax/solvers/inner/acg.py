@@ -65,6 +65,7 @@ class ACGConfig:
   """Hyperparameters for the inner `ACG` subproblem solver."""
 
   sigma: float | jax.Array = 0.3
+  rhs_offset_sq: float | jax.Array = 0.0
   max_iters: int = 1000
   backtrack_factor: float = 2.0
   ls_decrease: float = 0.9
@@ -263,7 +264,10 @@ def step_acg(
       u_next,
   )
   eps_sq = tree.eps(dtype) ** 2
-  rhs_sigma = (config.sigma**2) * tree.norm_sq(rhs_vec) + eps_sq
+  rhs_norm_sq = tree.norm_sq(rhs_vec) + jnp.asarray(
+      config.rhs_offset_sq, dtype=dtype
+  )
+  rhs_sigma = (config.sigma**2) * rhs_norm_sq + eps_sq
   sigma_ok = lhs_sigma <= rhs_sigma
 
   next_iter = state.iteration + 1

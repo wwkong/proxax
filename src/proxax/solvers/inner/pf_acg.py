@@ -247,18 +247,27 @@ def step_pf_acg(
       tree.scale(L_used + mu, tree.sub(x_tilde, y_next)),
   )
 
+  inv_L_mu_used = 1.0 / (L_used + mu)
+  trial_arg = tree.add_scaled(x_tilde, -inv_L_mu_used, grad_tilde)
   diff_y0_y = tree.sub(state.y0, y_next)
+  dist_y_xt_sq = tree.norm_sq(tree.sub(y_next, x_tilde))
+  step_underflow = jnp.logical_and(
+      tree.norm_sq(tree.sub(trial_arg, x_tilde)) == 0.0,
+      tree.norm_sq(grad_tilde) > 0.0,
+  )
   r_plus_y0_minus_y = tree.add(r_next, diff_y0_y)
   if two_m is not None and opt_tol is not None:
     v_cand = tree.scale(two_m, r_plus_y0_minus_y)
-    opt_ok = tree.norm(v_cand, kind=norm_kind) <= opt_tol
+    opt_ok = jnp.logical_and(
+        jnp.logical_not(step_underflow),
+        tree.norm(v_cand, kind=norm_kind) <= opt_tol,
+    )
   else:
     opt_ok = jnp.asarray(False, dtype=jnp.bool_)
 
   # Step 2 ("Bad" check, Eq. (3.5)): local mu-strong convexity invariants.
   eps_val = tree.eps(dtype)
   eps_sq = eps_val**2
-  dist_y_xt_sq = tree.norm_sq(tree.sub(y_next, x_tilde))
   dist_y_y0_sq = tree.norm_sq(diff_y0_y)
   dist_slack = 100.0 * eps_val * dist_y_y0_sq + eps_sq
   bad_cond_1_ok = mu * a_next * dist_y_xt_sq <= dist_y_y0_sq + dist_slack

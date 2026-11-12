@@ -226,7 +226,7 @@ class APD:
     eff_rho = self._effective_rho
     pf_cfg = pf_acg.PFACGConfig(
         mu=0.5,
-        sigma=eff_rho,
+        sigma=eff_rho / math.sqrt(2.0),
         theta=self.theta,
         beta=self.beta,
         max_iters=self.max_inner_iters,

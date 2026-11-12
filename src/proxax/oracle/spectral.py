@@ -17,6 +17,29 @@ from proxax.prox import base as prox_base
 from proxax.prox import norms as prox_norms
 
 
+def reconstruct(
+    p_mat: jax.Array,
+    s_vec: jax.Array,
+    qt_mat: jax.Array,
+) -> jax.Array:
+  """Computes `P diag(s) Q^T` in full IEEE precision (bypassing TF32)."""
+  return jnp.matmul(
+      p_mat * s_vec[None, :],
+      qt_mat,
+      precision=jax.lax.Precision.HIGHEST,
+  )
+
+
+def diag_pt_mat_q(
+    p_mat: jax.Array,
+    mat: jax.Array,
+    qt_mat: jax.Array,
+) -> jax.Array:
+  """Computes `diag(P^T mat Q)` in full IEEE precision (bypassing TF32)."""
+  mat_q = jnp.matmul(mat, qt_mat.T, precision=jax.lax.Precision.HIGHEST)
+  return jnp.sum(p_mat * mat_q, axis=0)
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class VectorSpectralSubOracle:
@@ -227,7 +250,7 @@ class SpectralOracle:
     p_mat, s_vec, qt_mat = jnp.linalg.svd(mat, full_matrices=False)
     v2, gs_raw = self.f2_vec_obj.value_and_grad(s_vec)
     gs = typing.cast(jax.Array, gs_raw)
-    return v1 + v2, g1 + (p_mat * gs[None, :]) @ qt_mat
+    return v1 + v2, g1 + reconstruct(p_mat, gs, qt_mat)
 
   def proximal_value(self, x: _typing.PyTree) -> jax.Array:
     """Evaluates `prox_vec(sigma(X))`."""
@@ -269,7 +292,7 @@ class SpectralOracle:
       return mat
     p_mat, s_vec, qt_mat = jnp.linalg.svd(mat, full_matrices=False)
     s_prox = typing.cast(jax.Array, self.prox_vec.prox(s_vec, step_size))
-    return (p_mat * s_prox[None, :]) @ qt_mat
+    return reconstruct(p_mat, s_prox, qt_mat)
 
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Projects `X` onto `Omega` (if supplied) and `cl(dom(h))`."""
@@ -280,7 +303,7 @@ class SpectralOracle:
       return mat
     p_mat, s_vec, qt_mat = jnp.linalg.svd(mat, full_matrices=False)
     s_dom = typing.cast(jax.Array, self.prox_vec.domain_project(s_vec))
-    return (p_mat * s_dom[None, :]) @ qt_mat
+    return reconstruct(p_mat, s_dom, qt_mat)
 
   def omega_project(self, mat: jax.Array) -> jax.Array:
     """Applies `domain_proj` (`Pi_Omega`) if present, else `domain_project`."""
@@ -354,29 +377,38 @@ def delta_mu(
     s_vec: jax.Array,
     v_mat: jax.Array,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
-  """Computes `Delta_mu(S; Y, Y0, V)` in `lambda`-scaled proximal units."""
+  """Computes `Delta_mu(S; Y, Y0, V)` in cancellation-free proximal units."""
   diff_s_y0 = s_mat - y0_mat
   diff_y_y0 = y_mat - y0_mat
-  diff_s_y = s_mat - y_mat
+  diff_y_s = y_mat - s_mat
 
-  f2h_s = oracle.f2_redistributed_val(s_vec, xi) + oracle.prox_vec.value(s_vec)
-  f2h_y = oracle.f2_redistributed_val(y_vec, xi) + oracle.prox_vec.value(y_vec)
+  y0_norm_sq = jnp.sum(y0_mat * y0_mat)
+  f1_orig_y0 = f1_y0 + 0.5 * xi * y0_norm_sq
+  g1_orig_y0 = g1_y0 + xi * y0_mat
 
-  lin_s = f1_y0 + jnp.sum(g1_y0 * diff_s_y0) + f2h_s
-  lin_y = f1_y0 + jnp.sum(g1_y0 * diff_y_y0) + f2h_y
+  f2h_orig_s = oracle.f2_vec_obj.value(s_vec) + oracle.prox_vec.value(s_vec)
+  f2h_orig_y = oracle.f2_vec_obj.value(y_vec) + oracle.prox_vec.value(y_vec)
+
+  dist_s_y0_sq = jnp.sum(diff_s_y0 * diff_s_y0)
+  dist_y_y0_sq = jnp.sum(diff_y_y0 * diff_y_y0)
+  dist_s_y_sq = jnp.sum(diff_y_s * diff_y_s)
+
+  eff_prox = 0.5 * (1.0 + lam * xi)
+  delta = (
+      lam * (jnp.sum(g1_orig_y0 * diff_y_s) + (f2h_orig_y - f2h_orig_s))
+      + eff_prox * (dist_y_y0_sq - dist_s_y0_sq)
+      - jnp.sum(v_mat * diff_y_s)
+      + 0.5 * mu * dist_s_y_sq
+  )
 
   prox_at_s = (
-      lam * lin_s
-      + 0.5 * jnp.sum(diff_s_y0 * diff_s_y0)
+      lam * (f1_orig_y0 + jnp.sum(g1_orig_y0 * diff_s_y0) + f2h_orig_s)
+      + eff_prox * dist_s_y0_sq
       - jnp.sum(v_mat * s_mat)
-      - 0.5 * mu * jnp.sum(diff_s_y * diff_s_y)
+      - 0.5 * mu * dist_s_y_sq
   )
-  prox_at_y = (
-      lam * lin_y
-      + 0.5 * jnp.sum(diff_y_y0 * diff_y_y0)
-      - jnp.sum(v_mat * y_mat)
-  )
-  return prox_at_y - prox_at_s, prox_at_s, prox_at_y
+  prox_at_y = prox_at_s + delta
+  return delta, prox_at_s, prox_at_y
 
 
 def refine_icg(
@@ -451,22 +483,27 @@ def refine_icg(
 
     fin_c = _loop.while_loop(_cond, _body, init_c, jit=jit)
     m2_used = fin_c.m2_plus
+    nu = lam / (lam * m2_used + 1.0)
+    w_r = lam * g2_z - (v_vec + x0_vec - z_vec)
+    z_ctr = z_vec - (nu / lam) * w_r
     z_hat = fin_c.z_hat
     f2_zh, g2_zh = oracle.f2_redistributed_vag(z_hat, xi)
     vec_evals = fin_c.trials + 2
 
-  nu = lam / (lam * m2_used + 1.0)
-  z_mat = (p_mat * z_vec[None, :]) @ qt_mat
-  v_mat = (p_mat * v_vec[None, :]) @ qt_mat
-  z_hat_mat = (p_mat * z_hat[None, :]) @ qt_mat
+  z_mat = reconstruct(p_mat, z_vec, qt_mat)
+  v_mat = reconstruct(p_mat, v_vec, qt_mat)
+  z_hat_mat = reconstruct(p_mat, z_hat, qt_mat)
 
-  f1_zh, g1_zh = oracle.f1_redistributed_vag(z_hat_mat, xi)
+  f1_orig_zh, g1_orig_zh_raw = oracle.f1_obj.value_and_grad(z_hat_mat)
+  g1_orig_zh = typing.cast(jax.Array, g1_orig_zh_raw)
+  g2_orig_zh = g2_zh - xi * z_hat
+  subgrad_h_vec = (z_ctr - z_hat) / nu
+
   q_hat = (v_mat + z0_mat - z_mat) / lam + (z_mat - z_hat_mat) / nu
-  delta_f2 = (p_mat * (g2_zh - g2_z)[None, :]) @ qt_mat
-  delta_f1 = g1_zh - g1_z0
-  v_hat = q_hat + delta_f2 + delta_f1
+  v_hat = g1_orig_zh + reconstruct(p_mat, g2_orig_zh + subgrad_h_vec, qt_mat)
 
-  obj_zh = f1_zh + f2_zh + oracle.prox_vec.value(z_hat)
+  f2_orig_zh = f2_zh - 0.5 * xi * jnp.sum(z_hat * z_hat)
+  obj_zh = f1_orig_zh + f2_orig_zh + oracle.prox_vec.value(z_hat)
   return SpectralRefinementResult(
       z_hat_vec=z_hat,
       z_hat_mat=z_hat_mat,
@@ -510,7 +547,7 @@ class SpectralProx:
       return mat
     p_mat, s_vec, qt_mat = jnp.linalg.svd(mat, full_matrices=False)
     s_p = typing.cast(jax.Array, self.prox_vec.prox(s_vec, step_size))
-    return (p_mat * s_p[None, :]) @ qt_mat
+    return reconstruct(p_mat, s_p, qt_mat)
 
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Projects singular values of `X` onto `cl(dom(prox_vec))`."""
@@ -519,7 +556,7 @@ class SpectralProx:
       return mat
     p_mat, s_vec, qt_mat = jnp.linalg.svd(mat, full_matrices=False)
     s_d = typing.cast(jax.Array, self.prox_vec.domain_project(s_vec))
-    return (p_mat * s_d[None, :]) @ qt_mat
+    return reconstruct(p_mat, s_d, qt_mat)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
