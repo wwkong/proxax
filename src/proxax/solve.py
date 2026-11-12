@@ -6,6 +6,7 @@ import typing
 
 from proxax import _typing
 from proxax import problem as problem_mod
+from proxax.oracle import spectral
 from proxax.solvers import base
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
@@ -17,12 +18,13 @@ from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
 from proxax.solvers.unconstrained import apd
 from proxax.solvers.unconstrained import ecg
+from proxax.solvers.unconstrained import ia_icg
 from proxax.solvers.unconstrained import nc_fista
 from proxax.solvers.unconstrained import upfag
 
 
 def solve(
-    problem: problem_mod.CompositeProblem,
+    problem: problem_mod.CompositeProblem | spectral.SpectralProblem,
     x0: _typing.PyTree,
     *,
     solver: base.Solver | None = None,
@@ -59,10 +61,27 @@ def solve(
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
 
+  if isinstance(solver, ia_icg.IAICG):
+    return solver.solve(
+        problem,
+        x0,
+        jit=jit,
+        callback=callback,
+        time_limit=time_limit,
+    )
+
   chosen: base.Solver
   if solver is not None:
     chosen = solver
   elif method is None:
+    if isinstance(problem, spectral.SpectralProblem):
+      return ia_icg.IAICG(opt_tol=opt_tol).solve(
+          problem,
+          x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
     if problem.is_constrained:
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     else:
@@ -87,6 +106,14 @@ def solve(
       chosen = ac_acg.ACACG(opt_tol=opt_tol)
     elif key in ("adap_apg", "adapapg"):
       chosen = adap_apg.AdapAPG(opt_tol=opt_tol)
+    elif key in ("ia_icg", "iaicg", "aicg"):
+      return ia_icg.IAICG(opt_tol=opt_tol).solve(
+          problem,
+          x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
     elif key == "qp_aipp":
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     elif key == "qp_apd":
@@ -114,8 +141,13 @@ def solve(
           "'qp_aipp', 'qp_apd', 'ialm', 'nl_iapial', or 'aidal'."
       )
 
+  comp_prob = (
+      problem.as_composite_problem()
+      if isinstance(problem, spectral.SpectralProblem)
+      else problem
+  )
   return chosen.solve(
-      problem,
+      comp_prob,
       x0,
       jit=jit,
       callback=callback,

@@ -1,4 +1,4 @@
-"""Norm-based proximal regularizers (`L1`, `L2`, `L2Squared`, `ElasticNet`)."""
+"""Norm-based proximal regularizers (`L1`, `L2`, `NuclearNorm`, etc.)."""
 
 from __future__ import annotations
 
@@ -146,4 +146,46 @@ class ElasticNet:
 
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Identity projection."""
+    return x
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class NuclearNorm:
+  """Matrix nuclear (trace) norm `h(X) = weight * ||sigma(X)||_1`."""
+
+  weight: _typing.Scalar = 1.0
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `weight * sum_i sigma_i(X)` across matrix leaves."""
+    leaves = jax.tree.leaves(x)
+    if not leaves:
+      return jnp.asarray(0.0)
+    total = tree.functools_sum(
+        [jnp.sum(jnp.linalg.svdvals(leaf)) for leaf in leaves]
+    )
+    return self.weight * total
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Applies singular-value soft-thresholding with `step_size * weight`."""
+    thresh = step_size * self.weight
+
+    def _svd_thresh(mat: jax.Array) -> jax.Array:
+      u_mat, s_vec, vt_mat = jnp.linalg.svd(mat, full_matrices=False)
+      s_shrunk = jnp.maximum(s_vec - thresh, 0.0)
+      return (u_mat * s_shrunk[..., None, :]) @ vt_mat
+
+    return jax.tree.map(_svd_thresh, x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Identity projection (`dom(NuclearNorm)` is the full matrix space)."""
     return x

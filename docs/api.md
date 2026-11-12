@@ -45,6 +45,9 @@
 .. automodule:: proxax.oracle.composite
    :members:
 
+.. automodule:: proxax.oracle.spectral
+   :members:
+
 .. automodule:: proxax.certificates.stationarity
    :members:
 ```
@@ -86,6 +89,9 @@
    :members:
 
 .. automodule:: proxax.solvers.unconstrained.adap_apg
+   :members:
+
+.. automodule:: proxax.solvers.unconstrained.ia_icg
    :members:
 
 .. automodule:: proxax.solvers.constrained.qp_aipp

@@ -22,6 +22,7 @@ AdapAPG = solvers.AdapAPG
 AdapFISTA = solvers.AdapFISTA
 CompositeProblem = _problem.CompositeProblem
 ECG = solvers.ECG
+IAICG = solvers.IAICG
 IALM = solvers.IALM
 KKTResiduals = _problem.KKTResiduals
 NCFISTA = solvers.NCFISTA
@@ -31,6 +32,8 @@ Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
 Solver = solvers.Solver
+SpectralOracle = oracle.SpectralOracle
+SpectralProblem = oracle.SpectralProblem
 StoppingConfig = solvers.StoppingConfig
 UPFAG = solvers.UPFAG
 solve = _solve.solve
@@ -44,6 +47,7 @@ __all__ = [
     "AdapFISTA",
     "CompositeProblem",
     "ECG",
+    "IAICG",
     "IALM",
     "KKTResiduals",
     "NCFISTA",
@@ -53,6 +57,8 @@ __all__ = [
     "SolveStats",
     "SolveStatus",
     "Solver",
+    "SpectralOracle",
+    "SpectralProblem",
     "StoppingConfig",
     "UPFAG",
     "__version__",

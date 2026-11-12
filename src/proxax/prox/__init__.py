@@ -17,6 +17,7 @@ L2Ball = indicators.L2Ball
 L2Squared = norms.L2Squared
 MultiProx = combinators.MultiProx
 NonNegative = indicators.NonNegative
+NuclearNorm = norms.NuclearNorm
 ProxOperator = base.ProxOperator
 Shifted = base.Shifted
 Simplex = indicators.Simplex
@@ -33,6 +34,7 @@ __all__ = [
     "L2Squared",
     "MultiProx",
     "NonNegative",
+    "NuclearNorm",
     "ProxOperator",
     "Shifted",
     "Simplex",
