@@ -21,6 +21,7 @@ CompositeProblem = _problem.CompositeProblem
 ECG = solvers.ECG
 IALM = solvers.IALM
 KKTResiduals = _problem.KKTResiduals
+NCFISTA = solvers.NCFISTA
 QPAIPP = solvers.QPAIPP
 QPAPD = solvers.QPAPD
 Solution = solvers.Solution
@@ -39,6 +40,7 @@ __all__ = [
     "ECG",
     "IALM",
     "KKTResiduals",
+    "NCFISTA",
     "QPAIPP",
     "QPAPD",
     "Solution",

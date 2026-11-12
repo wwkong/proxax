@@ -76,6 +76,9 @@
 .. automodule:: proxax.solvers.unconstrained.upfag
    :members:
 
+.. automodule:: proxax.solvers.unconstrained.nc_fista
+   :members:
+
 .. automodule:: proxax.solvers.constrained.qp_aipp
    :members:
 

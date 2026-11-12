@@ -20,6 +20,8 @@ ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
 IALM = constrained.IALM
 IALMState = constrained.IALMState
+NCFISTA = unconstrained.NCFISTA
+NCFISTAState = unconstrained.NCFISTAState
 PFACGConfig = inner.PFACGConfig
 PFACGState = inner.PFACGState
 PFACGStatus = inner.PFACGStatus
@@ -49,6 +51,8 @@ __all__ = [
     "ECGState",
     "IALM",
     "IALMState",
+    "NCFISTA",
+    "NCFISTAState",
     "PFACGConfig",
     "PFACGState",
     "PFACGStatus",

@@ -6,6 +6,7 @@ from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
 from proxax.solvers.unconstrained import apd
 from proxax.solvers.unconstrained import ecg
+from proxax.solvers.unconstrained import nc_fista
 from proxax.solvers.unconstrained import upfag
 
 AG = ag.AG
@@ -16,6 +17,8 @@ APD = apd.APD
 APDState = apd.APDState
 ECG = ecg.ECG
 ECGState = ecg.ECGState
+NCFISTA = nc_fista.NCFISTA
+NCFISTAState = nc_fista.NCFISTAState
 UPFAG = upfag.UPFAG
 UPFAGState = upfag.UPFAGState
 
@@ -28,6 +31,8 @@ __all__ = [
     "APDState",
     "ECG",
     "ECGState",
+    "NCFISTA",
+    "NCFISTAState",
     "UPFAG",
     "UPFAGState",
 ]
