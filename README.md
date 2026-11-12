@@ -3,6 +3,18 @@
 Certified first-order proximal point methods for unconstrained and constrained
 nonconvex composite optimization in **JAX** and **Optax**.
 
+## Installation
+
+```bash
+pip install proxax
+```
+
+Or with `uv`:
+
+```bash
+uv add proxax
+```
+
 ## Problem Classes
 
 1. **Unconstrained Nonconvex Composite Optimization:**

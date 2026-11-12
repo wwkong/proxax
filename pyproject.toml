@@ -4,13 +4,36 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proxax"
-version = "0.1.0"
+version = "0.0.1"
 description = "Certified first-order proximal point methods for composite optimization in JAX and Optax."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-  { name = "William Kong" },
+  { name = "William Kong", email = "wwkong92@gmail.com" },
+]
+keywords = [
+  "augmented-lagrangian",
+  "composite-optimization",
+  "jax",
+  "nonconvex-optimization",
+  "optax",
+  "optimization",
+  "proximal",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
 ]
 dependencies = [
   "jax>=0.4.30",
@@ -18,7 +41,9 @@ dependencies = [
 ]
 
 [project.urls]
+Homepage = "https://github.com/wwkong/proxax"
 Repository = "https://github.com/wwkong/proxax"
+Issues = "https://github.com/wwkong/proxax/issues"
 
 [project.optional-dependencies]
 cuda12 = [
