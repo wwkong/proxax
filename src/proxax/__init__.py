@@ -17,6 +17,7 @@ __version__ = "0.1.0"
 AG = solvers.AG
 AIPP = solvers.AIPP
 APD = solvers.APD
+AdapFISTA = solvers.AdapFISTA
 CompositeProblem = _problem.CompositeProblem
 ECG = solvers.ECG
 IALM = solvers.IALM
@@ -36,6 +37,7 @@ __all__ = [
     "AG",
     "AIPP",
     "APD",
+    "AdapFISTA",
     "CompositeProblem",
     "ECG",
     "IALM",

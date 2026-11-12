@@ -16,6 +16,8 @@ AIPP = unconstrained.AIPP
 AIPPState = unconstrained.AIPPState
 APD = unconstrained.APD
 APDState = unconstrained.APDState
+AdapFISTA = unconstrained.AdapFISTA
+AdapFISTAState = unconstrained.AdapFISTAState
 ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
 IALM = constrained.IALM
@@ -47,6 +49,8 @@ __all__ = [
     "AIPPState",
     "APD",
     "APDState",
+    "AdapFISTA",
+    "AdapFISTAState",
     "ECG",
     "ECGState",
     "IALM",
