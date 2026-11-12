@@ -1,7 +1,13 @@
 # `proxax`
 
+[![PyPI version](https://img.shields.io/pypi/v/proxax.svg)](https://pypi.org/project/proxax/)
+[![Documentation Status](https://readthedocs.org/projects/proxax/badge/?version=latest)](https://proxax.readthedocs.io/en/latest/?badge=latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 Certified first-order proximal point methods for unconstrained and constrained
 nonconvex composite optimization in **JAX** and **Optax**.
+
+**Documentation:** https://proxax.readthedocs.io/
 
 ## Installation
 
