@@ -104,7 +104,7 @@ force-single-line = true
 "tests/**/*.py" = ["D"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.11"
 files = ["src", "tests"]
 strict = true
 warn_return_any = true
