@@ -17,6 +17,7 @@ __version__ = "0.1.0"
 AIPP = solvers.AIPP
 APD = solvers.APD
 CompositeProblem = _problem.CompositeProblem
+ECG = solvers.ECG
 IALM = solvers.IALM
 KKTResiduals = _problem.KKTResiduals
 QPAIPP = solvers.QPAIPP
@@ -32,6 +33,7 @@ __all__ = [
     "AIPP",
     "APD",
     "CompositeProblem",
+    "ECG",
     "IALM",
     "KKTResiduals",
     "QPAIPP",

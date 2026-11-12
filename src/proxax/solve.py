@@ -12,6 +12,7 @@ from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
 from proxax.solvers.unconstrained import aipp
 from proxax.solvers.unconstrained import apd
+from proxax.solvers.unconstrained import ecg
 
 
 def solve(
@@ -66,6 +67,8 @@ def solve(
       chosen = aipp.AIPP(opt_tol=opt_tol)
     elif key == "apd" or key == "pf_apd":
       chosen = apd.APD(opt_tol=opt_tol)
+    elif key == "ecg":
+      chosen = ecg.ECG(opt_tol=opt_tol)
     elif key == "qp_aipp":
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     elif key == "qp_apd":
