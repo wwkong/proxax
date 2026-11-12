@@ -14,6 +14,7 @@ from proxax import tree
 
 __version__ = "0.1.0"
 
+AG = solvers.AG
 AIPP = solvers.AIPP
 APD = solvers.APD
 CompositeProblem = _problem.CompositeProblem
@@ -30,6 +31,7 @@ StoppingConfig = solvers.StoppingConfig
 solve = _solve.solve
 
 __all__ = [
+    "AG",
     "AIPP",
     "APD",
     "CompositeProblem",

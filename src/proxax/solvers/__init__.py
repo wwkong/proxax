@@ -10,6 +10,8 @@ from proxax.solvers import unconstrained
 ACGConfig = inner.ACGConfig
 ACGState = inner.ACGState
 ACGStatus = inner.ACGStatus
+AG = unconstrained.AG
+AGState = unconstrained.AGState
 AIPP = unconstrained.AIPP
 AIPPState = unconstrained.AIPPState
 APD = unconstrained.APD
@@ -35,6 +37,8 @@ __all__ = [
     "ACGConfig",
     "ACGState",
     "ACGStatus",
+    "AG",
+    "AGState",
     "AIPP",
     "AIPPState",
     "APD",
