@@ -6,12 +6,12 @@
 
 ### Engineering & Style Standards
 - **Dependencies:** Strictly **`jax`** and **`optax`** at runtime (leveraging `optax.projections` and `optax.tree` directly; zero third-party framework lock-in).
-- **Code Style:** **Google Python Style Guide**, strictly enforced via `ruff` (`convention = "google"`, module-only imports via `flake8-tidy-imports` / `isort`) and `pyright`:
+- **Code Style:** **Google Python Style Guide**, strictly enforced via `ruff` (80-column line limit, `convention = "google"`, module-only imports via `flake8-tidy-imports` / `isort`) and `mypy --strict`:
   - Module-only imports everywhere (`import dataclasses`, `import typing`, `from collections import abc`, `from proxax import prox`).
-  - `@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)` for all configs, solvers, problems, states, and results (paired with `@jax.tree_util.register_dataclass` for PyTree states/oracles). Unary math primitives (e.g., `prox.L1(0.1)`) keep their single primary value positional and optional metadata `kw_only`.
-  - Structural subtyping via **`typing.Protocol`** (`ProxOperator`, `ConvexSet`, `LinearOperator`, `InnerCriterion`).
-- **Documentation:** **MkDocs Material + `mkdocstrings[python]` + KaTeX** (Google-style docstrings + cross-linked `jax`/`optax` inventories).
-- **Version Control:** Git (`main` branch initialized in repo root, atomic commits per milestone).
+  - `@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)` for all configs, solvers, problems, states, and results (paired with `jax.tree_util.register_dataclass` for PyTree states/oracles). Unary math primitives (e.g., `prox.L1(0.1)`) keep their single primary value positional and optional metadata `kw_only`.
+  - Structural subtyping via **`typing.Protocol`** (`ProxOperator`, `ConvexSet`, `LinearOperator`, `CompositeOracleProtocol`).
+- **Documentation:** **Sphinx + MyST-Parser + Furo + MathJax** (`uv run sphinx-build -W -b html docs site`).
+- **Environment & Packaging:** **`uv`** (`pyproject.toml` + `uv.lock`) in WSL2 (`/home/wkong/Projects/proxax`), pushed to `https://github.com/wwkong/proxax`.
 
 ---
 
@@ -52,6 +52,6 @@ $$
 
 ## 4. MVP Execution Milestones (Atomic Git Commits)
 
-1. **Milestone 1 — Tooling & Core Math Primitives:** `_typing.py`, `_loop.py`, `tree.py`, `prox/`, `constraints/`, `oracle/`, `certificates/refine.py`, `problem.py` + unit tests.
-2. **Milestone 2 — `ACG` & Unconstrained `AIPP`:** `solvers/base.py`, `criteria.py`, `inner/acg.py`, `unconstrained/aipp.py`, `proxax.solve()` + nonconvex composite tests (`jit=True`, `jit=False`, `vmap`).
-3. **Milestone 3 — Constrained `QPAIPP` & Optax State Machine:** `constrained/qp_aipp.py`, `optax_compat/transforms.py` + constrained nonconvex QP and PyTree Optax training-loop tests.
+1. **Milestone 1 — Tooling & Core Math Primitives:** `_typing.py`, `_loop.py`, `tree.py`, `prox/`, `constraints/`, `oracle/`, `certificates/stationarity.py`, `problem.py` + unit tests.
+2. **Milestone 2 — `ACG` & Unconstrained `AIPP`:** `solvers/base.py`, `solvers/inner/acg.py`, `solvers/unconstrained/aipp.py`, `proxax.solve()` + nonconvex composite tests (`jit=True`, `jit=False`, `vmap`).
+3. **Milestone 3 — Constrained `QPAIPP` & Optax State Machine:** `solvers/constrained/qp_aipp.py`, `optax_compat/transforms.py` + constrained nonconvex QP and PyTree Optax training-loop tests.

@@ -17,5 +17,6 @@ nonconvex composite optimization in **JAX** and **Optax**.
 :maxdepth: 2
 :caption: Contents
 
+nc_opt_reference
 api
 ```
