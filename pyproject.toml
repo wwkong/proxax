@@ -17,6 +17,9 @@ dependencies = [
   "optax>=0.2.2",
 ]
 
+[project.urls]
+Repository = "https://github.com/wwkong/proxax"
+
 [project.optional-dependencies]
 cuda12 = [
   "jax[cuda12]>=0.4.30",
