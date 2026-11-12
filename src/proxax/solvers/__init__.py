@@ -14,6 +14,8 @@ AIPP = unconstrained.AIPP
 AIPPState = unconstrained.AIPPState
 APD = unconstrained.APD
 APDState = unconstrained.APDState
+IALM = constrained.IALM
+IALMState = constrained.IALMState
 PFACGConfig = inner.PFACGConfig
 PFACGState = inner.PFACGState
 PFACGStatus = inner.PFACGStatus
@@ -35,6 +37,8 @@ __all__ = [
     "AIPPState",
     "APD",
     "APDState",
+    "IALM",
+    "IALMState",
     "PFACGConfig",
     "PFACGState",
     "PFACGStatus",

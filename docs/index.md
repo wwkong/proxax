@@ -5,11 +5,11 @@ nonconvex composite optimization in **JAX** and **Optax**.
 
 ## Mathematical Scope
 
-1. **Unconstrained Nonconvex Composite Optimization (`AIPP`):**
+1. **Unconstrained Nonconvex Composite Optimization (`AIPP`, `APD`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x)$$
 
-2. **Set / Cone-Constrained Nonconvex Composite Optimization (`QPAIPP`):**
+2. **Set / Cone-Constrained Nonconvex Composite Optimization (`QPAIPP`, `QPAPD`, `IALM`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
 

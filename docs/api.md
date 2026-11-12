@@ -72,6 +72,9 @@
 
 .. automodule:: proxax.solvers.constrained.qp_apd
    :members:
+
+.. automodule:: proxax.solvers.constrained.ialm
+   :members:
 ```
 
 ## Optax Compatibility (`proxax.optax_compat`)

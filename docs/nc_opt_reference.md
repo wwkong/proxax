@@ -56,20 +56,17 @@ Unlike "Accelerated Primal-Dual" methods in saddle-point literature, Kong's **`A
 | :--- | :--- | :--- |
 | Oracle `(f, grad_f, h, prox_h)` + curvature `(m, M)` | `proxax.oracle.terms.SmoothTerm`, `proxax.prox.base.ProxOperator`, `proxax.oracle.composite.CompositeOracle` | Arbitrary JAX PyTrees + automatic `domain_project` onto $\operatorname{cl}(\operatorname{dom}(h))$. |
 | Refinement $(y) \mapsto (\hat{x}, \hat{v})$ | `proxax.certificates.stationarity.refine` | Exact $\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x})$ via one adaptive composite gradient step. |
-| Proximal subproblem $\phi(x) + \frac{1}{2\lambda_k}\|x - z_k\|^2$ | `proxax.oracle.composite.ProxRegularizedOracle` | Splits $1/\lambda_k = \alpha_{\text{smooth}} + \mu_{\text{prox}}$ so inner `ACG` exploits $\mu_{\text{prox}}$-strong convexity. |
-| Inner `ACG` ($\sigma$-criterion + $(u_t, \eta_t)$) | `proxax.solvers.inner.acg` (`init_acg`, `step_acg`, `run_acg`) | Tracks $(u_t, \eta_t) \in \partial_{\eta_t} \psi_k(y_t)$ and convexity check. |
-| Unconstrained `AIPP` & adaptive `R-AIPP` | `proxax.solvers.unconstrained.aipp.AIPP` | Supports both known-$m$ (`lower_curvature`) and adaptive-$\lambda_k$ modes. |
+| Proximal subproblem $\phi(x) + \frac{1}{2\lambda_k}\|x - z_k\|^2$ | `proxax.oracle.composite.ProxRegularizedOracle`, `RescaledProxOracle` | Splits $1/\lambda_k = \alpha_{\text{smooth}} + \mu_{\text{prox}}$ (`AIPP`) or rescales $(\phi + \hat{m}\|\cdot - z_k\|^2)/(2\hat{m})$ (`APD`). |
+| Inner `ACG` & `PF.ACG` | `proxax.solvers.inner.acg`, `proxax.solvers.inner.pf_acg` | Tracks $(u_t, \eta_t)$ (`ACG`) or exact refinement-free $r_{j+1}$ + bad/good checks (`PF.ACG`). |
+| Unconstrained `AIPP`, `R-AIPP`, & `APD` (`PF.APD`) | `proxax.solvers.unconstrained.aipp.AIPP`, `proxax.solvers.unconstrained.apd.APD` | Known-$m$ / adaptive-$\lambda_k$ `AIPP` and parameter-free `PF.APD` + Eq. (6.1) decay. |
 | Set/cone constraint $\mathcal{A}(x) \in \mathcal{C}$ & Moreau envelope | `proxax.constraints.sets`, `proxax.constraints.linear_op`, `proxax.oracle.composite.PenalizedOracle` | Matrix or PyTree callable $\mathcal{A}$ (`jax.linear_transpose` adjoint) + any `ConvexSet` projection $\Pi_{\mathcal{C}}$. |
-| Constrained `QP-AIPP` | `proxax.solvers.constrained.qp_aipp.QPAIPP` | Geometric penalty continuation + `AIPP` preserving unpenalized $\lambda_k$. |
-| Optax step-by-step transforms | `proxax.optax_compat.transforms` (`proximal`, `aipp`, `qp_aipp`) | Single-inner-step PyTree state machines compatible with `jax.jit` and `jax.lax.while_loop`. |
+| Constrained `QP-AIPP`, `QP-APD`, & `iALM` (`NL-IAPIAL` / `AIDAL`) | `proxax.solvers.constrained` (`QPAIPP`, `QPAPD`, `IALM`) | Geometric penalty homotopy (`QPAIPP`, `QPAPD`) and dampened proximal AL (`IALM` with `'apd'` or `'aipp'`). |
+| Optax step-by-step transforms | `proxax.optax_compat.transforms` (`proximal`, `aipp`, `apd`, `qp_aipp`, `qp_apd`, `ialm`) | Single-inner-step PyTree state machines compatible with `jax.jit` and `jax.lax.while_loop`. |
 
 ---
 
-## 4. Prioritized Roadmap for WSL2 Development
+## 4. Next Extensions for WSL2 Development
 
-1. **Implement `APD` (`PF.APD` + `PF.ACG`) in `src/proxax/solvers/unconstrained/apd.py` (and `solvers/inner/pf_acg.py`):**
-   - Implement Algorithms 3.1–3.4 + optional practical decay Eq. (6.1) from https://wwkong.github.io/files/publications/apd.pdf, wire `proxax.solve(..., method="apd")`, and allow `QPAIPP` (and `optax_compat`) to use `APD` as a parameter-free subproblem solver (`QP-APD`).
-2. **Dampened Inexact Augmented Lagrangian (`iALM` / `NL-IAPIAL` / `AIDAL`) in `src/proxax/solvers/constrained/`:**
-   - `PenalizedOracle` in `src/proxax/oracle/composite.py` already implements the dampened Moreau-envelope AL smooth term (`multiplier`, `penalty`, `dampen`) and `effective_dual` $\hat{p}(x)$. Pair it with `AIPP` and `APD` (`PF.APD`-powered parameter-free `iALM`, as proposed in Section 7 of `apd.pdf`!).
-3. **Additional Matrix/Cone Primitives & `benchmarks/` Suite:**
-   - Add `prox.NuclearNorm` (SVD soft-thresholding, used in LRMC Eq. (6.4) of `apd.pdf`) and `sets.PSDCone` (`jnp.linalg.eigh`, used in QSDP Eq. (6.2) of `apd.pdf`), plus a standalone `benchmarks/` folder (keeping `tests/` tiny and `< 10s`).
+1. **Completed Core Solvers:** `APD` (`PF.ACG` + `PF.APD`), `QP-APD` (`QPAPD`), dampened proximal `iALM` (`IALM`: parameter-free `iALM`, `NL-IAPIAL`, and `AIDAL`), and single-step Optax transforms (`apd`, `qp_apd`, `ialm`) are implemented and verified.
+2. **Additional Matrix/Cone Primitives & `benchmarks/` Suite:**
+   - Add `prox.NuclearNorm` (SVD soft-thresholding, used in LRMC Eq. (6.4) of `apd.pdf`) and `sets.PSDCone` (`jnp.linalg.eigh`, used in QSDP Eq. (6.2) of `apd.pdf`), plus a standalone `benchmarks/` folder (keeping `tests/` tiny and fast).

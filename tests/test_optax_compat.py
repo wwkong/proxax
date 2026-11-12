@@ -207,3 +207,61 @@ def test_optax_qp_apd_transform() -> None:
   assert int(state.penalty_iter) >= 1
   assert float(state.opt_residual) <= 2e-3
   assert float(state.feas_residual) <= 2e-3
+
+
+def test_optax_ialm_transform() -> None:
+  def smooth_fn(p: dict[str, jax.Array]) -> jax.Array:
+    x = p["x"]
+    return 0.5 * jnp.sum((x - jnp.array([0.6, -0.2])) ** 2)
+
+  tx = optax_compat.ialm(
+      constraints={
+          "eq": constraints.equality(
+              lambda p: jnp.sum(p["x"]),
+              rhs=jnp.asarray(0.5),
+          ),
+      },
+      prox_op=prox.Box(lower=-1.0, upper=1.0),
+      lower_curvature=0.0,
+      dampen=0.2,
+      dual_step=0.8,
+      penalty_init=2.0,
+      penalty_factor=3.0,
+      opt_tol=2e-3,
+      feas_tol=2e-3,
+      max_apd_iters=15,
+      max_inner_iters=50,
+  )
+  params = {"x": jnp.array([0.1, 0.1])}
+  state = tx.init(params)
+
+  @jax.jit
+  def run_loop(
+      p0: dict[str, jax.Array],
+      st0: optax_compat.IALMTransformState,
+  ) -> tuple[dict[str, jax.Array], optax_compat.IALMTransformState]:
+    def cond_fn(
+        carry: tuple[dict[str, jax.Array], optax_compat.IALMTransformState],
+    ) -> jax.Array:
+      _, st = carry
+      return jnp.logical_and(
+          jnp.logical_not(st.converged),
+          st.total_steps < 300,
+      )
+
+    def body_fn(
+        carry: tuple[dict[str, jax.Array], optax_compat.IALMTransformState],
+    ) -> tuple[dict[str, jax.Array], optax_compat.IALMTransformState]:
+      p, st = carry
+      val, grads = jax.value_and_grad(smooth_fn)(p)
+      updates, next_st = tx.update(grads, st, p, value=val, value_fn=smooth_fn)
+      return optax.apply_updates(p, updates), next_st
+
+    return jax.lax.while_loop(cond_fn, body_fn, (p0, st0))
+
+  params, state = run_loop(params, state)
+
+  assert bool(state.converged)
+  assert int(state.alm_iter) >= 1
+  assert float(state.opt_residual) <= 2e-3
+  assert float(state.feas_residual) <= 2e-3

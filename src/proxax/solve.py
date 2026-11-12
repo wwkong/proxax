@@ -7,6 +7,7 @@ import typing
 from proxax import _typing
 from proxax import problem as problem_mod
 from proxax.solvers import base
+from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
 from proxax.solvers.unconstrained import aipp
@@ -31,10 +32,11 @@ def solve(
     problem: Unconstrained or set/cone-constrained `CompositeProblem`.
     x0: Initial primal PyTree iterate.
     solver: Optional explicit solver instance (`AIPP`, `APD`, `QPAIPP`,
-      `QPAPD`, etc.).
-    method: Optional solver name (`'aipp'`, `'apd'`, `'qp_aipp'`, `'qp_apd'`).
-      Mutually exclusive with `solver`. When both `solver` and `method` are
-      `None`, dispatches to `AIPP` if unconstrained and `QPAIPP` if constrained.
+      `QPAPD`, `IALM`, etc.).
+    method: Optional solver name (`'aipp'`, `'apd'`, `'qp_aipp'`, `'qp_apd'`,
+      `'ialm'`, `'nl_iapial'`, `'aidal'`). Mutually exclusive with `solver`.
+      When both `solver` and `method` are `None`, dispatches to `AIPP` if
+      unconstrained and `QPAIPP` if constrained.
     opt_tol: Default stationarity tolerance used when `solver` is `None`.
     feas_tol: Default primal feasibility tolerance used when `solver` is `None`.
     jit: If True, executes inner/outer loops via `jax.lax.while_loop` (`jit` and
@@ -68,10 +70,27 @@ def solve(
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     elif key == "qp_apd":
       chosen = qp_apd.QPAPD(opt_tol=opt_tol, feas_tol=feas_tol)
+    elif key == "ialm":
+      chosen = ialm.IALM(opt_tol=opt_tol, feas_tol=feas_tol)
+    elif key == "nl_iapial":
+      chosen = ialm.IALM(
+          opt_tol=opt_tol,
+          feas_tol=feas_tol,
+          subproblem_solver="aipp",
+          dampen=0.0,
+      )
+    elif key == "aidal":
+      chosen = ialm.IALM(
+          opt_tol=opt_tol,
+          feas_tol=feas_tol,
+          subproblem_solver="aipp",
+          dampen=0.25,
+          dual_step=0.5,
+      )
     else:
       raise ValueError(
           f"Unknown solver `method` {method!r}; expected 'aipp', 'apd', "
-          "'qp_aipp', or 'qp_apd'."
+          "'qp_aipp', 'qp_apd', 'ialm', 'nl_iapial', or 'aidal'."
       )
 
   return chosen.solve(
