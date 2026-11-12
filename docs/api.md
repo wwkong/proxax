@@ -94,6 +94,9 @@
 .. automodule:: proxax.solvers.unconstrained.ia_icg
    :members:
 
+.. automodule:: proxax.solvers.unconstrained.da_icg
+   :members:
+
 .. automodule:: proxax.solvers.constrained.qp_aipp
    :members:
 

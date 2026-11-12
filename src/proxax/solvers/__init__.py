@@ -22,6 +22,8 @@ AdapAPG = unconstrained.AdapAPG
 AdapAPGState = unconstrained.AdapAPGState
 AdapFISTA = unconstrained.AdapFISTA
 AdapFISTAState = unconstrained.AdapFISTAState
+DAICG = unconstrained.DAICG
+DAICGState = unconstrained.DAICGState
 ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
 IALM = constrained.IALM
@@ -61,6 +63,8 @@ __all__ = [
     "AdapAPGState",
     "AdapFISTA",
     "AdapFISTAState",
+    "DAICG",
+    "DAICGState",
     "ECG",
     "ECGState",
     "IALM",

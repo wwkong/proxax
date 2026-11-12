@@ -21,6 +21,7 @@ APD = solvers.APD
 AdapAPG = solvers.AdapAPG
 AdapFISTA = solvers.AdapFISTA
 CompositeProblem = _problem.CompositeProblem
+DAICG = solvers.DAICG
 ECG = solvers.ECG
 IAICG = solvers.IAICG
 IALM = solvers.IALM
@@ -46,6 +47,7 @@ __all__ = [
     "AdapAPG",
     "AdapFISTA",
     "CompositeProblem",
+    "DAICG",
     "ECG",
     "IAICG",
     "IALM",

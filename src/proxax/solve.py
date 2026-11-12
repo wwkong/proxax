@@ -17,6 +17,7 @@ from proxax.solvers.unconstrained import adap_fista
 from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
 from proxax.solvers.unconstrained import apd
+from proxax.solvers.unconstrained import da_icg
 from proxax.solvers.unconstrained import ecg
 from proxax.solvers.unconstrained import ia_icg
 from proxax.solvers.unconstrained import nc_fista
@@ -61,7 +62,7 @@ def solve(
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
 
-  if isinstance(solver, ia_icg.IAICG):
+  if isinstance(solver, ia_icg.IAICG | da_icg.DAICG):
     return solver.solve(
         problem,
         x0,
@@ -108,6 +109,14 @@ def solve(
       chosen = adap_apg.AdapAPG(opt_tol=opt_tol)
     elif key in ("ia_icg", "iaicg", "aicg"):
       return ia_icg.IAICG(opt_tol=opt_tol).solve(
+          problem,
+          x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
+    elif key in ("da_icg", "daicg", "d_aicg"):
+      return da_icg.DAICG(opt_tol=opt_tol).solve(
           problem,
           x0,
           jit=jit,
