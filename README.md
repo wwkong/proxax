@@ -59,3 +59,12 @@ sol = proxax.solve(problem, x0, solver=solvers.QPAIPP(opt_tol=1e-5, feas_tol=1e-
 - **Unconstrained Spectral (`SpectralProblem` / `NuclearNorm`):** `IAICG`, `DAICG`
 - **Set / Cone-Constrained (`CompositeProblem` with `constraints`):** `QPAIPP`, `QPAPD`, `IALM` (`NL-IAPIAL` / `AIDAL`), `SProxALM`, `IAIPAL`
 - **Optax Single-Step Transforms (`proxax.optax_compat`):** `proximal`, `aipp`, `apd`, `qp_aipp`, `qp_apd`, `ialm`
+
+## Runnable `nc_opt` Examples
+
+Self-contained benchmark scripts ported from [`wwkong/nc_opt`](https://github.com/wwkong/nc_opt) live in [`examples/`](examples/):
+
+- [`examples/unconstrained_nc_opt.py`](examples/unconstrained_nc_opt.py) — univariate convex QP, nonconvex simplex QP across 7 solvers, and nonconvex `tanh` SVM.
+- [`examples/spectral_matrix_completion.py`](examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`IAICG`, `DAICG`, `APD`) vs convex `NuclearNorm`.
+- [`examples/constrained_nc_opt.py`](examples/constrained_nc_opt.py) — linearly-constrained nonconvex simplex QP across all 5 constrained solvers, MCP Sparse PCA on the $k$-Fantope (PyTree `IALM`), and box-constrained matrix completion.
+- [`examples/optax_and_vmap.py`](examples/optax_and_vmap.py) — single-step trajectory tracking with `proxax.optax_compat` and parallel solving of 16 nonconvex QPs via `jax.jit(jax.vmap(...))`.
