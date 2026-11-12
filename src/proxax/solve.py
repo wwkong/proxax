@@ -8,6 +8,7 @@ from proxax import _typing
 from proxax import problem as problem_mod
 from proxax.oracle import spectral
 from proxax.solvers import base
+from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
@@ -44,10 +45,13 @@ def solve(
     x0: Initial primal PyTree iterate.
     solver: Optional explicit solver instance (`AIPP`, `APD`, `QPAIPP`,
       `QPAPD`, `IALM`, etc.).
-    method: Optional solver name (`'aipp'`, `'apd'`, `'qp_aipp'`, `'qp_apd'`,
-      `'ialm'`, `'nl_iapial'`, `'aidal'`). Mutually exclusive with `solver`.
-      When both `solver` and `method` are `None`, dispatches to `AIPP` if
-      unconstrained and `QPAIPP` if constrained.
+    method: Optional solver name (`'aipp'`, `'apd'`, `'ecg'`, `'ag'`,
+      `'upfag'`, `'nc_fista'`, `'adap_fista'`, `'ac_acg'`, `'adap_apg'`,
+      `'ia_icg'`, `'da_icg'`, `'qp_aipp'`, `'qp_apd'`, `'ialm'`,
+      `'nl_iapial'`, `'aidal'`, `'s_prox_alm'`, or `'iaipal'`). Mutually
+      exclusive with `solver`. When both `solver` and `method` are `None`,
+      dispatches to `IAICG` for `SpectralProblem`, `QPAIPP` if constrained,
+      and `AIPP` if unconstrained.
     opt_tol: Default stationarity tolerance used when `solver` is `None`.
     feas_tol: Default primal feasibility tolerance used when `solver` is `None`.
     jit: If True, executes inner/outer loops via `jax.lax.while_loop` (`jit` and
@@ -147,10 +151,14 @@ def solve(
       )
     elif key in ("s_prox_alm", "sproxalm"):
       chosen = s_prox_alm.SProxALM(opt_tol=opt_tol, feas_tol=feas_tol)
+    elif key in ("iaipal", "iapial"):
+      chosen = iaipal.IAIPAL(opt_tol=opt_tol, feas_tol=feas_tol)
     else:
       raise ValueError(
-          f"Unknown solver `method` {method!r}; expected 'aipp', 'apd', "
-          "'qp_aipp', 'qp_apd', 'ialm', 'nl_iapial', or 'aidal'."
+          f"Unknown solver `method` {method!r}; expected one of 'aipp', "
+          "'apd', 'ecg', 'ag', 'upfag', 'nc_fista', 'adap_fista', 'ac_acg', "
+          "'adap_apg', 'ia_icg', 'da_icg', 'qp_aipp', 'qp_apd', 'ialm', "
+          "'nl_iapial', 'aidal', 's_prox_alm', or 'iaipal'."
       )
 
   comp_prob = (

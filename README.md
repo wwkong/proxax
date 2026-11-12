@@ -34,3 +34,10 @@ problem = proxax.CompositeProblem(
 
 sol = proxax.solve(problem, x0, solver=solvers.QPAIPP(opt_tol=1e-5, feas_tol=1e-5))
 ```
+
+## Available Certified Solvers (`wwkong/nc_opt` Suite)
+
+- **Unconstrained Composite (`CompositeProblem`):** `AIPP`, `APD` (`PF.APD`), `ECG`, `AG`, `UPFAG`, `NCFISTA`, `AdapFISTA`, `ACACG`, `AdapAPG`
+- **Unconstrained Spectral (`SpectralProblem` / `NuclearNorm`):** `IAICG`, `DAICG`
+- **Set / Cone-Constrained (`CompositeProblem` with `constraints`):** `QPAIPP`, `QPAPD`, `IALM` (`NL-IAPIAL` / `AIDAL`), `SProxALM`, `IAIPAL`
+- **Optax Single-Step Transforms (`proxax.optax_compat`):** `proximal`, `aipp`, `apd`, `qp_aipp`, `qp_apd`, `ialm`

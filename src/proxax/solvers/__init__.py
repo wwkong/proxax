@@ -30,6 +30,8 @@ IALM = constrained.IALM
 IALMState = constrained.IALMState
 IAICG = unconstrained.IAICG
 IAICGState = unconstrained.IAICGState
+IAIPAL = constrained.IAIPAL
+IAIPALState = constrained.IAIPALState
 NCFISTA = unconstrained.NCFISTA
 NCFISTAState = unconstrained.NCFISTAState
 PFACGConfig = inner.PFACGConfig
@@ -73,6 +75,8 @@ __all__ = [
     "IALMState",
     "IAICG",
     "IAICGState",
+    "IAIPAL",
+    "IAIPALState",
     "NCFISTA",
     "NCFISTAState",
     "PFACGConfig",

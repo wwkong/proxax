@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
 from proxax.solvers.constrained import s_prox_alm
 
+IAIPAL = iaipal.IAIPAL
+IAIPALState = iaipal.IAIPALState
 IALM = ialm.IALM
 IALMState = ialm.IALMState
 QPAIPP = qp_aipp.QPAIPP
@@ -17,6 +20,8 @@ SProxALM = s_prox_alm.SProxALM
 SProxALMState = s_prox_alm.SProxALMState
 
 __all__ = [
+    "IAIPAL",
+    "IAIPALState",
     "IALM",
     "IALMState",
     "QPAIPP",

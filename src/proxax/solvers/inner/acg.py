@@ -64,7 +64,7 @@ class _ACGLineSearchCarry:
 class ACGConfig:
   """Hyperparameters for the inner `ACG` subproblem solver."""
 
-  sigma: float = 0.3
+  sigma: float | jax.Array = 0.3
   max_iters: int = 1000
   backtrack_factor: float = 2.0
   ls_decrease: float = 0.9

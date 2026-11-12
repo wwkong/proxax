@@ -24,6 +24,7 @@ CompositeProblem = _problem.CompositeProblem
 DAICG = solvers.DAICG
 ECG = solvers.ECG
 IAICG = solvers.IAICG
+IAIPAL = solvers.IAIPAL
 IALM = solvers.IALM
 KKTResiduals = _problem.KKTResiduals
 NCFISTA = solvers.NCFISTA
@@ -51,6 +52,7 @@ __all__ = [
     "DAICG",
     "ECG",
     "IAICG",
+    "IAIPAL",
     "IALM",
     "KKTResiduals",
     "NCFISTA",
