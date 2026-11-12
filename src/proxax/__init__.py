@@ -14,6 +14,7 @@ from proxax import tree
 
 __version__ = "0.1.0"
 
+ACACG = solvers.ACACG
 AG = solvers.AG
 AIPP = solvers.AIPP
 APD = solvers.APD
@@ -34,6 +35,7 @@ UPFAG = solvers.UPFAG
 solve = _solve.solve
 
 __all__ = [
+    "ACACG",
     "AG",
     "AIPP",
     "APD",

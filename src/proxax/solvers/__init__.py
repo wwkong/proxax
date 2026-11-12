@@ -7,6 +7,8 @@ from proxax.solvers import constrained
 from proxax.solvers import inner
 from proxax.solvers import unconstrained
 
+ACACG = unconstrained.ACACG
+ACACGState = unconstrained.ACACGState
 ACGConfig = inner.ACGConfig
 ACGState = inner.ACGState
 ACGStatus = inner.ACGStatus
@@ -40,6 +42,8 @@ UPFAG = unconstrained.UPFAG
 UPFAGState = unconstrained.UPFAGState
 
 __all__ = [
+    "ACACG",
+    "ACACGState",
     "ACGConfig",
     "ACGState",
     "ACGStatus",

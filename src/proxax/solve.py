@@ -10,6 +10,7 @@ from proxax.solvers import base
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
+from proxax.solvers.unconstrained import ac_acg
 from proxax.solvers.unconstrained import adap_fista
 from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
@@ -81,6 +82,8 @@ def solve(
       chosen = nc_fista.NCFISTA(opt_tol=opt_tol)
     elif key in ("adap_fista", "adap_nc_fista", "adapfista"):
       chosen = adap_fista.AdapFISTA(opt_tol=opt_tol)
+    elif key in ("ac_acg", "acacg"):
+      chosen = ac_acg.ACACG(opt_tol=opt_tol)
     elif key == "qp_aipp":
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     elif key == "qp_apd":

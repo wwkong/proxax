@@ -82,6 +82,9 @@
 .. automodule:: proxax.solvers.unconstrained.adap_fista
    :members:
 
+.. automodule:: proxax.solvers.unconstrained.ac_acg
+   :members:
+
 .. automodule:: proxax.solvers.constrained.qp_aipp
    :members:
 
