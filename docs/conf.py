@@ -8,7 +8,7 @@ os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 project = "proxax"
 author = "William Kong"
-release = "0.0.1"
+release = "0.0.2"
 extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",

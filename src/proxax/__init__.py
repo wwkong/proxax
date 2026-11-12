@@ -12,7 +12,7 @@ from proxax import solve as _solve
 from proxax import solvers
 from proxax import tree
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 ACACG = solvers.ACACG
 AG = solvers.AG
