@@ -223,6 +223,84 @@ class ProxRegularizedOracle:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RescaledProxOracle:
+  """Parameterized rescaled proximal subproblem oracle for `PF.APD` (`APD`).
+
+  Represents Eq. (3.3) / (3.12) of Kong (SIAM J. Optim. 2024):
+
+  - `psi^s(z) = scale * f(z) + 0.5 * ||z - center||_2^2`
+  - `psi^n(z) = scale * h(z)`
+
+  where `scale = 1 / (2 * m_hat) > 0`. Placing the unit quadratic regularization
+  in `psi^s` while scaling `h` by `scale` matches `Oracle.proxify` in
+  `wwkong/nc_opt` without closure re-tracing under `jax.jit` or `jax.vmap`.
+  """
+
+  base: CompositeOracleProtocol
+  center: _typing.PyTree
+  scale: jax.Array
+
+  @property
+  def curvature_upper(self) -> jax.Array | float | None:
+    """Upper smoothness bound `scale * L^+ + 1` if `L^+` is known."""
+    if self.base.curvature_upper is None:
+      return None
+    return self.scale * self.base.curvature_upper + 1.0
+
+  @property
+  def curvature_lower(self) -> jax.Array | float | None:
+    """Weak-convexity bound `max(0, scale * m - 1)` if `m` is known."""
+    if self.base.curvature_lower is None:
+      return None
+    return jnp.maximum(0.0, self.scale * self.base.curvature_lower - 1.0)
+
+  @property
+  def strong_convexity(self) -> jax.Array:
+    """Strong convexity `scale * base.strong_convexity` of `psi^n`."""
+    return self.scale * jnp.asarray(
+        self.base.strong_convexity,
+        dtype=self.scale.dtype,
+    )
+
+  def smooth_value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `scale * f(x) + 0.5 * ||x - center||_2^2`."""
+    diff = tree.sub(x, self.center)
+    return self.scale * self.base.smooth_value(x) + 0.5 * tree.norm_sq(diff)
+
+  def smooth_value_and_grad(
+      self,
+      x: _typing.PyTree,
+  ) -> tuple[jax.Array, _typing.PyTree]:
+    """Evaluates `(psi^s(x), scale * grad_f(x) + (x - center))`."""
+    val, grad = self.base.smooth_value_and_grad(x)
+    diff = tree.sub(x, self.center)
+    sub_val = self.scale * val + 0.5 * tree.norm_sq(diff)
+    sub_grad = tree.add_scaled(diff, self.scale, grad)
+    return sub_val, sub_grad
+
+  def proximal_value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `scale * h(x)`."""
+    return self.scale * self.base.proximal_value(x)
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `psi^s(x) + psi^n(x)`."""
+    return self.smooth_value(x) + self.proximal_value(x)
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Evaluates `prox_{(step_size * scale) * h}(x)`."""
+    return self.base.prox(x, self.scale * step_size)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Projects `x` onto `cl(dom(h))`."""
+    return self.base.domain_project(x)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class PenalizedOracle:
   """Parameterized penalty / Augmented Lagrangian composite oracle.
 

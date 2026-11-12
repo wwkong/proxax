@@ -12,6 +12,11 @@ ACGState = inner.ACGState
 ACGStatus = inner.ACGStatus
 AIPP = unconstrained.AIPP
 AIPPState = unconstrained.AIPPState
+APD = unconstrained.APD
+APDState = unconstrained.APDState
+PFACGConfig = inner.PFACGConfig
+PFACGState = inner.PFACGState
+PFACGStatus = inner.PFACGStatus
 QPAIPP = constrained.QPAIPP
 QPAIPPState = constrained.QPAIPPState
 Solution = base.Solution
@@ -26,6 +31,11 @@ __all__ = [
     "ACGStatus",
     "AIPP",
     "AIPPState",
+    "APD",
+    "APDState",
+    "PFACGConfig",
+    "PFACGState",
+    "PFACGStatus",
     "QPAIPP",
     "QPAIPPState",
     "Solution",

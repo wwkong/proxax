@@ -9,6 +9,7 @@ from proxax import problem as problem_mod
 from proxax.solvers import base
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.unconstrained import aipp
+from proxax.solvers.unconstrained import apd
 
 
 def solve(
@@ -16,20 +17,22 @@ def solve(
     x0: _typing.PyTree,
     *,
     solver: base.Solver | None = None,
+    method: str | None = None,
     opt_tol: float = 1e-5,
     feas_tol: float = 1e-5,
     jit: bool = True,
     callback: typing.Any = None,
     time_limit: float | None = None,
 ) -> base.Solution:
-  """Solves a `CompositeProblem`, automatically selecting `AIPP` or `QPAIPP`.
+  """Solves a `CompositeProblem` via `AIPP`, `APD`, or constrained solvers.
 
   Args:
     problem: Unconstrained or set/cone-constrained `CompositeProblem`.
     x0: Initial primal PyTree iterate.
-    solver: Optional explicit solver instance (`AIPP`, `QPAIPP`, etc.). When
-      omitted, dispatches to `AIPP(opt_tol=opt_tol)` if unconstrained and
-      `QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)` if constrained.
+    solver: Optional explicit solver instance (`AIPP`, `APD`, `QPAIPP`, etc.).
+    method: Optional solver name (`'aipp'`, `'apd'`, `'qp_aipp'`). Mutually
+      exclusive with `solver`. When both `solver` and `method` are `None`,
+      dispatches to `AIPP` if unconstrained and `QPAIPP` if constrained.
     opt_tol: Default stationarity tolerance used when `solver` is `None`.
     feas_tol: Default primal feasibility tolerance used when `solver` is `None`.
     jit: If True, executes inner/outer loops via `jax.lax.while_loop` (`jit` and
@@ -42,14 +45,30 @@ def solve(
     A `Solution` PyTree with certified primal `x`, optional `dual`, exact
     stationarity residual `subgrad`, `status`, and `stats`.
   """
+  if solver is not None and method is not None:
+    raise ValueError("Specify at most one of `solver` or `method`.")
+
   chosen: base.Solver
-  if solver is None:
+  if solver is not None:
+    chosen = solver
+  elif method is None:
     if problem.is_constrained:
       chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
     else:
       chosen = aipp.AIPP(opt_tol=opt_tol)
   else:
-    chosen = solver
+    key = method.strip().lower().replace("-", "_")
+    if key == "aipp":
+      chosen = aipp.AIPP(opt_tol=opt_tol)
+    elif key == "apd" or key == "pf_apd":
+      chosen = apd.APD(opt_tol=opt_tol)
+    elif key == "qp_aipp":
+      chosen = qp_aipp.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)
+    else:
+      raise ValueError(
+          f"Unknown solver `method` {method!r}; expected 'aipp', 'apd', or "
+          "'qp_aipp'."
+      )
 
   return chosen.solve(
       problem,

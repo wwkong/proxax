@@ -9,6 +9,7 @@ CompositeOracle = composite.CompositeOracle
 CompositeOracleProtocol = composite.CompositeOracleProtocol
 PenalizedOracle = composite.PenalizedOracle
 ProxRegularizedOracle = composite.ProxRegularizedOracle
+RescaledProxOracle = composite.RescaledProxOracle
 SmoothObjective = terms.SmoothObjective
 SmoothTerm = terms.SmoothTerm
 ZeroSmooth = terms.ZeroSmooth
@@ -19,6 +20,7 @@ __all__ = [
     "CompositeOracleProtocol",
     "PenalizedOracle",
     "ProxRegularizedOracle",
+    "RescaledProxOracle",
     "SmoothObjective",
     "SmoothTerm",
     "ZeroSmooth",

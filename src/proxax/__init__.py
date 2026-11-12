@@ -15,6 +15,7 @@ from proxax import tree
 __version__ = "0.1.0"
 
 AIPP = solvers.AIPP
+APD = solvers.APD
 CompositeProblem = _problem.CompositeProblem
 KKTResiduals = _problem.KKTResiduals
 QPAIPP = solvers.QPAIPP
@@ -27,6 +28,7 @@ solve = _solve.solve
 
 __all__ = [
     "AIPP",
+    "APD",
     "CompositeProblem",
     "KKTResiduals",
     "QPAIPP",

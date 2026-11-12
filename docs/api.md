@@ -58,7 +58,13 @@
 .. automodule:: proxax.solvers.inner.acg
    :members:
 
+.. automodule:: proxax.solvers.inner.pf_acg
+   :members:
+
 .. automodule:: proxax.solvers.unconstrained.aipp
+   :members:
+
+.. automodule:: proxax.solvers.unconstrained.apd
    :members:
 
 .. automodule:: proxax.solvers.constrained.qp_aipp
