@@ -29,6 +29,7 @@ KKTResiduals = _problem.KKTResiduals
 NCFISTA = solvers.NCFISTA
 QPAIPP = solvers.QPAIPP
 QPAPD = solvers.QPAPD
+SProxALM = solvers.SProxALM
 Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
@@ -55,6 +56,7 @@ __all__ = [
     "NCFISTA",
     "QPAIPP",
     "QPAPD",
+    "SProxALM",
     "Solution",
     "SolveStats",
     "SolveStatus",

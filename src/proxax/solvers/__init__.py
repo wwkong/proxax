@@ -39,6 +39,8 @@ QPAIPP = constrained.QPAIPP
 QPAIPPState = constrained.QPAIPPState
 QPAPD = constrained.QPAPD
 QPAPDState = constrained.QPAPDState
+SProxALM = constrained.SProxALM
+SProxALMState = constrained.SProxALMState
 Solution = base.Solution
 Solver = base.Solver
 SolveStats = base.SolveStats
@@ -80,6 +82,8 @@ __all__ = [
     "QPAIPPState",
     "QPAPD",
     "QPAPDState",
+    "SProxALM",
+    "SProxALMState",
     "Solution",
     "SolveStats",
     "SolveStatus",

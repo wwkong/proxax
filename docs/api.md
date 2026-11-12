@@ -105,6 +105,9 @@
 
 .. automodule:: proxax.solvers.constrained.ialm
    :members:
+
+.. automodule:: proxax.solvers.constrained.s_prox_alm
+   :members:
 ```
 
 ## Optax Compatibility (`proxax.optax_compat`)

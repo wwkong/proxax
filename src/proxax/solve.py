@@ -11,6 +11,7 @@ from proxax.solvers import base
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
+from proxax.solvers.constrained import s_prox_alm
 from proxax.solvers.unconstrained import ac_acg
 from proxax.solvers.unconstrained import adap_apg
 from proxax.solvers.unconstrained import adap_fista
@@ -144,6 +145,8 @@ def solve(
           dampen=0.25,
           dual_step=0.5,
       )
+    elif key in ("s_prox_alm", "sproxalm"):
+      chosen = s_prox_alm.SProxALM(opt_tol=opt_tol, feas_tol=feas_tol)
     else:
       raise ValueError(
           f"Unknown solver `method` {method!r}; expected 'aipp', 'apd', "
