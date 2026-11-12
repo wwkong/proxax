@@ -18,6 +18,7 @@ ACACG = solvers.ACACG
 AG = solvers.AG
 AIPP = solvers.AIPP
 APD = solvers.APD
+AdapAPG = solvers.AdapAPG
 AdapFISTA = solvers.AdapFISTA
 CompositeProblem = _problem.CompositeProblem
 ECG = solvers.ECG
@@ -39,6 +40,7 @@ __all__ = [
     "AG",
     "AIPP",
     "APD",
+    "AdapAPG",
     "AdapFISTA",
     "CompositeProblem",
     "ECG",

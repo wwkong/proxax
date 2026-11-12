@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from proxax.solvers.unconstrained import ac_acg
+from proxax.solvers.unconstrained import adap_apg
 from proxax.solvers.unconstrained import adap_fista
 from proxax.solvers.unconstrained import ag
 from proxax.solvers.unconstrained import aipp
@@ -19,6 +20,8 @@ AIPP = aipp.AIPP
 AIPPState = aipp.AIPPState
 APD = apd.APD
 APDState = apd.APDState
+AdapAPG = adap_apg.AdapAPG
+AdapAPGState = adap_apg.AdapAPGState
 AdapFISTA = adap_fista.AdapFISTA
 AdapFISTAState = adap_fista.AdapFISTAState
 ECG = ecg.ECG
@@ -37,6 +40,8 @@ __all__ = [
     "AIPPState",
     "APD",
     "APDState",
+    "AdapAPG",
+    "AdapAPGState",
     "AdapFISTA",
     "AdapFISTAState",
     "ECG",
