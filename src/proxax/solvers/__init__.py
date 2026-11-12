@@ -19,6 +19,8 @@ PFACGState = inner.PFACGState
 PFACGStatus = inner.PFACGStatus
 QPAIPP = constrained.QPAIPP
 QPAIPPState = constrained.QPAIPPState
+QPAPD = constrained.QPAPD
+QPAPDState = constrained.QPAPDState
 Solution = base.Solution
 Solver = base.Solver
 SolveStats = base.SolveStats
@@ -38,6 +40,8 @@ __all__ = [
     "PFACGStatus",
     "QPAIPP",
     "QPAIPPState",
+    "QPAPD",
+    "QPAPDState",
     "Solution",
     "SolveStats",
     "SolveStatus",

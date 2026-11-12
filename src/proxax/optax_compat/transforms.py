@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 import typing
 from collections import abc
 
@@ -18,6 +19,7 @@ from proxax.oracle import composite
 from proxax.oracle import terms
 from proxax.prox import base as prox_base
 from proxax.solvers.inner import acg
+from proxax.solvers.inner import pf_acg
 
 StepSizeOrSchedule: typing.TypeAlias = (
     _typing.Scalar | abc.Callable[[jax.Array], _typing.Scalar]
@@ -943,6 +945,1026 @@ def qp_aipp(
         lambda bx, ay: jnp.where(next_state.converged, bx, ay),
         next_state.best_x,
         next_state.acg_y,
+    )
+    return tree.sub(target_primal, params), next_state
+
+  return optax.GradientTransformationExtraArgs(init=init_fn, update=update_fn)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class APDTransformState:
+  """Single-inner-step state machine for `proxax.optax_compat.apd`."""
+
+  initialized: jax.Array
+  converged: jax.Array
+  outer_iter: jax.Array
+  inner_iter: jax.Array
+  total_steps: jax.Array
+  center: _typing.PyTree
+  center_obj: jax.Array
+  best_x: _typing.PyTree
+  pf_x: _typing.PyTree
+  pf_y: _typing.PyTree
+  pf_r: _typing.PyTree
+  pf_a_sum: jax.Array
+  pf_psi_y0: jax.Array
+  pf_psi_y: jax.Array
+  pf_lipschitz: jax.Array
+  lower_curvature: jax.Array
+  upper_curvature: jax.Array
+  never_increased_m: jax.Array
+  subgrad: _typing.PyTree
+  opt_residual: jax.Array
+
+
+def apd(
+    prox_op: prox_base.ProxOperator = _ZERO_PROX,
+    *,
+    opt_tol: float = 1e-5,
+    norm_kind: str = "l2",
+    alpha: float = 2.0,
+    beta: float = 2.0,
+    theta: float = 4.0,
+    rho: float | None = None,
+    decay_curvature: bool = True,
+    lower_curvature: float | None = None,
+    upper_curvature: float | None = None,
+    lower_curvature_init: float | None = None,
+    lower_curvature_min: float = 1e-6,
+    lower_curvature_max: float = 1e12,
+    lipschitz_init: float = 1.0,
+    max_inner_iters: int = 1000,
+) -> optax.GradientTransformationExtraArgs:
+  """Creates an Optax single-step `APD` transformation for `min f(x) + h(x)`.
+
+  Each call to `tx.update(grads, state, params, value_fn=smooth_fn)` executes
+  **one** inner `PF.ACG` step on the rescaled proximal subproblem and updates
+  the refinement-free exact certificate `state.subgrad` at zero extra oracle
+  cost.
+
+  Args:
+    prox_op: Nonsmooth convex `ProxOperator` `h` (defaults to `Zero()`).
+    opt_tol: Stationarity tolerance `||v_hat|| <= opt_tol`.
+    norm_kind: Residual norm (`'l2'` or `'linf'`).
+    alpha: Multiplicative growth factor (`> 1`) for lower curvature `m_hat`.
+    beta: Multiplicative growth factor (`> 1`) for inner smoothness `L`.
+    theta: Proximal descent constant (`> 2`, default `4.0`).
+    rho: Optional inner relative proximal error tolerance in `(0, 1)`.
+    decay_curvature: Whether to apply practical curvature decay Eq. (6.1).
+    lower_curvature: Optional weak-convexity constant `m >= 0` of `value_fn`.
+    upper_curvature: Optional global smoothness constant `M` of `value_fn`.
+    lower_curvature_init: Optional initial lower curvature `m_0 > 0`.
+    lower_curvature_min: Floor `m_min > 0` guarding curvature decay.
+    lower_curvature_max: Maximum allowed lower curvature estimate.
+    lipschitz_init: Initial smoothness estimate `M_0 > 0`.
+    max_inner_iters: Maximum `PF.ACG` steps per proximal subproblem.
+
+  Returns:
+    An `optax.GradientTransformationExtraArgs`.
+  """
+  if alpha <= 1.0:
+    raise ValueError("`alpha` must be strictly greater than 1.")
+  if beta <= 1.0:
+    raise ValueError("`beta` must be strictly greater than 1.")
+  if theta <= 2.0:
+    raise ValueError("`theta` must be strictly greater than 2.")
+  if rho is not None and not (0.0 < rho < 1.0):
+    raise ValueError("`rho` must lie in `(0, 1)`.")
+
+  eff_rho = (
+      rho
+      if rho is not None
+      else (
+          1.0 / math.sqrt(alpha)
+          if decay_curvature
+          else 1.0 / math.sqrt(2.0 * alpha)
+      )
+  )
+  pf_cfg = pf_acg.PFACGConfig(
+      mu=0.5,
+      sigma=eff_rho / math.sqrt(2.0),
+      theta=theta,
+      beta=beta,
+      max_iters=max_inner_iters,
+  )
+
+  def _sub_lip_init(m_val: jax.Array, M_val: jax.Array) -> jax.Array:
+    dtype = M_val.dtype
+    if decay_curvature:
+      M_trial = jnp.maximum(
+          jnp.asarray(1e-8, dtype=dtype),
+          M_val / (1.0 + 0.5 * beta),
+      )
+      return M_trial / (2.0 * m_val) + 1.0
+    return jnp.maximum(
+        jnp.asarray(1.0, dtype=dtype),
+        M_val / (2.0 * m_val) + 1.0,
+    )
+
+  def init_fn(params: _typing.PyTree) -> APDTransformState:
+    p0 = prox_op.domain_project(tree.as_float_tree(params))
+    dtype = tree.infer_dtype(p0)
+    z0 = tree.zeros_like(p0)
+    if lower_curvature_init is not None:
+      m0_f = lower_curvature_init
+    elif lower_curvature is not None:
+      m0_f = (
+          lower_curvature
+          if lower_curvature > 0.0
+          else max(opt_tol, lower_curvature_min)
+      )
+    else:
+      m0_f = 1.0
+    m0 = jnp.clip(
+        jnp.asarray(m0_f, dtype=dtype),
+        jnp.asarray(lower_curvature_min, dtype=dtype),
+        jnp.asarray(lower_curvature_max, dtype=dtype),
+    )
+    M0 = jnp.asarray(lipschitz_init, dtype=dtype)
+    return APDTransformState(
+        initialized=jnp.asarray(False, dtype=jnp.bool_),
+        converged=jnp.asarray(False, dtype=jnp.bool_),
+        outer_iter=jnp.asarray(0, dtype=jnp.int32),
+        inner_iter=jnp.asarray(0, dtype=jnp.int32),
+        total_steps=jnp.asarray(0, dtype=jnp.int32),
+        center=p0,
+        center_obj=jnp.asarray(0.0, dtype=dtype),
+        best_x=p0,
+        pf_x=p0,
+        pf_y=p0,
+        pf_r=z0,
+        pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+        pf_psi_y0=jnp.asarray(0.0, dtype=dtype),
+        pf_psi_y=jnp.asarray(0.0, dtype=dtype),
+        pf_lipschitz=_sub_lip_init(m0, M0),
+        lower_curvature=m0,
+        upper_curvature=M0,
+        never_increased_m=jnp.asarray(True, dtype=jnp.bool_),
+        subgrad=z0,
+        opt_residual=jnp.asarray(jnp.inf, dtype=dtype),
+    )
+
+  def update_fn(
+      updates: _typing.PyTree,
+      state: APDTransformState,
+      params: _typing.PyTree | None = None,
+      *,
+      value: jax.Array | None = None,
+      value_fn: _typing.SmoothFn | None = None,
+      **extra_args: typing.Any,
+  ) -> tuple[_typing.PyTree, APDTransformState]:
+    del updates, value, extra_args
+    if params is None:
+      raise ValueError(
+          "`proxax.optax_compat.apd` requires `params` in `tx.update`."
+      )
+    if value_fn is None:
+      raise ValueError(
+          "`proxax.optax_compat.apd` requires `value_fn=<smooth_objective>` "
+          "to be passed as a keyword argument to `tx.update`."
+      )
+
+    smooth_term = terms.as_smooth_term(
+        value_fn,
+        upper_curvature=upper_curvature,
+        lower_curvature=lower_curvature,
+    )
+    base_oracle = composite.CompositeOracle(
+        smooth=smooth_term,
+        proximal=prox_op,
+    )
+    dtype = state.upper_curvature.dtype
+    tol_arr = jnp.asarray(opt_tol, dtype=dtype)
+    m_min_arr = jnp.asarray(lower_curvature_min, dtype=dtype)
+    m_max_arr = jnp.asarray(lower_curvature_max, dtype=dtype)
+
+    def _bootstrap(st: APDTransformState) -> APDTransformState:
+      p_proj = prox_op.domain_project(tree.as_float_tree(params))
+      ref0 = certificates.refine(
+          base_oracle,
+          p_proj,
+          st.upper_curvature,
+          jit=True,
+      )
+      res0 = tree.norm(ref0.v_hat, kind=norm_kind)
+      conv0 = res0 <= tol_arr
+      M0 = ref0.lipschitz_used
+      psi0 = ref0.obj_val / (2.0 * st.lower_curvature)
+      return APDTransformState(
+          initialized=jnp.asarray(True, dtype=jnp.bool_),
+          converged=conv0,
+          outer_iter=st.outer_iter,
+          inner_iter=jnp.asarray(0, dtype=jnp.int32),
+          total_steps=st.total_steps,
+          center=ref0.x_hat,
+          center_obj=ref0.obj_val,
+          best_x=ref0.x_hat,
+          pf_x=ref0.x_hat,
+          pf_y=ref0.x_hat,
+          pf_r=tree.zeros_like(ref0.x_hat),
+          pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+          pf_psi_y0=psi0,
+          pf_psi_y=psi0,
+          pf_lipschitz=_sub_lip_init(st.lower_curvature, M0),
+          lower_curvature=st.lower_curvature,
+          upper_curvature=M0,
+          never_increased_m=st.never_increased_m,
+          subgrad=ref0.v_hat,
+          opt_residual=res0,
+      )
+
+    st_ready = jax.lax.cond(
+        state.initialized,
+        lambda s: s,
+        _bootstrap,
+        state,
+    )
+
+    def _when_converged(st: APDTransformState) -> APDTransformState:
+      return dataclasses.replace(st, total_steps=st.total_steps + 1)
+
+    def _when_active(st: APDTransformState) -> APDTransformState:
+      m_hat = st.lower_curvature
+      two_m = 2.0 * m_hat
+      sub_oracle = composite.RescaledProxOracle(
+          base=base_oracle,
+          center=st.center,
+          scale=1.0 / two_m,
+      )
+      running_code = jnp.asarray(
+          int(pf_acg.PFACGStatus.RUNNING), dtype=jnp.int32
+      )
+      pf_in = pf_acg.PFACGState(
+          x=st.pf_x,
+          y=st.pf_y,
+          y0=st.center,
+          psi_y0=st.pf_psi_y0,
+          psi_y=st.pf_psi_y,
+          r=st.pf_r,
+          a_sum=st.pf_a_sum,
+          lipschitz=st.pf_lipschitz,
+          iteration=st.inner_iter,
+          status=running_code,
+          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
+          grad_evals=jnp.asarray(0, dtype=jnp.int32),
+          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+      )
+      pf_out = pf_acg.step_pf_acg(
+          sub_oracle,
+          pf_in,
+          config=pf_cfg,
+          two_m=two_m,
+          opt_tol=tol_arr,
+          norm_kind=norm_kind,
+          jit=True,
+      )
+
+      u_cand = tree.scale(two_m, pf_out.r)
+      v_cand = tree.add(
+          u_cand,
+          tree.scale(two_m, tree.sub(st.center, pf_out.y)),
+      )
+      cand_res = tree.norm(v_cand, kind=norm_kind)
+      cand_finite = jnp.logical_and(
+          tree.all_finite(pf_out.y),
+          jnp.isfinite(cand_res),
+      )
+      is_better = jnp.logical_and(cand_finite, cand_res <= st.opt_residual)
+      best_x = jax.tree.map(
+          lambda cy, bx: jnp.where(is_better, cy, bx),
+          pf_out.y,
+          st.best_x,
+      )
+      best_v = jax.tree.map(
+          lambda cv, bv: jnp.where(is_better, cv, bv),
+          v_cand,
+          st.subgrad,
+      )
+      best_res = jnp.where(is_better, cand_res, st.opt_residual)
+      conv_now = best_res <= tol_arr
+      still_running = jnp.logical_and(
+          pf_out.status == running_code,
+          jnp.logical_not(conv_now),
+      )
+
+      def _continue_inner() -> APDTransformState:
+        return dataclasses.replace(
+            st,
+            inner_iter=pf_out.iteration,
+            total_steps=st.total_steps + 1,
+            best_x=best_x,
+            pf_x=pf_out.x,
+            pf_y=pf_out.y,
+            pf_r=pf_out.r,
+            pf_a_sum=pf_out.a_sum,
+            pf_psi_y=pf_out.psi_y,
+            pf_lipschitz=pf_out.lipschitz,
+            subgrad=best_v,
+            opt_residual=best_res,
+        )
+
+      def _finish_subproblem() -> APDTransformState:
+        phi_y = base_oracle.value(pf_out.y)
+        eps_val = tree.eps(dtype)
+        eps_sq = eps_val**2
+        phi_slack = 100.0 * eps_val * (1.0 + jnp.abs(st.center_obj))
+        desc_ok = (
+            tree.norm_sq(v_cand)
+            <= 2.0 * theta * m_hat * (st.center_obj - phi_y + phi_slack)
+            + eps_sq
+        )
+        dist_sq = tree.norm_sq(tree.sub(pf_out.y, st.center))
+        prox_err_ok = (
+            tree.norm_sq(u_cand)
+            <= 2.0 * ((eff_rho * m_hat) ** 2) * dist_sq + eps_sq
+        )
+        bad_code = jnp.asarray(
+            int(pf_acg.PFACGStatus.BAD_TERMINATION),
+            dtype=jnp.int32,
+        )
+        ls_fail_code = jnp.asarray(
+            int(pf_acg.PFACGStatus.LINE_SEARCH_FAILED),
+            dtype=jnp.int32,
+        )
+        rejected = jnp.logical_and(
+            jnp.logical_not(conv_now),
+            jnp.logical_and(
+                pf_out.status != ls_fail_code,
+                jnp.logical_or(
+                    pf_out.status == bad_code,
+                    jnp.logical_not(jnp.logical_and(desc_ok, prox_err_ok)),
+                ),
+            ),
+        )
+        M_from_acg = jnp.maximum(
+            jnp.asarray(1e-8, dtype=dtype),
+            two_m * (pf_out.lipschitz - 1.0),
+        )
+
+        def _reject_outer() -> APDTransformState:
+          grown_m = jnp.minimum(m_hat * alpha, m_max_arr)
+          M_keep = jnp.maximum(st.upper_curvature, M_from_acg)
+          psi_y0_next = st.center_obj / (2.0 * grown_m)
+          return dataclasses.replace(
+              st,
+              outer_iter=st.outer_iter + 1,
+              inner_iter=jnp.asarray(0, dtype=jnp.int32),
+              total_steps=st.total_steps + 1,
+              best_x=best_x,
+              pf_x=st.center,
+              pf_y=st.center,
+              pf_r=tree.zeros_like(st.center),
+              pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+              pf_psi_y0=psi_y0_next,
+              pf_psi_y=psi_y0_next,
+              pf_lipschitz=_sub_lip_init(grown_m, M_keep),
+              lower_curvature=grown_m,
+              upper_curvature=M_keep,
+              never_increased_m=jnp.asarray(False, dtype=jnp.bool_),
+              subgrad=best_v,
+              opt_residual=best_res,
+          )
+
+        def _accept_outer() -> APDTransformState:
+          quad_curv = 0.5 * M_from_acg * dist_sq
+          noise_floor = 100.0 * eps_val * (1.0 + jnp.abs(phi_y))
+          M_next = jnp.where(
+              quad_curv > noise_floor,
+              M_from_acg,
+              jnp.maximum(M_from_acg, st.upper_curvature),
+          )
+          if decay_curvature:
+            m_relaxed = jnp.maximum(m_min_arr, m_hat / (1.0 + 0.5 * alpha))
+            m_next = jnp.where(dist_sq > eps_sq, m_relaxed, m_hat)
+          else:
+            m_bitonic = jnp.maximum(m_min_arr, m_hat / alpha)
+            m_next = jnp.where(st.never_increased_m, m_bitonic, m_hat)
+
+          next_center = jax.tree.map(
+              lambda bx, py: jnp.where(conv_now, bx, py),
+              best_x,
+              pf_out.y,
+          )
+          next_center_obj = jnp.where(
+              conv_now,
+              base_oracle.value(best_x),
+              phi_y,
+          )
+          psi_y0_next = next_center_obj / (2.0 * m_next)
+          return APDTransformState(
+              initialized=jnp.asarray(True, dtype=jnp.bool_),
+              converged=conv_now,
+              outer_iter=st.outer_iter + 1,
+              inner_iter=jnp.asarray(0, dtype=jnp.int32),
+              total_steps=st.total_steps + 1,
+              center=next_center,
+              center_obj=next_center_obj,
+              best_x=best_x,
+              pf_x=next_center,
+              pf_y=next_center,
+              pf_r=tree.zeros_like(next_center),
+              pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+              pf_psi_y0=psi_y0_next,
+              pf_psi_y=psi_y0_next,
+              pf_lipschitz=_sub_lip_init(m_next, M_next),
+              lower_curvature=m_next,
+              upper_curvature=M_next,
+              never_increased_m=st.never_increased_m,
+              subgrad=best_v,
+              opt_residual=best_res,
+          )
+
+        return typing.cast(
+            APDTransformState,
+            jax.lax.cond(rejected, _reject_outer, _accept_outer),
+        )
+
+      return typing.cast(
+          APDTransformState,
+          jax.lax.cond(still_running, _continue_inner, _finish_subproblem),
+      )
+
+    next_state = typing.cast(
+        APDTransformState,
+        jax.lax.cond(
+            st_ready.converged,
+            _when_converged,
+            _when_active,
+            st_ready,
+        ),
+    )
+    target_primal = jax.tree.map(
+        lambda bx, py: jnp.where(next_state.converged, bx, py),
+        next_state.best_x,
+        next_state.pf_y,
+    )
+    return tree.sub(target_primal, params), next_state
+
+  return optax.GradientTransformationExtraArgs(init=init_fn, update=update_fn)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class QPAPDTransformState:
+  """Single-inner-step state machine for `proxax.optax_compat.qp_apd`."""
+
+  initialized: jax.Array
+  converged: jax.Array
+  penalty_iter: jax.Array
+  stage_outer_iter: jax.Array
+  outer_iter: jax.Array
+  inner_iter: jax.Array
+  total_steps: jax.Array
+  center: _typing.PyTree
+  center_obj: jax.Array
+  best_x: _typing.PyTree
+  pf_x: _typing.PyTree
+  pf_y: _typing.PyTree
+  pf_r: _typing.PyTree
+  pf_a_sum: jax.Array
+  pf_psi_y0: jax.Array
+  pf_psi_y: jax.Array
+  pf_lipschitz: jax.Array
+  penalty: jax.Array
+  lower_curvature: jax.Array
+  upper_curvature: jax.Array
+  never_increased_m: jax.Array
+  dual: _typing.PyTree
+  subgrad: _typing.PyTree
+  opt_residual: jax.Array
+  feas_residual: jax.Array
+
+
+def qp_apd(
+    *,
+    constraints: linear_op.Constraint | _typing.PyTree,
+    prox_op: prox_base.ProxOperator = _ZERO_PROX,
+    opt_tol: float = 1e-5,
+    feas_tol: float = 1e-5,
+    norm_kind: str = "l2",
+    penalty_init: float = 1.0,
+    penalty_factor: float = 2.0,
+    penalty_max: float = 1e12,
+    alpha: float = 2.0,
+    beta: float = 2.0,
+    theta: float = 4.0,
+    rho: float | None = None,
+    decay_curvature: bool = True,
+    lower_curvature: float | None = None,
+    upper_curvature: float | None = None,
+    lower_curvature_init: float | None = None,
+    lower_curvature_min: float = 1e-6,
+    lower_curvature_max: float = 1e12,
+    lipschitz_init: float = 1.0,
+    max_apd_iters: int = 250,
+    max_inner_iters: int = 1000,
+) -> optax.GradientTransformationExtraArgs:
+  """Creates an Optax single-step `QP-APD` transformation for constrained NCO.
+
+  Solves `min_x value_fn(x) + prox_op(x)  s.t.  A(x) in C` inside a standard
+  `tx.init` / `tx.update` / `optax.apply_updates` loop. Each `tx.update` runs
+  one inner `PF.ACG` step with refinement-free certificates while updating
+  `state.dual`, `state.subgrad`, `state.opt_residual`, and
+  `state.feas_residual`.
+
+  Args:
+    constraints: `Constraint` or PyTree of `Constraint` instances defining
+      `A(x) in C`.
+    prox_op: Nonsmooth convex `ProxOperator` `h` (defaults to `Zero()`).
+    opt_tol: Lagrangian stationarity tolerance `||v_hat|| <= opt_tol`.
+    feas_tol: Primal feasibility tolerance `||A(x_hat) - Pi_C(A(x_hat))||`.
+    norm_kind: Residual norm (`'l2'` or `'linf'`).
+    penalty_init: Initial quadratic penalty parameter `c_0 > 0`.
+    penalty_factor: Multiplicative penalty growth factor (`> 1`).
+    penalty_max: Maximum allowed penalty parameter `c_max`.
+    alpha: Multiplicative growth factor (`> 1`) for lower curvature `m_hat`.
+    beta: Multiplicative growth factor (`> 1`) for inner smoothness `L`.
+    theta: Proximal descent constant (`> 2`, default `4.0`).
+    rho: Optional inner relative proximal error tolerance in `(0, 1)`.
+    decay_curvature: Whether to apply practical curvature decay Eq. (6.1).
+    lower_curvature: Optional weak-convexity constant `m >= 0` of `value_fn`.
+    upper_curvature: Optional global smoothness constant `M` of `value_fn`.
+    lower_curvature_init: Optional initial lower curvature `m_0 > 0` for `f`.
+    lower_curvature_min: Floor `m_min > 0` guarding curvature decay.
+    lower_curvature_max: Maximum allowed lower curvature estimate.
+    lipschitz_init: Initial smoothness estimate `M_0 > 0` for `value_fn`.
+    max_apd_iters: Maximum `APD` proximal steps per penalty stage.
+    max_inner_iters: Maximum `PF.ACG` steps per proximal subproblem.
+
+  Returns:
+    An `optax.GradientTransformationExtraArgs`.
+  """
+  norm_c = linear_op.normalize_constraints(constraints)
+  if norm_c is None:
+    raise ValueError(
+        "`qp_apd` requires non-empty `constraints`; use `apd` for "
+        "unconstrained problems."
+    )
+  if alpha <= 1.0:
+    raise ValueError("`alpha` must be strictly greater than 1.")
+  if beta <= 1.0:
+    raise ValueError("`beta` must be strictly greater than 1.")
+  if theta <= 2.0:
+    raise ValueError("`theta` must be strictly greater than 2.")
+  if rho is not None and not (0.0 < rho < 1.0):
+    raise ValueError("`rho` must lie in `(0, 1)`.")
+
+  eff_rho = (
+      rho
+      if rho is not None
+      else (
+          1.0 / math.sqrt(alpha)
+          if decay_curvature
+          else 1.0 / math.sqrt(2.0 * alpha)
+      )
+  )
+  pf_cfg = pf_acg.PFACGConfig(
+      mu=0.5,
+      sigma=eff_rho / math.sqrt(2.0),
+      theta=theta,
+      beta=beta,
+      max_iters=max_inner_iters,
+  )
+
+  def _sub_lip_init(m_val: jax.Array, M_val: jax.Array) -> jax.Array:
+    dtype = M_val.dtype
+    if decay_curvature:
+      M_trial = jnp.maximum(
+          jnp.asarray(1e-8, dtype=dtype),
+          M_val / (1.0 + 0.5 * beta),
+      )
+      return M_trial / (2.0 * m_val) + 1.0
+    return jnp.maximum(
+        jnp.asarray(1.0, dtype=dtype),
+        M_val / (2.0 * m_val) + 1.0,
+    )
+
+  def init_fn(params: _typing.PyTree) -> QPAPDTransformState:
+    p0 = prox_op.domain_project(tree.as_float_tree(params))
+    dtype = tree.infer_dtype(p0)
+    z0 = tree.zeros_like(p0)
+    bound_c = norm_c.bind(p0)
+    dual0 = bound_c.zero_dual(p0)
+    if lower_curvature_init is not None:
+      m0_f = lower_curvature_init
+    elif lower_curvature is not None:
+      m0_f = (
+          lower_curvature
+          if lower_curvature > 0.0
+          else max(opt_tol, lower_curvature_min)
+      )
+    else:
+      m0_f = 1.0
+    m0 = jnp.clip(
+        jnp.asarray(m0_f, dtype=dtype),
+        jnp.asarray(lower_curvature_min, dtype=dtype),
+        jnp.asarray(lower_curvature_max, dtype=dtype),
+    )
+    M0 = jnp.asarray(lipschitz_init, dtype=dtype)
+    return QPAPDTransformState(
+        initialized=jnp.asarray(False, dtype=jnp.bool_),
+        converged=jnp.asarray(False, dtype=jnp.bool_),
+        penalty_iter=jnp.asarray(0, dtype=jnp.int32),
+        stage_outer_iter=jnp.asarray(0, dtype=jnp.int32),
+        outer_iter=jnp.asarray(0, dtype=jnp.int32),
+        inner_iter=jnp.asarray(0, dtype=jnp.int32),
+        total_steps=jnp.asarray(0, dtype=jnp.int32),
+        center=p0,
+        center_obj=jnp.asarray(0.0, dtype=dtype),
+        best_x=p0,
+        pf_x=p0,
+        pf_y=p0,
+        pf_r=z0,
+        pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+        pf_psi_y0=jnp.asarray(0.0, dtype=dtype),
+        pf_psi_y=jnp.asarray(0.0, dtype=dtype),
+        pf_lipschitz=_sub_lip_init(m0, M0),
+        penalty=jnp.asarray(penalty_init, dtype=dtype),
+        lower_curvature=m0,
+        upper_curvature=M0,
+        never_increased_m=jnp.asarray(True, dtype=jnp.bool_),
+        dual=dual0,
+        subgrad=z0,
+        opt_residual=jnp.asarray(jnp.inf, dtype=dtype),
+        feas_residual=jnp.asarray(jnp.inf, dtype=dtype),
+    )
+
+  def update_fn(
+      updates: _typing.PyTree,
+      state: QPAPDTransformState,
+      params: _typing.PyTree | None = None,
+      *,
+      value: jax.Array | None = None,
+      value_fn: _typing.SmoothFn | None = None,
+      **extra_args: typing.Any,
+  ) -> tuple[_typing.PyTree, QPAPDTransformState]:
+    del updates, value, extra_args
+    if params is None:
+      raise ValueError(
+          "`proxax.optax_compat.qp_apd` requires `params` in `tx.update`."
+      )
+    if value_fn is None:
+      raise ValueError(
+          "`proxax.optax_compat.qp_apd` requires "
+          "`value_fn=<smooth_objective>` in `tx.update`."
+      )
+
+    smooth_term = terms.as_smooth_term(
+        value_fn,
+        upper_curvature=upper_curvature,
+        lower_curvature=lower_curvature,
+    )
+    base_oracle = composite.CompositeOracle(
+        smooth=smooth_term,
+        proximal=prox_op,
+    )
+    bound_c = norm_c.bind(state.center)
+    dtype = state.upper_curvature.dtype
+    opt_tol_arr = jnp.asarray(opt_tol, dtype=dtype)
+    feas_tol_arr = jnp.asarray(feas_tol, dtype=dtype)
+    m_min_arr = jnp.asarray(lower_curvature_min, dtype=dtype)
+    m_max_arr = jnp.asarray(lower_curvature_max, dtype=dtype)
+    tiny = jnp.asarray(1e-30, dtype=dtype)
+
+    def _bootstrap(st: QPAPDTransformState) -> QPAPDTransformState:
+      p_proj = prox_op.domain_project(tree.as_float_tree(params))
+      pen0 = composite.PenalizedOracle(
+          base=base_oracle,
+          constraint=bound_c,
+          multiplier=None,
+          penalty=st.penalty,
+          dampen=0.0,
+      )
+      ref0 = certificates.refine(pen0, p_proj, st.upper_curvature, jit=True)
+      d0 = pen0.effective_dual(ref0.x_hat)
+      opt0 = tree.norm(ref0.v_hat, kind=norm_kind)
+      feas0 = tree.norm(bound_c.residual(ref0.x_hat), kind=norm_kind)
+      conv0 = jnp.logical_and(opt0 <= opt_tol_arr, feas0 <= feas_tol_arr)
+      M0 = ref0.lipschitz_used
+      psi0 = ref0.obj_val / (2.0 * st.lower_curvature)
+      return QPAPDTransformState(
+          initialized=jnp.asarray(True, dtype=jnp.bool_),
+          converged=conv0,
+          penalty_iter=st.penalty_iter,
+          stage_outer_iter=jnp.asarray(0, dtype=jnp.int32),
+          outer_iter=st.outer_iter,
+          inner_iter=jnp.asarray(0, dtype=jnp.int32),
+          total_steps=st.total_steps,
+          center=ref0.x_hat,
+          center_obj=ref0.obj_val,
+          best_x=ref0.x_hat,
+          pf_x=ref0.x_hat,
+          pf_y=ref0.x_hat,
+          pf_r=tree.zeros_like(ref0.x_hat),
+          pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+          pf_psi_y0=psi0,
+          pf_psi_y=psi0,
+          pf_lipschitz=_sub_lip_init(st.lower_curvature, M0),
+          penalty=st.penalty,
+          lower_curvature=st.lower_curvature,
+          upper_curvature=M0,
+          never_increased_m=st.never_increased_m,
+          dual=d0,
+          subgrad=ref0.v_hat,
+          opt_residual=opt0,
+          feas_residual=feas0,
+      )
+
+    st_ready = jax.lax.cond(
+        state.initialized,
+        lambda s: s,
+        _bootstrap,
+        state,
+    )
+
+    def _when_converged(st: QPAPDTransformState) -> QPAPDTransformState:
+      return dataclasses.replace(st, total_steps=st.total_steps + 1)
+
+    def _when_active(st: QPAPDTransformState) -> QPAPDTransformState:
+      pen_oracle = composite.PenalizedOracle(
+          base=base_oracle,
+          constraint=bound_c,
+          multiplier=None,
+          penalty=st.penalty,
+          dampen=0.0,
+      )
+      m_hat = st.lower_curvature
+      two_m = 2.0 * m_hat
+      sub_oracle = composite.RescaledProxOracle(
+          base=pen_oracle,
+          center=st.center,
+          scale=1.0 / two_m,
+      )
+      running_code = jnp.asarray(
+          int(pf_acg.PFACGStatus.RUNNING), dtype=jnp.int32
+      )
+      pf_in = pf_acg.PFACGState(
+          x=st.pf_x,
+          y=st.pf_y,
+          y0=st.center,
+          psi_y0=st.pf_psi_y0,
+          psi_y=st.pf_psi_y,
+          r=st.pf_r,
+          a_sum=st.pf_a_sum,
+          lipschitz=st.pf_lipschitz,
+          iteration=st.inner_iter,
+          status=running_code,
+          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
+          grad_evals=jnp.asarray(0, dtype=jnp.int32),
+          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+      )
+      pf_out = pf_acg.step_pf_acg(
+          sub_oracle,
+          pf_in,
+          config=pf_cfg,
+          two_m=two_m,
+          opt_tol=opt_tol_arr,
+          norm_kind=norm_kind,
+          jit=True,
+      )
+
+      u_cand = tree.scale(two_m, pf_out.r)
+      v_cand = tree.add(
+          u_cand,
+          tree.scale(two_m, tree.sub(st.center, pf_out.y)),
+      )
+      cand_opt = tree.norm(v_cand, kind=norm_kind)
+      cand_feas = tree.norm(bound_c.residual(pf_out.y), kind=norm_kind)
+      cand_dual = pen_oracle.effective_dual(pf_out.y)
+      cand_finite = jnp.logical_and(
+          tree.all_finite(pf_out.y),
+          jnp.logical_and(jnp.isfinite(cand_opt), jnp.isfinite(cand_feas)),
+      )
+      cand_score = jnp.maximum(
+          cand_opt / jnp.maximum(opt_tol_arr, tiny),
+          cand_feas / jnp.maximum(feas_tol_arr, tiny),
+      )
+      prev_score = jnp.maximum(
+          st.opt_residual / jnp.maximum(opt_tol_arr, tiny),
+          st.feas_residual / jnp.maximum(feas_tol_arr, tiny),
+      )
+      is_better = jnp.logical_and(cand_finite, cand_score <= prev_score)
+      best_x = jax.tree.map(
+          lambda cy, bx: jnp.where(is_better, cy, bx),
+          pf_out.y,
+          st.best_x,
+      )
+      best_dual = jax.tree.map(
+          lambda cd, bd: jnp.where(is_better, cd, bd),
+          cand_dual,
+          st.dual,
+      )
+      best_v = jax.tree.map(
+          lambda cv, bv: jnp.where(is_better, cv, bv),
+          v_cand,
+          st.subgrad,
+      )
+      best_opt = jnp.where(is_better, cand_opt, st.opt_residual)
+      best_feas = jnp.where(is_better, cand_feas, st.feas_residual)
+      conv_now = jnp.logical_and(
+          best_opt <= opt_tol_arr,
+          best_feas <= feas_tol_arr,
+      )
+      still_running = jnp.logical_and(
+          pf_out.status == running_code,
+          jnp.logical_not(conv_now),
+      )
+
+      def _continue_inner() -> QPAPDTransformState:
+        return dataclasses.replace(
+            st,
+            inner_iter=pf_out.iteration,
+            total_steps=st.total_steps + 1,
+            best_x=best_x,
+            pf_x=pf_out.x,
+            pf_y=pf_out.y,
+            pf_r=pf_out.r,
+            pf_a_sum=pf_out.a_sum,
+            pf_psi_y=pf_out.psi_y,
+            pf_lipschitz=pf_out.lipschitz,
+            dual=best_dual,
+            subgrad=best_v,
+            opt_residual=best_opt,
+            feas_residual=best_feas,
+        )
+
+      def _finish_subproblem() -> QPAPDTransformState:
+        phi_y = pen_oracle.value(pf_out.y)
+        eps_val = tree.eps(dtype)
+        eps_sq = eps_val**2
+        phi_slack = 100.0 * eps_val * (1.0 + jnp.abs(st.center_obj))
+        desc_ok = (
+            tree.norm_sq(v_cand)
+            <= 2.0 * theta * m_hat * (st.center_obj - phi_y + phi_slack)
+            + eps_sq
+        )
+        dist_sq = tree.norm_sq(tree.sub(pf_out.y, st.center))
+        prox_err_ok = (
+            tree.norm_sq(u_cand)
+            <= 2.0 * ((eff_rho * m_hat) ** 2) * dist_sq + eps_sq
+        )
+        bad_code = jnp.asarray(
+            int(pf_acg.PFACGStatus.BAD_TERMINATION),
+            dtype=jnp.int32,
+        )
+        ls_fail_code = jnp.asarray(
+            int(pf_acg.PFACGStatus.LINE_SEARCH_FAILED),
+            dtype=jnp.int32,
+        )
+        stage_opt_done = cand_opt <= opt_tol_arr
+        rejected = jnp.logical_and(
+            jnp.logical_not(jnp.logical_or(conv_now, stage_opt_done)),
+            jnp.logical_and(
+                pf_out.status != ls_fail_code,
+                jnp.logical_or(
+                    pf_out.status == bad_code,
+                    jnp.logical_not(jnp.logical_and(desc_ok, prox_err_ok)),
+                ),
+            ),
+        )
+        M_from_acg = jnp.maximum(
+            jnp.asarray(1e-8, dtype=dtype),
+            two_m * (pf_out.lipschitz - 1.0),
+        )
+
+        def _reject_outer() -> QPAPDTransformState:
+          grown_m = jnp.minimum(m_hat * alpha, m_max_arr)
+          M_keep = jnp.maximum(st.upper_curvature, M_from_acg)
+          psi_y0_next = st.center_obj / (2.0 * grown_m)
+          return dataclasses.replace(
+              st,
+              stage_outer_iter=st.stage_outer_iter + 1,
+              outer_iter=st.outer_iter + 1,
+              inner_iter=jnp.asarray(0, dtype=jnp.int32),
+              total_steps=st.total_steps + 1,
+              best_x=best_x,
+              pf_x=st.center,
+              pf_y=st.center,
+              pf_r=tree.zeros_like(st.center),
+              pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+              pf_psi_y0=psi_y0_next,
+              pf_psi_y=psi_y0_next,
+              pf_lipschitz=_sub_lip_init(grown_m, M_keep),
+              lower_curvature=grown_m,
+              upper_curvature=M_keep,
+              never_increased_m=jnp.asarray(False, dtype=jnp.bool_),
+              dual=best_dual,
+              subgrad=best_v,
+              opt_residual=best_opt,
+              feas_residual=best_feas,
+          )
+
+        def _accept_outer() -> QPAPDTransformState:
+          quad_curv = 0.5 * M_from_acg * dist_sq
+          noise_floor = 100.0 * eps_val * (1.0 + jnp.abs(phi_y))
+          M_est = jnp.where(
+              quad_curv > noise_floor,
+              M_from_acg,
+              jnp.maximum(M_from_acg, st.upper_curvature),
+          )
+          if decay_curvature:
+            m_relaxed = jnp.maximum(m_min_arr, m_hat / (1.0 + 0.5 * alpha))
+            m_next = jnp.where(dist_sq > eps_sq, m_relaxed, m_hat)
+          else:
+            m_bitonic = jnp.maximum(m_min_arr, m_hat / alpha)
+            m_next = jnp.where(st.never_increased_m, m_bitonic, m_hat)
+
+          next_stage_outer = st.stage_outer_iter + 1
+          advance_penalty = jnp.logical_and(
+              jnp.logical_not(conv_now),
+              jnp.logical_or(
+                  stage_opt_done,
+                  next_stage_outer >= max_apd_iters,
+              ),
+          )
+          c_grown = jnp.minimum(
+              st.penalty * penalty_factor,
+              jnp.asarray(penalty_max, dtype=dtype),
+          )
+          next_penalty = jnp.where(advance_penalty, c_grown, st.penalty)
+          M_next = jnp.where(
+              advance_penalty,
+              M_est * (next_penalty / st.penalty),
+              M_est,
+          )
+          next_center = jax.tree.map(
+              lambda bx, py: jnp.where(conv_now, bx, py),
+              best_x,
+              pf_out.y,
+          )
+          next_pen_oracle = composite.PenalizedOracle(
+              base=base_oracle,
+              constraint=bound_c,
+              multiplier=None,
+              penalty=next_penalty,
+              dampen=0.0,
+          )
+          next_center_obj = jnp.where(
+              jnp.logical_or(advance_penalty, conv_now),
+              next_pen_oracle.value(next_center),
+              phi_y,
+          )
+          psi_y0_next = next_center_obj / (2.0 * m_next)
+          return QPAPDTransformState(
+              initialized=jnp.asarray(True, dtype=jnp.bool_),
+              converged=conv_now,
+              penalty_iter=jnp.where(
+                  advance_penalty,
+                  st.penalty_iter + 1,
+                  st.penalty_iter,
+              ),
+              stage_outer_iter=jnp.where(
+                  advance_penalty,
+                  jnp.asarray(0, dtype=jnp.int32),
+                  next_stage_outer,
+              ),
+              outer_iter=st.outer_iter + 1,
+              inner_iter=jnp.asarray(0, dtype=jnp.int32),
+              total_steps=st.total_steps + 1,
+              center=next_center,
+              center_obj=next_center_obj,
+              best_x=best_x,
+              pf_x=next_center,
+              pf_y=next_center,
+              pf_r=tree.zeros_like(next_center),
+              pf_a_sum=jnp.asarray(0.0, dtype=dtype),
+              pf_psi_y0=psi_y0_next,
+              pf_psi_y=psi_y0_next,
+              pf_lipschitz=_sub_lip_init(m_next, M_next),
+              penalty=next_penalty,
+              lower_curvature=m_next,
+              upper_curvature=M_next,
+              never_increased_m=st.never_increased_m,
+              dual=best_dual,
+              subgrad=best_v,
+              opt_residual=best_opt,
+              feas_residual=best_feas,
+          )
+
+        return typing.cast(
+            QPAPDTransformState,
+            jax.lax.cond(rejected, _reject_outer, _accept_outer),
+        )
+
+      return typing.cast(
+          QPAPDTransformState,
+          jax.lax.cond(still_running, _continue_inner, _finish_subproblem),
+      )
+
+    next_state = typing.cast(
+        QPAPDTransformState,
+        jax.lax.cond(
+            st_ready.converged,
+            _when_converged,
+            _when_active,
+            st_ready,
+        ),
+    )
+    target_primal = jax.tree.map(
+        lambda bx, py: jnp.where(next_state.converged, bx, py),
+        next_state.best_x,
+        next_state.pf_y,
     )
     return tree.sub(target_primal, params), next_state
 

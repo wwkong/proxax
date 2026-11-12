@@ -19,6 +19,7 @@ APD = solvers.APD
 CompositeProblem = _problem.CompositeProblem
 KKTResiduals = _problem.KKTResiduals
 QPAIPP = solvers.QPAIPP
+QPAPD = solvers.QPAPD
 Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
@@ -32,6 +33,7 @@ __all__ = [
     "CompositeProblem",
     "KKTResiduals",
     "QPAIPP",
+    "QPAPD",
     "Solution",
     "SolveStats",
     "SolveStatus",
