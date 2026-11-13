@@ -73,9 +73,24 @@ problem = px.CompositeProblem(
 )
 
 sol = px.solve(problem, x0=jnp.zeros(3), method="apd", opt_tol=1e-6)
-print("Status:", sol.status_enum.name)
-print("Solution x:", sol.x)
-print("Stationarity residual:", float(sol.stats.opt_residual))
+print(sol)
+print("x =", sol.x)
+```
+
+**Output:**
+
+```text
+Solution(
+  status=CONVERGED,
+  obj=2.000000e-01,
+  opt_res=9.479e-07,
+  feas_res=0.000e+00,
+  iters=12 (inner=82),
+  evals=(smooth=200, grad=174, prox=88),
+  x=float32[3],
+  dual=None,
+)
+x = [ 1.2749995 -0.        -0.6249994]
 ```
 
 You do not need to supply gradients or step sizes: Proxax differentiates
@@ -109,7 +124,24 @@ problem = px.CompositeProblem(
 )
 
 sol = px.solve(problem, x0=jnp.zeros(2), method="apd", opt_tol=1e-6)
-print("x in [-1, 1]^2:", sol.x)
+print(sol)
+print("x =", sol.x)
+```
+
+**Output:**
+
+```text
+Solution(
+  status=CONVERGED,
+  obj=-9.816667e-01,
+  opt_res=2.695e-07,
+  feas_res=0.000e+00,
+  iters=11 (inner=35),
+  evals=(smooth=105, grad=80, prox=42),
+  x=float32[2],
+  dual=None,
+)
+x = [-0.23333329 -1.        ]
 ```
 
 Every iterate — and the final `sol.x` — is guaranteed to lie strictly inside
@@ -149,16 +181,23 @@ sol = px.solve(
 )
 
 print(sol)
-# Solution(
-#   status=CONVERGED,
-#   obj=-1.352509e-01,
-#   opt_res=1.291e-06,
-#   feas_res=3.517e-06,
-#   iters=9 (inner=221),
-#   evals=(smooth=548, grad=490, prox=247),
-#   x=float32[2],
-#   dual=float32[],
-# )
+print("x =", sol.x)
+```
+
+**Output:**
+
+```text
+Solution(
+  status=CONVERGED,
+  obj=-1.352509e-01,
+  opt_res=1.291e-06,
+  feas_res=3.517e-06,
+  iters=9 (inner=221),
+  evals=(smooth=548, grad=490, prox=247),
+  x=float32[2],
+  dual=float32[],
+)
+x = [0.29000032 0.2100032 ]
 ```
 
 Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
