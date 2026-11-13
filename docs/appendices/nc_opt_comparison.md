@@ -1,6 +1,6 @@
 # Appendix B: Comparison & Mapping to `nc_opt`
 
-`proxax` ports and generalizes the certified nonconvex composite optimization
+Proxax ports and generalizes the certified nonconvex composite optimization
 suite of **[`wwkong/nc_opt`](https://github.com/wwkong/nc_opt)** (MATLAB) into
 an idiomatic **JAX** and **Optax** library. This appendix summarizes the key
 architectural differences and provides complete lookup tables for users
@@ -8,9 +8,9 @@ familiar with `nc_opt`.
 
 ---
 
-## 1. Architectural Differences: MATLAB `nc_opt` vs. JAX `proxax`
+## 1. Architectural Differences: MATLAB `nc_opt` vs. JAX Proxax
 
-| Design Dimension | `wwkong/nc_opt` (MATLAB) | `proxax` (Python / JAX / Optax) |
+| Design Dimension | `wwkong/nc_opt` (MATLAB) | Proxax (Python / JAX / Optax) |
 | :--- | :--- | :--- |
 | **Primal & Dual Variable Spaces** | Flat column vectors `R^n` or 2D matrices `R^{p x q}`; multi-block variables (e.g., Sparse PCA) must be concatenated and sliced manually. | Arbitrary **JAX PyTrees** (`jax.Array`, nested `dict`, `tuple`, registered dataclasses) with `prox.MultiProx` and `ProductConstraint` preserving exact structure. |
 | **Gradients & Linear Adjoints** | User must code both `grad_f(x)` and explicit matrix transposes `A'(p)` by hand. | Smooth functions default to `jax.value_and_grad(fn)`, and callable linear operators synthesize $\mathcal{A}^*$ automatically via `jax.linear_transpose`. |
@@ -21,9 +21,9 @@ familiar with `nc_opt`.
 
 ---
 
-## 2. Module & Solver Mapping (`nc_opt` $\to$ `proxax`)
+## 2. Module & Solver Mapping (`nc_opt` $\to$ Proxax)
 
-| `nc_opt` File / Class | `proxax` Equivalent | Notes |
+| `nc_opt` File / Class | Proxax Equivalent | Notes |
 | :--- | :--- | :--- |
 | `src/oracles/Oracle.m` | `proxax.oracle.CompositeOracle`, `proxax.oracle.terms.SmoothTerm`, `proxax.prox.ProxOperator` | Separates smooth curvature `(m, M)` from nonsmooth `ProxOperator` and `domain_project`. |
 | `src/oracles/SpectralOracle.m` + `refine_ICG.m` | `proxax.SpectralOracle`, `proxax.SpectralProblem`, `proxax.oracle.spectral.refine_icg` | Curvature redistribution $\xi$, 1D `VectorSpectralSubOracle`, and exact matrix subgradient refinement. |
@@ -50,7 +50,7 @@ familiar with `nc_opt`.
 Every benchmark script in `nc_opt/examples/` has a runnable JAX counterpart in
 `proxax/examples/` and a corresponding tutorial page:
 
-| `nc_opt` MATLAB Script & Generator | `proxax` Script | Documentation Section |
+| `nc_opt` MATLAB Script & Generator | Proxax Script | Documentation Section |
 | :--- | :--- | :--- |
 | `examples/unconstrained/basic_convex_qp.m` | `examples/unconstrained_nc_opt.py` | {doc}`../examples/unconstrained` (Section 1) |
 | `examples/unconstrained/nonconvex_qp.m` (`test_fn_unconstr_01.m`) | `examples/unconstrained_nc_opt.py` | {doc}`../examples/unconstrained` (Section 2) |

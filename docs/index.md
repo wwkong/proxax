@@ -1,11 +1,11 @@
-# `proxax`: Certified Composite Optimization in JAX
+# Proxax: Certified Composite Optimization in JAX
 
-**`proxax`** is a library of **certified first-order proximal, spectral,
+**Proxax** is a library of **certified first-order proximal, spectral,
 penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
 constrained optimization in **JAX** and **Optax** — covering both convex and
 nonconvex objectives.
 
-Every solver in `proxax`:
+Every solver in Proxax:
 
 - **Works natively on JAX PyTrees** (`jax.Array`, nested `dict` / `tuple`, or
   registered dataclasses) without flattening arrays by hand.
@@ -27,7 +27,7 @@ Every solver in `proxax`:
 :link: quickstart
 :link-type: doc
 
-Install `proxax` and solve your first unconstrained, box-constrained, and
+Install Proxax and solve your first unconstrained, box-constrained, and
 linearly-constrained problems in a few lines of JAX.
 :::
 
@@ -77,7 +77,7 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
 
 ---
 
-## What Problems Can `proxax` Solve?
+## What Problems Can Proxax Solve?
 
 1. **Unconstrained Composite Optimization (`CompositeProblem`):**
 
@@ -87,21 +87,21 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
    proximable regularizer or indicator constraint $h$ such as an $\ell_1$ norm,
    elastic net, box, ball, or probability simplex.
 
-2. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
-
-   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
-
-   Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
-   penalties on the singular values $\sigma(X)$ using a single thin SVD per
-   outer iteration.
-
-3. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
+2. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
 
    Add linear equalities, inequalities, two-sided box bounds, or second-order
    cone constraints over any matrix or matrix-free PyTree linear map
    $\mathcal{A}$.
+
+3. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
+
+   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
+
+   Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
+   penalties on the singular values $\sigma(X)$ using a single thin SVD per
+   outer iteration.
 
 ---
 
@@ -130,14 +130,14 @@ print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
 
 ---
 
-## Citing `proxax`
+## Citing Proxax
 
-If `proxax` was helpful for a publication, please cite this repository:
+If Proxax was helpful for a publication, please cite this repository:
 
 ```bibtex
 @software{proxax2026github,
   author = {Weiwei Kong},
-  title = {{proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
+  title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
   version = {0.0.2},
   year = {2026},
@@ -177,8 +177,8 @@ guide/optax_and_jax
 :caption: Worked Examples
 
 examples/unconstrained
-examples/spectral
 examples/constrained
+examples/spectral
 ```
 
 ```{toctree}

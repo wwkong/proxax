@@ -1,6 +1,6 @@
 # Problem Classes & Optimality
 
-`proxax` solves three structured classes of finite-dimensional smooth and
+Proxax solves three structured classes of finite-dimensional smooth and
 nonsmooth optimization problems over **Euclidean PyTree spaces**. This page
 defines the underlying geometry, curvature assumptions, problem formulations,
 and exact stationarity / KKT certificates returned by every solver.
@@ -11,7 +11,7 @@ and exact stationarity / KKT certificates returned by every solver.
 
 Let $\mathcal{X}$ be a finite-dimensional real vector space represented in JAX
 as a **PyTree** of floating-point arrays $x = (x^{(1)}, \dots, x^{(L)})$.
-`proxax` equips $\mathcal{X}$ with the standard leaf-wise inner product and
+Proxax equips $\mathcal{X}$ with the standard leaf-wise inner product and
 Euclidean ($\ell_2$) norm:
 
 $$\langle x, y \rangle := \sum_{\ell=1}^{L} \langle x^{(\ell)}, y^{(\ell)} \rangle_F, \qquad \|x\|_2 := \sqrt{\langle x, x \rangle}, \qquad \|x\|_\infty := \max_{\ell=1,\dots,L} \|x^{(\ell)}\|_\infty.$$
@@ -24,7 +24,7 @@ tests to $\|\cdot\|_\infty$.
 
 ## Smoothness, Weak Convexity & Convex Subdifferentials
 
-Throughout `proxax`, composite objectives split into a differentiable
+Throughout Proxax, composite objectives split into a differentiable
 (possibly nonconvex) function $f$ and a proper, closed, convex function $h$:
 
 ### Asymmetric Curvature Bounds $(m, M)$ on $f$
@@ -49,7 +49,7 @@ $$-\frac{m}{2}\|y - x\|_2^2 \;\le\; f(y) - f(x) - \langle \nabla f(x), y - x \ra
   ($m \ll M$). Proximal-point methods need only add $\approx m$ of quadratic
   regularization rather than $M$, taking much larger outer steps.
 - **Parameter-free operation:** Supplying $(m, M)$ is always **optional** in
-  `proxax`; adaptive solvers (`APD`, `AdapFISTA`, `AdapAPG`, `UPFAG`, `ECG`,
+  Proxax; adaptive solvers (`APD`, `AdapFISTA`, `AdapAPG`, `UPFAG`, `ECG`,
   `QPAPD`, `IALM`) estimate curvatures dynamically from function and gradient
   evaluations.
 
@@ -92,7 +92,7 @@ directly and exactly by setting $h = \delta_K$.
 
 A point $x^\star \in \operatorname{dom} h$ is **first-order stationary** if
 $0 \in \nabla f(x^\star) + \partial h(x^\star)$. Given tolerance $\rho > 0$, an
-unconstrained solver in `proxax` returns a **certified $\rho$-stationary pair**
+unconstrained solver in Proxax returns a **certified $\rho$-stationary pair**
 $(\hat{x}, \hat{v}) \in \operatorname{dom} h \times \mathcal{X}$ satisfying:
 
 $$\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}), \qquad \|\hat{v}\| \le \rho.$$
@@ -102,7 +102,67 @@ In `Solution`, `sol.x` holds $\hat{x}$, `sol.subgrad` holds $\hat{v}$, and
 
 ---
 
-## Class 2: Matrix Spectral Composite Optimization (`SpectralProblem`)
+## Class 2: Set- and Cone-Constrained Optimization (`CompositeProblem`)
+
+### Formulation
+
+$$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+
+where:
+
+- $\mathcal{A} : \mathcal{X} \to \mathcal{Y}$ is a linear map between Euclidean
+  PyTree spaces $(\mathcal{X}, \langle \cdot, \cdot \rangle)$ and
+  $(\mathcal{Y}, \langle \cdot, \cdot \rangle)$, with **adjoint**
+  $\mathcal{A}^* : \mathcal{Y} \to \mathcal{X}$ uniquely defined by:
+
+  $$\langle \mathcal{A}(x), p \rangle = \langle x, \mathcal{A}^*(p) \rangle \qquad \forall x \in \mathcal{X},\; p \in \mathcal{Y}.$$
+
+- $\mathcal{C} \subseteq \mathcal{Y}$ is a nonempty closed convex set (or a
+  Cartesian product $\mathcal{C}_1 \times \dots \times \mathcal{C}_k$ of convex
+  sets) equipped with its exact **Euclidean projector**:
+
+  $$\Pi_{\mathcal{C}}(w) := \operatorname*{argmin}_{z \in \mathcal{C}} \; \frac{1}{2}\|z - w\|_2^2.$$
+
+This single set-inclusion abstraction $\mathcal{A}(x) \in \mathcal{C}$ unifies:
+
+| Constraint Type | Set $\mathcal{C}$ | Projector $\Pi_{\mathcal{C}}(w)$ | Normal Cone $N_{\mathcal{C}}(z)$ |
+| :--- | :--- | :--- | :--- |
+| Linear equality $\mathcal{A}(x) = b$ | $\{b\}$ (`Singleton(b)`) | $b$ | $\mathcal{Y}$ (free multipliers) |
+| Inequality $\mathcal{A}(x) \le u$ | $(-\infty, u]$ (`UpperBound(u)`) | $\min(w, u)$ | $\{p \ge 0 : p_i (z_i - u_i) = 0\}$ |
+| Inequality $\mathcal{A}(x) \ge l$ | $[l, +\infty)$ (`LowerBound(l)`) | $\max(w, l)$ | $\{p \le 0 : p_i (z_i - l_i) = 0\}$ |
+| Two-sided bounds $l \le \mathcal{A}(x) \le u$ | $[l, u]$ (`BoxSet`) | $\operatorname{clip}(w, l, u)$ | Sign-complementary multipliers |
+| Second-order cone $\|(u_1, \dots, u_d)\|_2 \le t$ | $\mathcal{K}_{\text{SOC}}$ (`SecondOrderCone`) | Closed-form Lorentz cone projection | $-\mathcal{K}_{\text{SOC}}$ with complementarity |
+
+### Certified $(\rho, \eta)$-KKT Conditions
+
+A primal-dual pair $(x^\star, p^\star) \in \operatorname{dom} h \times \mathcal{Y}$
+is a **KKT point** if:
+
+$$0 \in \nabla f(x^\star) + \partial h(x^\star) + \mathcal{A}^*(p^\star), \qquad \mathcal{A}(x^\star) \in \mathcal{C}, \qquad p^\star \in N_{\mathcal{C}}\!\big(\mathcal{A}(x^\star)\big).$$
+
+Given optimality tolerance $\rho > 0$ (`opt_tol`) and feasibility tolerance
+$\eta > 0$ (`feas_tol`), constrained solvers in Proxax return a **certified
+$(\rho, \eta)$-KKT triplet** $(\hat{x}, \hat{p}, \hat{v})$ satisfying:
+
+1. **Domain membership:** $\hat{x} \in \operatorname{dom} h$.
+2. **Approximate primal feasibility:**
+
+   $$\big\|\mathcal{A}(\hat{x}) - \Pi_{\mathcal{C}}\!\big(\mathcal{A}(\hat{x})\big)\big\| \le \eta.$$
+
+3. **Normal-cone dual inclusion & Lagrangian stationarity:** there exists a
+   projected point $\hat{z} = \Pi_{\mathcal{C}}(w) \in \mathcal{C}$ such that
+   $\hat{p} \in N_{\mathcal{C}}(\hat{z})$ holds **exactly** and:
+
+   $$\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}) + \mathcal{A}^*(\hat{p}), \qquad \|\hat{v}\| \le \rho.$$
+
+In `Solution`, `sol.x` holds $\hat{x}$, `sol.dual` holds $\hat{p}$,
+`sol.subgrad` holds $\hat{v}$, `sol.stats.opt_residual` equals $\|\hat{v}\|$,
+and `sol.stats.feas_residual` equals
+$\|\mathcal{A}(\hat{x}) - \Pi_{\mathcal{C}}(\mathcal{A}(\hat{x}))\|$.
+
+---
+
+## Class 3: Matrix Spectral Composite Optimization (`SpectralProblem`)
 
 ### Formulation
 
@@ -154,63 +214,3 @@ matrix gradient step, solves a cheap $r$-dimensional vector subproblem for the
 new singular values, and constructs an exact matrix certificate:
 
 $$\hat{V} \in \nabla f_1(\hat{Z}) + \nabla (f_2^{\mathcal{V}} \circ \sigma)(\hat{Z}) + \partial (h^{\mathcal{V}} \circ \sigma)(\hat{Z}), \qquad \|\hat{V}\|_F \le \rho.$$
-
----
-
-## Class 3: Set- and Cone-Constrained Optimization (`CompositeProblem`)
-
-### Formulation
-
-$$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
-
-where:
-
-- $\mathcal{A} : \mathcal{X} \to \mathcal{Y}$ is a linear map between Euclidean
-  PyTree spaces $(\mathcal{X}, \langle \cdot, \cdot \rangle)$ and
-  $(\mathcal{Y}, \langle \cdot, \cdot \rangle)$, with **adjoint**
-  $\mathcal{A}^* : \mathcal{Y} \to \mathcal{X}$ uniquely defined by:
-
-  $$\langle \mathcal{A}(x), p \rangle = \langle x, \mathcal{A}^*(p) \rangle \qquad \forall x \in \mathcal{X},\; p \in \mathcal{Y}.$$
-
-- $\mathcal{C} \subseteq \mathcal{Y}$ is a nonempty closed convex set (or a
-  Cartesian product $\mathcal{C}_1 \times \dots \times \mathcal{C}_k$ of convex
-  sets) equipped with its exact **Euclidean projector**:
-
-  $$\Pi_{\mathcal{C}}(w) := \operatorname*{argmin}_{z \in \mathcal{C}} \; \frac{1}{2}\|z - w\|_2^2.$$
-
-This single set-inclusion abstraction $\mathcal{A}(x) \in \mathcal{C}$ unifies:
-
-| Constraint Type | Set $\mathcal{C}$ | Projector $\Pi_{\mathcal{C}}(w)$ | Normal Cone $N_{\mathcal{C}}(z)$ |
-| :--- | :--- | :--- | :--- |
-| Linear equality $\mathcal{A}(x) = b$ | $\{b\}$ (`Singleton(b)`) | $b$ | $\mathcal{Y}$ (free multipliers) |
-| Inequality $\mathcal{A}(x) \le u$ | $(-\infty, u]$ (`UpperBound(u)`) | $\min(w, u)$ | $\{p \ge 0 : p_i (z_i - u_i) = 0\}$ |
-| Inequality $\mathcal{A}(x) \ge l$ | $[l, +\infty)$ (`LowerBound(l)`) | $\max(w, l)$ | $\{p \le 0 : p_i (z_i - l_i) = 0\}$ |
-| Two-sided bounds $l \le \mathcal{A}(x) \le u$ | $[l, u]$ (`BoxSet`) | $\operatorname{clip}(w, l, u)$ | Sign-complementary multipliers |
-| Second-order cone $\|(u_1, \dots, u_d)\|_2 \le t$ | $\mathcal{K}_{\text{SOC}}$ (`SecondOrderCone`) | Closed-form Lorentz cone projection | $-\mathcal{K}_{\text{SOC}}$ with complementarity |
-
-### Certified $(\rho, \eta)$-KKT Conditions
-
-A primal-dual pair $(x^\star, p^\star) \in \operatorname{dom} h \times \mathcal{Y}$
-is a **KKT point** if:
-
-$$0 \in \nabla f(x^\star) + \partial h(x^\star) + \mathcal{A}^*(p^\star), \qquad \mathcal{A}(x^\star) \in \mathcal{C}, \qquad p^\star \in N_{\mathcal{C}}\!\big(\mathcal{A}(x^\star)\big).$$
-
-Given optimality tolerance $\rho > 0$ (`opt_tol`) and feasibility tolerance
-$\eta > 0$ (`feas_tol`), constrained solvers in `proxax` return a **certified
-$(\rho, \eta)$-KKT triplet** $(\hat{x}, \hat{p}, \hat{v})$ satisfying:
-
-1. **Domain membership:** $\hat{x} \in \operatorname{dom} h$.
-2. **Approximate primal feasibility:**
-
-   $$\big\|\mathcal{A}(\hat{x}) - \Pi_{\mathcal{C}}\!\big(\mathcal{A}(\hat{x})\big)\big\| \le \eta.$$
-
-3. **Normal-cone dual inclusion & Lagrangian stationarity:** there exists a
-   projected point $\hat{z} = \Pi_{\mathcal{C}}(w) \in \mathcal{C}$ such that
-   $\hat{p} \in N_{\mathcal{C}}(\hat{z})$ holds **exactly** and:
-
-   $$\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}) + \mathcal{A}^*(\hat{p}), \qquad \|\hat{v}\| \le \rho.$$
-
-In `Solution`, `sol.x` holds $\hat{x}$, `sol.dual` holds $\hat{p}$,
-`sol.subgrad` holds $\hat{v}$, `sol.stats.opt_residual` equals $\|\hat{v}\|$,
-and `sol.stats.feas_residual` equals
-$\|\mathcal{A}(\hat{x}) - \Pi_{\mathcal{C}}(\mathcal{A}(\hat{x}))\|$.

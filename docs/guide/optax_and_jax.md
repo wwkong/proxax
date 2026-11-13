@@ -1,6 +1,6 @@
 # Optax Integration & `jax.vmap`
 
-Every operator and solver in `proxax` is implemented using pure functional JAX
+Every operator and solver in Proxax is implemented using pure functional JAX
 PyTree state machines. You can:
 
 1. Plug any `ProxOperator` into an `optax.chain` in 3 lines via
@@ -157,7 +157,7 @@ for _ in range(300):
 
 ## 4. Batched Solves with `jax.jit(jax.vmap(...))`
 
-Because `proxax` compiles solver loops with `jax.lax.while_loop` (`jit=True`),
+Because Proxax compiles solver loops with `jax.lax.while_loop` (`jit=True`),
 you can wrap `solver.solve` in `jax.vmap` to solve dozens or thousands of
 parameterized optimization instances simultaneously on an accelerator:
 

@@ -2,7 +2,7 @@
 
 This appendix summarizes the first-order optimization literature, worst-case
 oracle complexity bounds, and algorithmic mechanics behind the 16 solvers in
-`proxax`.
+Proxax.
 
 ---
 
@@ -17,7 +17,7 @@ constants of $f$.
 
 ### Unconstrained Composite Solvers ($\min_x f(x) + h(x)$)
 
-| `proxax` Class | Algorithm Name | Curvature Input | Nonconvex Complexity ($m > 0$) | Convex Regime ($m = 0$) | Primary Reference |
+| Proxax Class | Algorithm Name | Curvature Input | Nonconvex Complexity ($m > 0$) | Convex Regime ($m = 0$) | Primary Reference |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `APD` | `PF.APD` (`PF.ACG` inner) | **None** | $\tilde{\mathcal{O}}\!\left(\frac{\sqrt{m M}\,\Delta_0}{\rho^2}\right)$ | $\tilde{\mathcal{O}}\!\left(\sqrt{M}\min\!\left\{\frac{\sqrt{\Delta_0}}{\rho}, \frac{d_0}{\sqrt{\rho}}\right\}\right)$ | Kong (2024) |
 | `AIPP` | `R-AIPP` (`ACG` inner) | Optional $m$ | $\tilde{\mathcal{O}}\!\left(\frac{\sqrt{m M}\,\Delta_0}{\rho^2}\right)$ | $\tilde{\mathcal{O}}\!\left(\frac{\sqrt{M}\,\Delta_0}{\rho^2}\right)$ (adaptive $\lambda_k$) | Kong, Melo & Monteiro (2019, 2020) |
@@ -29,22 +29,22 @@ constants of $f$.
 | `AG` | Nonconvex AG | Optional $M$ | $\mathcal{O}\!\left(\frac{M \Delta_0}{\rho^2}\right)$ | $\mathcal{O}\!\left(\frac{\sqrt{M} d_0}{\sqrt{\rho}}\right)$ | Ghadimi & Lan (2016) |
 | `ECG` | Composite Backtracking PG | **None** | $\mathcal{O}\!\left(\frac{M \Delta_0}{\rho^2}\right)$ | $\mathcal{O}\!\left(\frac{M \Delta_0}{\rho^2}\right)$ | Beck (2017) |
 
-### Matrix Spectral Solvers ($\min_X f_1(X) + (f_2^{\mathcal{V}} + h^{\mathcal{V}})(\sigma(X))$)
-
-| `proxax` Class | Algorithm Name | Matrix SVDs / Outer Step | Inner Vector Solver | Primary Reference |
-| :--- | :--- | :--- | :--- | :--- |
-| `IAICG` | `IA-ICG` | **1 thin SVD** | 1D `ACG` on $\mathbb{R}^{\min(p, q)}$ | Kong & Monteiro (2020) |
-| `DAICG` | `DA-ICG` | **1 thin SVD** (2 with monotone check) | Outer FISTA extrapolation + 1D `ACG` | Kong & Monteiro (2020) |
-
 ### Set- and Cone-Constrained Solvers ($\min_x f(x) + h(x)$ s.t. $\mathcal{A}(x) \in \mathcal{C}$)
 
-| `proxax` Class | Algorithm Name | Curvature Input | Complexity ($\rho = \eta = \varepsilon$) | Primary Reference |
+| Proxax Class | Algorithm Name | Curvature Input | Complexity ($\rho = \eta = \varepsilon$) | Primary Reference |
 | :--- | :--- | :--- | :--- | :--- |
 | `QPAPD` | `QP-APD` | **None** | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ nonconvex; $\tilde{\mathcal{O}}(\varepsilon^{-1.5})$ convex | Kong (2024) |
 | `QPAIPP` | `R-QP-AIPP` | Optional $m$ | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ | Kong, Melo & Monteiro (2019, 2020) |
 | `IALM` | `NL-IAPIAL` ($\theta=0$) / `AIDAL` ($\theta \in (0,1)$) | **None** (with `APD` inner) | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ ($\tilde{\mathcal{O}}(\varepsilon^{-2.5})$ under regularity) | Kong, Melo & Monteiro (2023a) |
 | `IAIPAL` | `IAIPAL` (1 `ACG` step / outer iter) | Optional $(m, M)$ | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ | Kong, Melo & Monteiro (2023b) |
 | `SProxALM` | `s-Prox-ALM` | Optional $(L, \|\mathcal{A}\|)$ | $\mathcal{O}(\varepsilon^{-2})$ on polyhedral/box constraints | Zhang & Luo (2020) |
+
+### Matrix Spectral Solvers ($\min_X f_1(X) + (f_2^{\mathcal{V}} + h^{\mathcal{V}})(\sigma(X))$)
+
+| Proxax Class | Algorithm Name | Matrix SVDs / Outer Step | Inner Vector Solver | Primary Reference |
+| :--- | :--- | :--- | :--- | :--- |
+| `IAICG` | `IA-ICG` | **1 thin SVD** | 1D `ACG` on $\mathbb{R}^{\min(p, q)}$ | Kong & Monteiro (2020) |
+| `DAICG` | `DA-ICG` | **1 thin SVD** (2 with monotone check) | Outer FISTA extrapolation + 1D `ACG` | Kong & Monteiro (2020) |
 
 ---
 
@@ -107,7 +107,7 @@ Kong and Monteiro (2020) avoid inner matrix SVDs via two observations:
    inexact composite gradient step inside an outer Nesterov/FISTA extrapolation
    loop over $\mathbb{R}^{p \times q}$.
 
-In `proxax`, SVD reconstructions $P \operatorname{diag}(s) Q^\top$ and diagonal
+In Proxax, SVD reconstructions $P \operatorname{diag}(s) Q^\top$ and diagonal
 projections $\operatorname{diag}(P^\top M Q)$ explicitly enforce
 `jax.lax.Precision.HIGHEST` so NVIDIA Tensor-Core TF32 truncation (`10`-bit
 mantissa) cannot corrupt `float32` stationarity certificates.
@@ -117,7 +117,7 @@ mantissa) cannot corrupt `float32` stationarity certificates.
 ## 4. Deep Dive: Penalty vs. Dampened Proximal ALM
 
 For constrained problems $\min_x f(x) + h(x)$ subject to
-$\mathcal{A}(x) \in \mathcal{C}$, `proxax` implements three complementary outer
+$\mathcal{A}(x) \in \mathcal{C}$, Proxax implements three complementary outer
 mechanisms on top of the smooth Moreau-envelope penalty
 $\psi_c(x; \bar{p}) = \frac{c}{2}\|w(x) - \Pi_{\mathcal{C}}(w(x))\|_2^2 - \frac{1}{2c}\|\bar{p}\|_2^2$,
 where $w(x) = \mathcal{A}(x) + \bar{p}/c$:

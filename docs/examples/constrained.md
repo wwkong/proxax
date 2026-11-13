@@ -1,6 +1,6 @@
 # Constrained QP, Sparse PCA & Matrix Completion
 
-This page demonstrates set- and cone-constrained optimization in `proxax` on
+This page demonstrates set- and cone-constrained optimization in Proxax on
 three problems:
 
 1. **Linearly-constrained nonconvex QP** over the probability simplex, comparing
@@ -95,7 +95,7 @@ $$\min_{\Pi, \Phi \in \mathbb{R}^{p \times p}} \; -\langle \widehat{\Sigma}, \Pi
 where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and $\frac{1}{2} b \nu^2
 - \nu |t|$ otherwise.
 
-In `proxax`, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
+In Proxax, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
 pair the two block regularizers via `px.prox.MultiProx`, and write the matrix
 consensus constraint directly as `lambda z: z["pi"] - z["phi"]`:
 

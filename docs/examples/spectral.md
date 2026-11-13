@@ -46,7 +46,7 @@ singular-value vectors in $\mathbb{R}^{\min(p, q)}$.
 
 ---
 
-## 2. Implementation in `proxax`
+## 2. Implementation in Proxax
 
 We define the 1D singular-value proximal operator (`L1` + Euclidean ball) and
 assemble `px.SpectralProblem`:

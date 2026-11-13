@@ -1,6 +1,6 @@
 # API Reference
 
-All public symbols in `proxax` are exposed through the unified `px` facade
+All public symbols in Proxax are exposed through the unified `px` facade
 (`from proxax import px`, or `import proxax as px`). For conceptual
 introductions and basic examples, see {doc}`guide/solving_problems` and
 {doc}`guide/prox_and_constraints`.
@@ -128,21 +128,6 @@ $\min_x f(x) + h(x)$.
 
 ---
 
-## Matrix Spectral Solvers (`px.solvers`)
-
-Singular-value composite solvers requiring only a single thin SVD per outer
-iteration on `SpectralProblem` or `NuclearNorm` objectives.
-
-```{eval-rst}
-.. automodule:: proxax.solvers.unconstrained.da_icg
-   :members:
-
-.. automodule:: proxax.solvers.unconstrained.ia_icg
-   :members:
-```
-
----
-
 ## Set- and Cone-Constrained Solvers (`px.solvers`)
 
 Quadratic penalty and inexact/smoothed proximal augmented Lagrangian solvers for
@@ -167,12 +152,27 @@ $\min_x f(x) + h(x)$ subject to $\mathcal{A}(x) \in \mathcal{C}$.
 
 ---
 
+## Matrix Spectral Solvers (`px.solvers`)
+
+Singular-value composite solvers requiring only a single thin SVD per outer
+iteration on `SpectralProblem` or `NuclearNorm` objectives.
+
+```{eval-rst}
+.. automodule:: proxax.solvers.unconstrained.da_icg
+   :members:
+
+.. automodule:: proxax.solvers.unconstrained.ia_icg
+   :members:
+```
+
+---
+
 ## Optax Compatibility (`px.optax_compat`)
 
 Single-step `optax.GradientTransformation` and
 `optax.GradientTransformationExtraArgs` state machines, together with composable
 outer trackers (`OptaxTracker`, `ConstrainedOptaxTracker`) and inner subproblem
-carries (`ACGSubproblemCarry`, `PFAPDSubproblemCarry`), for integrating `proxax`
+carries (`ACGSubproblemCarry`, `PFAPDSubproblemCarry`), for integrating Proxax
 into custom Optax loops.
 
 ```{eval-rst}

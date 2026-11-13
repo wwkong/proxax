@@ -1,4 +1,4 @@
-"""Sphinx configuration for proxax documentation (JAX-style Book Theme)."""
+"""Sphinx configuration for Proxax documentation (JAX-style Book Theme)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ import os
 
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
-project = "proxax"
-author = "William Kong"
-copyright = "2026, William Kong"
+project = "Proxax"
+author = "Weiwei Kong"
+copyright = "2026, Weiwei Kong"
 release = "0.0.2"
 
 extensions = [
@@ -33,7 +33,7 @@ myst_enable_extensions = [
 myst_heading_anchors = 3
 
 html_theme = "sphinx_book_theme"
-html_title = "proxax"
+html_title = "Proxax"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 

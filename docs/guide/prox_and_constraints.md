@@ -1,6 +1,6 @@
 # Proximal Operators & Constraints
 
-`proxax` gives you two ways to add nonsmooth structure or constraints to a
+Proxax gives you two ways to add nonsmooth structure or constraints to a
 smooth objective $f(x)$:
 
 1. **`proximal=...` (`px.prox`):** For convex regularizers (like $\ell_1$,
@@ -122,7 +122,7 @@ c_soc = px.constraints.in_set(lambda x: x, px.constraints.SecondOrderCone())
 
 Because `constraints` accepts arbitrary linear Python functions, you never have
 to materialize huge Kronecker or block matrices for matrix variables or nested
-dictionaries. `proxax` computes the adjoint $\mathcal{A}^*$ automatically via
+dictionaries. Proxax computes the adjoint $\mathcal{A}^*$ automatically via
 `jax.linear_transpose`:
 
 ```python
@@ -152,7 +152,7 @@ operator norm $\|\mathcal{A}\|_{\text{op}}^2$, pass `rmatvec=...` or
 
 Need equality, inequality, and cone constraints in the same problem? Pass a
 Python `dict`, `tuple`, or `list` of `Constraint` objects directly to
-`px.CompositeProblem(constraints=...)`. `proxax` automatically combines them
+`px.CompositeProblem(constraints=...)`. Proxax automatically combines them
 into a `ProductConstraint` and returns `sol.dual` with the **exact same
 keys/structure**:
 

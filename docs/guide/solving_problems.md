@@ -1,6 +1,6 @@
 # Problems, Solvers & `px.solve`
 
-This guide walks through the day-to-day workflow of `proxax` in plain English:
+This guide walks through the day-to-day workflow of Proxax in plain English:
 importing the unified `px` namespace, building problems over arrays or nested
 PyTrees, picking a solver, tuning tolerances, logging progress, and inspecting
 solutions.
@@ -139,8 +139,8 @@ these three defaults:
 | Problem Type | Recommended Default | `method=` String | Why Start Here? |
 | :--- | :--- | :--- | :--- |
 | **Unconstrained** (`constraints=None`) | `px.solvers.APD` | `"apd"` | Completely parameter-free; automatically adapts to both convex and nonconvex regions. |
-| **Matrix Spectral** (`SpectralProblem` or `NuclearNorm`) | `px.solvers.DAICG` | `"da_icg"` | Doubly accelerated; requires only one thin SVD per outer iteration. |
 | **Constrained** (`constraints=...`) | `px.solvers.IALM` or `px.solvers.QPAPD` | `"ialm"` / `"qp_apd"` | Both are parameter-free out of the box; `IALM` updates dual multipliers for moderate penalties, while `QPAPD` uses pure quadratic penalties. |
+| **Matrix Spectral** (`SpectralProblem` or `NuclearNorm`) | `px.solvers.DAICG` | `"da_icg"` | Doubly accelerated; requires only one thin SVD per outer iteration. |
 
 ### Full Solver Catalog at a Glance (`px.solvers`)
 
@@ -152,7 +152,6 @@ these three defaults:
   - **Curvature-guided (fastest when `px.oracle.SmoothTerm` supplies
     `lower_curvature` / `upper_curvature`):** `AIPP` (`"aipp"`), `NCFISTA`
     (`"nc_fista"`), and `AG` (`"ag"`).
-- **Matrix spectral solvers:** `DAICG` (`"da_icg"`) and `IAICG` (`"ia_icg"`).
 - **Set/cone-constrained solvers:**
   - `IALM` (`"ialm"`): Inexact proximal augmented Lagrangian; supports `APD` or
     `AIPP` inner solvers and optional multiplier dampening (`dampen` in
@@ -163,6 +162,7 @@ these three defaults:
     single inner `ACG` step per outer iteration when curvatures are known.
   - `SProxALM` (`"s_prox_alm"`): Single-loop smoothed proximal ALM for linear
     equality and box/polyhedral constraints.
+- **Matrix spectral solvers:** `DAICG` (`"da_icg"`) and `IAICG` (`"ia_icg"`).
 
 For theoretical complexity bounds and literature references behind each method,
 see {doc}`../appendices/literature_and_theory`.

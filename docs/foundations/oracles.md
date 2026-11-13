@@ -3,7 +3,7 @@
 In first-order optimization, an **oracle** is the mathematical and programmatic
 interface through which a solver queries an optimization problem at trial points
 $x \in \mathcal{X}$. Rather than treating $\phi(x) = f(x) + h(x)$ as an opaque
-black box, `proxax` uses **structured composite oracles** that expose the smooth
+black box, Proxax uses **structured composite oracles** that expose the smooth
 gradient $\nabla f$, the nonsmooth proximal mapping $\operatorname{prox}_{\tau h}$,
 and the constraint Moreau envelope separately.
 
@@ -206,7 +206,7 @@ the matrix spectral composite model $\Phi(X) = f_1(X) + f_2^{\mathcal{V}}(\sigma
 
 ## 5. Exact Stationarity Refinement (`certificates.refine`)
 
-How does `proxax` compute an **exact** subgradient residual
+How does Proxax compute an **exact** subgradient residual
 $\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x})$ when $h$ is nonsmooth and
 may even be an indicator function with an unbounded normal cone?
 

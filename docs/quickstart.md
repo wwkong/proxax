@@ -1,6 +1,6 @@
 # Installation & Quickstart
 
-`proxax` solves smooth, nonsmooth, and constrained optimization problems in JAX.
+Proxax solves smooth, nonsmooth, and constrained optimization problems in JAX.
 You write ordinary differentiable JAX functions for the smooth part of your
 objective, pick built-in proximal operators and constraints for the nonsmooth or
 constrained parts, and call `px.solve`.
@@ -35,9 +35,9 @@ pip install "proxax[cuda12]"
 
 ::::
 
-### Importing `proxax`
+### Importing Proxax
 
-Everything in `proxax` is exposed under a single curated namespace `px` —
+Everything in Proxax is exposed under a single curated namespace `px` —
 either `from proxax import px` (or `import proxax as px`):
 
 - **Top-level entry points:** `px.CompositeProblem`, `px.SpectralProblem`,
@@ -74,7 +74,7 @@ print("Solution x:", sol.x)
 print("Stationarity residual:", float(sol.stats.opt_residual))
 ```
 
-You do not need to supply gradients or step sizes: `proxax` differentiates
+You do not need to supply gradients or step sizes: Proxax differentiates
 `smooth` automatically with `jax.value_and_grad` and estimates local smoothness
 and curvature on the fly.
 
@@ -144,7 +144,7 @@ print("Feasibility residual |sum(x) - 0.5|:", float(sol.stats.feas_residual))
 ```
 
 Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
-any linear Python function `x -> A(x)` — `proxax` synthesizes the transpose
+any linear Python function `x -> A(x)` — Proxax synthesizes the transpose
 $\mathcal{A}^*$ automatically via `jax.linear_transpose`.
 
 ---
@@ -170,4 +170,4 @@ Every solver returns a `px.Solution` PyTree with five fields:
 - **Want plain-English API guides?** Jump to {doc}`guide/solving_problems`,
   {doc}`guide/prox_and_constraints`, and {doc}`guide/optax_and_jax`.
 - **Want complete domain benchmarks?** Explore {doc}`examples/unconstrained`,
-  {doc}`examples/spectral`, and {doc}`examples/constrained`.
+  {doc}`examples/constrained`, and {doc}`examples/spectral`.

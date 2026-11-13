@@ -1,10 +1,10 @@
-# `proxax`
+# Proxax
 
 [![PyPI version](https://img.shields.io/pypi/v/proxax.svg)](https://pypi.org/project/proxax/)
 [![Documentation Status](https://readthedocs.org/projects/proxax/badge/?version=latest)](https://proxax.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**`proxax`** is a Python library of **certified first-order proximal, spectral,
+**Proxax** is a Python library of **certified first-order proximal, spectral,
 penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
 constrained optimization in **JAX** and **Optax**.
 
@@ -69,15 +69,7 @@ print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
    an arbitrary JAX PyTree $\mathcal{X}$, and $h$ (`proximal`) is proper,
    closed, convex, and proximable.
 
-2. **Matrix Spectral Composite Optimization (`px.SpectralProblem`):**
-
-   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
-
-   where $\sigma(X)$ denotes the singular values of $X$ and $(f_2^{\mathcal{V}},
-   h^{\mathcal{V}})$ are absolutely symmetric functions on
-   $\mathbb{R}^{\min(p, q)}$.
-
-3. **Set- and Cone-Constrained Optimization (`px.CompositeProblem`):**
+2. **Set- and Cone-Constrained Optimization (`px.CompositeProblem`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
 
@@ -85,14 +77,22 @@ print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
    PyTree linear map and $\mathcal{C} \subseteq \mathcal{Y}$ is a closed convex
    set with Euclidean projection $\Pi_{\mathcal{C}}$.
 
+3. **Matrix Spectral Composite Optimization (`px.SpectralProblem`):**
+
+   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
+
+   where $\sigma(X)$ denotes the singular values of $X$ and $(f_2^{\mathcal{V}},
+   h^{\mathcal{V}})$ are absolutely symmetric functions on
+   $\mathbb{R}^{\min(p, q)}$.
+
 ## Available Solvers (`px.solvers`)
 
 *   **Unconstrained Composite (`px.CompositeProblem`):** `APD`, `AIPP`, `ACACG`,
     `AdapFISTA`, `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`
-*   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,
-    `IAICG`
 *   **Set / Cone-Constrained (`px.CompositeProblem` with `constraints`):**
     `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`, `SProxALM`
+*   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,
+    `IAICG`
 *   **Optax Single-Step Transforms (`px.optax_compat`):** `proximal`, `apd`,
     `aipp`, `ialm`, `qp_apd`, `qp_aipp`
 
@@ -102,18 +102,18 @@ Self-contained benchmark scripts live in
 [`examples/`](https://github.com/wwkong/proxax/tree/main/examples):
 
 *   [`examples/unconstrained_nc_opt.py`](https://github.com/wwkong/proxax/blob/main/examples/unconstrained_nc_opt.py) — univariate convex QP, nonconvex simplex QP across 7 solvers, and nonconvex `tanh` margin classification.
-*   [`examples/spectral_matrix_completion.py`](https://github.com/wwkong/proxax/blob/main/examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`DAICG`, `IAICG`, `APD`) vs convex `NuclearNorm`.
 *   [`examples/constrained_nc_opt.py`](https://github.com/wwkong/proxax/blob/main/examples/constrained_nc_opt.py) — linearly-constrained nonconvex simplex QP across all 5 constrained solvers, MCP Sparse PCA on the $k$-Fantope, and box-constrained matrix completion.
+*   [`examples/spectral_matrix_completion.py`](https://github.com/wwkong/proxax/blob/main/examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`DAICG`, `IAICG`, `APD`) vs convex `NuclearNorm`.
 *   [`examples/optax_and_vmap.py`](https://github.com/wwkong/proxax/blob/main/examples/optax_and_vmap.py) — single-step trajectory tracking with `px.optax_compat` and parallel solving via `jax.jit(jax.vmap(...))`.
 
-## Citing `proxax`
+## Citing Proxax
 
-If `proxax` was helpful for a publication, please cite this repository:
+If Proxax was helpful for a publication, please cite this repository:
 
 ```bibtex
 @software{proxax2026github,
   author = {Weiwei Kong},
-  title = {{proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
+  title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
   version = {0.0.2},
   year = {2026},
