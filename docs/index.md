@@ -205,13 +205,6 @@ guide/solving_problems
 guide/prox_and_constraints
 guide/optax_and_jax
 guide/plotting
-```
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-:caption: Worked Examples
-
 examples/unconstrained
 examples/constrained
 examples/minmax
