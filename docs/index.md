@@ -205,21 +205,15 @@ guide/solving_problems
 guide/prox_and_constraints
 guide/optax_and_jax
 guide/plotting
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: Reference & Resources
+
 examples/index
-```
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-
 api
-```
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-:caption: Experiments
-
 Experiment Reports & Benchmarks <https://proxax.readthedocs.io/projects/experiments/en/latest/>
 ```
 
