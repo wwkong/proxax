@@ -230,6 +230,14 @@ api
 ```{toctree}
 :maxdepth: 2
 :hidden:
+:caption: Experiments
+
+Experiment Reports & Benchmarks <https://proxax.readthedocs.io/projects/experiments/en/latest/>
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
 :caption: Appendices
 
 appendices/literature_and_theory
