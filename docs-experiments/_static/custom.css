@@ -64,9 +64,13 @@ table.grouped-4-table tbody tr:nth-child(4n):not(:last-child) td,
   border-bottom: 2px solid var(--pst-color-text-muted);
 }
 
-/* Make SVG plots fill the horizontal article width cleanly */
+/* Make plot images fill the horizontal article width cleanly */
 .bd-article img[src*="_images/"][src$=".svg"],
-.bd-article img[src*="_static/plots/"][src$=".svg"] {
+.bd-article img[src*="_static/plots/"][src$=".svg"],
+.bd-article img[src*="_images/"][src$=".gif"],
+.bd-article img[src*="_static/plots/"][src$=".gif"],
+.bd-article img[src*="_images/"][src$=".png"],
+.bd-article img[src*="_static/plots/"][src$=".png"] {
   width: 100%;
   height: auto;
   display: block;
