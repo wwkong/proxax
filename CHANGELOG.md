@@ -4,6 +4,12 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-13
+
+### Changed
+- Reordered and polished the main documentation landing page (`docs/index.md`, `README.md`), enabled `home_page_in_toc`, added dark-mode `pygments_dark_style = "monokai"`, table hover styling, and SVG borders.
+- Expanded the `docs-experiments/` replication suite with sequential-CPU replications (`kong2021_minmax`, `kong2022_spectral`, `kong2023_alm_vs_qp`, `kong2024_dpadmm`, `kong2024_spectrahedron`) and `DPADMM`-wins trajectory plots on `maia2026_table1_dqp`.
+
 ## [0.2.8] - 2026-11-13
 
 ### Changed
