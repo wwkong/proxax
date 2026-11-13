@@ -4,6 +4,12 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-13
+
+### Added
+- Added 11 JIT-compatible proximal operators in `proxax.prox.exotic` (re-exported under `px.prox`): `PSDCone`, `Spectrahedron`, `SOC`, `Isotonic`, `OWL`, `OSCAR`, `CappedSimplex`, `LogBarrier`, `NegEntropy`, `L0`, and `CardinalityBall`.
+- Added unit tests in `tests/test_exotic_prox.py` and documentation in `docs/guide/prox_and_constraints.md`.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added

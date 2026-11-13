@@ -198,3 +198,24 @@ print("Primal x:       ", sol.x)
 print("Budget dual:    ", sol.dual["budget"])
 print("Cap dual (>=0): ", sol.dual["cap"])
 ```
+
+---
+
+## 5. Conic, Sorting-Based, Barrier & Sparse Prox Operators
+
+Beyond standard norms and boxes, `px.prox` provides JIT-compatible operators
+for conic/matrix, ordered-regularization, barrier, and sparse problems:
+
+| Category | Operator | Mathematical Definition |
+| :--- | :--- | :--- |
+| **Conic / Matrix** | `px.prox.PSDCone()` | Indicator of $\{X \succeq 0\}$ via symmetric `eigh`. |
+| **Conic / Matrix** | `px.prox.Spectrahedron(scale=1.0)` | Indicator of $\{X \succeq 0 : \operatorname{tr}(X) = s\}$. |
+| **Conic / Matrix** | `px.prox.SOC()` | Second-order cone $\{\|x_{1:}\|_2 \le x_0\}$. |
+| **Sorting / PAVA** | `px.prox.Isotonic(increasing=True)` | Monotone cone $\{x_1 \le \dots \le x_n\}$ via PAVA. |
+| **Sorting / PAVA** | `px.prox.OWL(weights)` | Ordered weighted $\ell_1$ norm $\sum_i w_i |x|_{(i)}$. |
+| **Sorting / PAVA** | `px.prox.OSCAR(alpha, beta)` | $\alpha \|x\|_1 + \beta \sum_{i<j} \max(|x_i|, |x_j|)$. |
+| **Sorting / PAVA** | `px.prox.CappedSimplex(scale, upper)` | $\{0 \le x \le u,\ \sum_i x_i = s\}$. |
+| **Barriers** | `px.prox.LogBarrier(weight)` | $-\mu \sum_i \log x_i$ on $x > 0$ (closed-form). |
+| **Barriers** | `px.prox.NegEntropy(weight)` | $\mu \sum_i x_i \log x_i$ on $x \ge 0$ (log-space Newton). |
+| **Sparse** | `px.prox.L0(weight)` | Nonconvex $\lambda \|x\|_0$ hard thresholding. |
+| **Sparse** | `px.prox.CardinalityBall(k)` | Indicator of $\{x : \|x\|_0 \le k\}$. |
