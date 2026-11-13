@@ -57,3 +57,9 @@ table.docutils th,
 table.docutils td {
   padding: 0.45rem 0.75rem;
 }
+
+/* Thicker group separators every 4 rows (for 4-solver experiment tables) */
+table.grouped-4-table tbody tr:nth-child(4n):not(:last-child) td,
+.grouped-4-table table tbody tr:nth-child(4n):not(:last-child) td {
+  border-bottom: 2px solid var(--pst-color-text-muted);
+}

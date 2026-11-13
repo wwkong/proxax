@@ -71,6 +71,8 @@ Script: `experiments/maia2026_table1_dqp/run.py`
 The scaling ladder starts at $B=2, (m,n)=(2,4)$ and advances until all four
 methods fail to converge on an instance ($B=16, (m,n)=(16,16)$).
 
+```{table}
+:class: grouped-4-table
 | $B$ | $(m, n)$ | $Bn$ | Solver | Status | Outer Iters | Inner Iters | Grad Evals | Objective | $\text{rel\_opt}$ | $\text{rel\_feas}$ | Time (s) |
 |---:|:---|---:|:---|:---|---:|---:|---:|---:|---:|---:|---:|
 | 2 | (2, 4) | 8 | `PAdaptADMM-prac` | CONVERGED | 137 | 910 | 2,126 | -3.1792e+04 | 9.63e-04 | 9.64e-04 | 3.25 |
@@ -105,6 +107,7 @@ methods fail to converge on an instance ($B=16, (m,n)=(16,16)$).
 | 16 | (16, 16) | 256 | `PAdaptADMM-theo` | TIME_LIMIT | 5,000 | 331,461 | 751,170 | -2.2206e+05 | 9.41e-02 | 9.29e+00 | 112.33 |
 | 16 | (16, 16) | 256 | `DPADMM` | TIME_LIMIT | 3,000 | 120,282 | 306,598 | -1.9030e+05 | 9.79e-02 | 1.20e-01 | 67.37 |
 | 16 | (16, 16) | 256 | `ADMM` | MAX_ITER | 50,000 | 0 | 1,600,000 | -2.0729e+05 | 1.73e+00 | 2.22e+00 | 189.44 |
+```
 
 ## Key Observations
 
