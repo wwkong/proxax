@@ -122,13 +122,14 @@ halving feasibility **4.1× faster** in gradient evaluations than
 
 ![Table-1 DQP Convergence Trajectories](_static/plots/dqp_trajectories.svg)
 
-## Convergence Trajectories (`B=4, m=8, n=12` — `DPADMM` Wins)
+## Convergence Trajectories (`B=4, m=8, n=12`, `seed=2` — `DPADMM` Wins)
 
-On the larger `(B=4, m=8, n=12)` instance, `DPADMM` drives both
-$\text{rel\_opt}$ (down to `2.5e-3`) and $\text{rel\_feas}$ (down to
-`1.0e-14`) monotonically toward zero, whereas `PAdaptADMM-prac` and
-`PAdaptADMM-theo` drive feasibility down (`5.2e-7` / `6.4e-7`) while their
-stationarity residuals climb to `4.66` and `1.57`:
+On the larger `(B=4, m=8, n=12)` instance (`seed=2`), `DPADMM` drives both
+$\text{rel\_opt}$ (down to `7.00e-4`) and $\text{rel\_feas}$ (down to
+`9.69e-4`) below the `1e-3` tolerance threshold in `126,730` gradient
+evaluations, whereas `PAdaptADMM-prac` and `PAdaptADMM-theo` drive feasibility
+down (`1.33e-7` / `3.10e-8`) while their stationarity residuals climb to
+`2.02` and `1.18`:
 
 ![Table-1 DQP Trajectories (DPADMM Wins)](_static/plots/dqp_trajectories_dpadmm_wins.svg)
 

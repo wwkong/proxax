@@ -27,10 +27,11 @@ def _collect_instance(
     n: int,
     *,
     rel_tol: float = 1e-3,
+    seed: int = 0,
     admm_caps: list[int],
 ) -> dict[str, dict[str, list[float]]]:
     problem, x0 = make_dqp_instance(
-        num_blocks=num_blocks, m=m, n=n, omega=100.0, seed=0
+        num_blocks=num_blocks, m=m, n=n, omega=100.0, seed=seed
     )
     g_scale, f_scale = _initial_scales(problem, x0)
     opt_tol = rel_tol * g_scale
@@ -73,7 +74,7 @@ def _collect_instance(
             if sol.status_enum.name == "CONVERGED":
                 break
 
-    for s_cap in [1, 2, 3, 5, 8, 12, 18, 25]:
+    for s_cap in [1, 2, 3, 5, 8, 12, 18, 25, 30]:
         sol = px.solve(
             problem,
             x0,
@@ -86,6 +87,7 @@ def _collect_instance(
                 c_init=c0,
                 max_stages=s_cap,
                 max_stage_iters=1000,
+                max_inner_iters=200,
             ),
         )
         trajs["DPADMM"]["grad_evals"].append(float(sol.stats.grad_evals))
@@ -133,7 +135,7 @@ def main() -> None:
     )
 
     t_med = _collect_instance(
-        4, 8, 12, admm_caps=[50, 200, 500, 1500, 4000, 10000, 25000]
+        4, 8, 12, seed=2, admm_caps=[50, 200, 500, 1500, 4000, 10000, 25000]
     )
     (out_dir / "dqp_trajectories_dpadmm_wins.json").write_text(
         json.dumps(t_med, indent=2)

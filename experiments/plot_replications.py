@@ -325,7 +325,7 @@ def _plot_dqp_trajectories_dpadmm_wins() -> None:
     _plot_dqp_pair(
         "dqp_trajectories_dpadmm_wins.json",
         "dqp_trajectories_dpadmm_wins.svg",
-        r"$B=4, m=8, n=12$",
+        r"$B=4, m=8, n=12$ (seed 2)",
         "Table-1 DQP Trajectories (DPADMM Wins)",
     )
 
