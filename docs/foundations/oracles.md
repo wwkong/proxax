@@ -185,7 +185,27 @@ $\theta \in (0, 1)$ gives dampened ALM (`AIDAL`).
 
 ---
 
-## 4. Spectral Oracles (`SpectralOracle` & `VectorSpectralSubOracle`)
+## 4. Min-Max & Saddle-Point Oracles (`MinMaxOracle`)
+
+`MinMaxOracle(coupling=..., prox_x=..., prox_y=...)` implements the composite
+saddle-point model
+$\mathcal{L}(x, y) = \Phi(x, y) + h_x(x) - h_y(y)$ for primal-dual pairs
+$z = (x, y)$:
+
+- **Coupling queries:** `phi_val(x, y)` returns $\Phi(x, y)$, `phi_val_grad(x, y)`
+  returns $\big(\Phi(x, y), \nabla_x \Phi(x, y), \nabla_y \Phi(x, y)\big)$ via
+  reverse-mode AD, and `grad_x(x, y)` / `grad_y(x, y)` expose partial gradients
+  individually for alternating or Gauss-Seidel updates (`PDHG`).
+- **Separable proximal steps:** `prox_x(u, tau)` and `prox_y(v, sigma)` evaluate
+  $\operatorname{prox}_{\tau h_x}(u)$ and $\operatorname{prox}_{\sigma h_y}(v)$
+  with optional `domain_project(x, y)` for initial iterates.
+- **Full saddle-point objective:** `obj_val(x, y)` evaluates
+  $\Phi(x, y) + h_x(x) - h_y(y)$ using the `nonsmooth_x` / `nonsmooth_y` value
+  hooks when finite.
+
+---
+
+## 5. Spectral Oracles (`SpectralOracle` & `VectorSpectralSubOracle`)
 
 `SpectralOracle(f1=..., f2_vec=..., prox_vec=..., domain_proj=...)` implements
 the matrix spectral composite model
@@ -211,7 +231,7 @@ in two ways simultaneously:
 
 ---
 
-## 5. Exact Stationarity Refinement (`certificates.refine`)
+## 6. Exact Stationarity Refinement (`certificates.refine`)
 
 How does Proxax compute an **exact** subgradient residual
 $\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x})$ when $h$ is nonsmooth and
@@ -242,6 +262,11 @@ along with guaranteed composite descent $\phi(\hat{x}) \le \phi(y) - \frac{L}{2}
   $\hat{v} \in \nabla f(\hat{x}) + \mathcal{A}^*(\hat{p}(\hat{x})) + \partial h(\hat{x})$,
   where $\hat{p}(\hat{x}) = c\big(w(\hat{x}) - \Pi_{\mathcal{C}}(w(\hat{x}))\big)$
   automatically belongs to $N_{\mathcal{C}}(\Pi_{\mathcal{C}}(w(\hat{x})))$.
+- **Min-max case (`refine_minmax`):** Takes a coupled primal-dual proximal
+  step $(\hat{x}, \hat{y})$ with step sizes $(\tau, \sigma)$ from $(x, y)$ and
+  recovers the exact saddle-point subgradient pair
+  $\hat{v}_x \in \nabla_x \Phi(\hat{x}, \hat{y}) + \partial h_x(\hat{x})$ and
+  $\hat{v}_y \in -\nabla_y \Phi(\hat{x}, \hat{y}) + \partial h_y(\hat{y})$.
 - **Spectral case (`refine_icg`):** Performs the exact same refinement in 1D
   singular-value coordinates $\hat{z} \in \mathbb{R}^r$ and lifts the vector
   subgradient back to $\mathbb{R}^{p \times q}$ via $P \operatorname{diag}(\cdot) Q^\top$

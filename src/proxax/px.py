@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from proxax import certificates
 from proxax import constraints
+from proxax import implicit
 from proxax import optax_compat
 from proxax import oracle
 from proxax import problem as _problem
@@ -26,6 +27,7 @@ Solver = solvers.Solver
 SpectralOracle = oracle.SpectralOracle
 SpectralProblem = oracle.SpectralProblem
 StoppingConfig = solvers.StoppingConfig
+implicit_solve = implicit.implicit_solve
 solve = _solve.solve
 
 __all__ = [
@@ -43,6 +45,8 @@ __all__ = [
     "__version__",
     "certificates",
     "constraints",
+    "implicit",
+    "implicit_solve",
     "optax_compat",
     "oracle",
     "prox",
