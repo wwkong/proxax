@@ -267,6 +267,10 @@ along with guaranteed composite descent $\phi(\hat{x}) \le \phi(y) - \frac{L}{2}
   recovers the exact saddle-point subgradient pair
   $\hat{v}_x \in \nabla_x \Phi(\hat{x}, \hat{y}) + \partial h_x(\hat{x})$ and
   $\hat{v}_y \in -\nabla_y \Phi(\hat{x}, \hat{y}) + \partial h_y(\hat{y})$.
+- **Block-constrained case (`ADMM`):** Each `BlockTerm` $(f_i, h_i, \mathcal{A}_i)$
+  uses its proximal update $\hat{x}_i = \operatorname{prox}_{\tau_i h_i}(x_i - \tau_i g_i)$
+  with dual $\hat{y}$ to certify
+  $\hat{v}_i = \nabla f_i(\hat{x}_i) + \mathcal{A}_i^*(\hat{y}) + \frac{1}{\tau_i}(x_i - \hat{x}_i) - g_i \in \nabla f_i(\hat{x}_i) + \mathcal{A}_i^*(\hat{y}) + \partial h_i(\hat{x}_i)$.
 - **Spectral case (`refine_icg`):** Performs the exact same refinement in 1D
   singular-value coordinates $\hat{z} \in \mathbb{R}^r$ and lifts the vector
   subgradient back to $\mathbb{R}^{p \times q}$ via $P \operatorname{diag}(\cdot) Q^\top$

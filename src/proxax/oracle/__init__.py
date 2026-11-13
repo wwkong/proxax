@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from proxax.oracle import block
 from proxax.oracle import composite
 from proxax.oracle import minmax
 from proxax.oracle import spectral
 from proxax.oracle import terms
 
+BlockProblem = block.BlockProblem
+BlockTerm = block.BlockTerm
 CompositeOracle = composite.CompositeOracle
 CompositeOracleProtocol = composite.CompositeOracleProtocol
 MinMaxOracle = minmax.MinMaxOracle
@@ -25,6 +28,8 @@ as_smooth_term = terms.as_smooth_term
 as_spectral_oracle = spectral.as_spectral_oracle
 
 __all__ = [
+    "BlockProblem",
+    "BlockTerm",
     "CompositeOracle",
     "CompositeOracleProtocol",
     "MinMaxOracle",

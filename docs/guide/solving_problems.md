@@ -140,6 +140,29 @@ sol = px.solve(
 x_hat, y_hat = sol.x
 ```
 
+### `px.BlockProblem` (Multi-Block Splitting & Consensus)
+
+For separable problems $\min_{x_1, \dots, x_K} \sum_i (f_i(x_i) + h_i(x_i))$
+subject to $\sum_i \mathcal{A}_i(x_i) = b$, wrap each block in
+`px.BlockTerm(smooth=..., proximal=..., linear_op=...)`:
+
+```python
+blk_prob = px.BlockProblem(
+    blocks=(
+        px.BlockTerm(smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2)),
+        px.BlockTerm(proximal=px.prox.L1(weight=0.25), linear_op=-jnp.eye(4)),
+    ),
+    rhs=0.0,
+)
+sol = px.solve(
+    blk_prob,
+    (jnp.zeros(4), jnp.zeros(4)),
+    method="admm",
+    opt_tol=1e-4,
+    feas_tol=1e-4,
+)
+```
+
 ---
 
 ## 3. Calling `px.solve`
@@ -187,6 +210,7 @@ these three defaults:
 | **Constrained** (`constraints=...`) | `px.solvers.IALM` or `px.solvers.QPAPD` | `"ialm"` / `"qp_apd"` | Both are parameter-free out of the box; `IALM` updates dual multipliers for moderate penalties, while `QPAPD` uses pure quadratic penalties. |
 | **Matrix Spectral** (`SpectralProblem` or `NuclearNorm`) | `px.solvers.DAICG` | `"da_icg"` | Doubly accelerated; requires only one thin SVD per outer iteration. |
 | **Min-Max / Saddle-Point** (`MinMaxProblem`) | `px.solvers.ExtraGradient` or `px.solvers.ProxPointMinMax` | `"extra_gradient"` / `"prox_point"` | Adaptive Mirror-Prox (`ExtraGradient`) for convex-concave games, `PDHG` for bilinear/alternating steps, and `ProxPointMinMax` for weakly monotone/nonconvex saddle points. |
+| **Block-Constrained** (`BlockProblem`) | `px.solvers.ADMM` | `"admm"` | Certified proximal ADMM for separable multi-block and consensus splitting. |
 
 ### Full Solver Catalog at a Glance (`px.solvers`)
 
@@ -211,6 +235,7 @@ these three defaults:
 - **Matrix spectral solvers:** `DAICG` (`"da_icg"`) and `IAICG` (`"ia_icg"`).
 - **Min-max & saddle-point solvers:** `ExtraGradient` (`"extra_gradient"`),
   `PDHG` (`"pdhg"`), and `ProxPointMinMax` (`"prox_point"`).
+- **Block-constrained splitting solvers:** `ADMM` (`"admm"`).
 
 For theoretical complexity bounds and literature references behind each method,
 see {doc}`../appendices/literature_and_theory`.

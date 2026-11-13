@@ -6,9 +6,11 @@ import typing
 
 from proxax import _typing
 from proxax import problem as problem_mod
+from proxax.oracle import block as block_mod
 from proxax.oracle import minmax
 from proxax.oracle import spectral
 from proxax.solvers import base
+from proxax.solvers.block import admm
 from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
@@ -33,6 +35,7 @@ from proxax.solvers.unconstrained import upfag
 def solve(
     problem: (
         problem_mod.CompositeProblem
+        | block_mod.BlockProblem
         | minmax.MinMaxProblem
         | spectral.SpectralProblem
     ),
@@ -74,6 +77,31 @@ def solve(
   """
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
+
+  if isinstance(problem, block_mod.BlockProblem):
+    blk_x0 = typing.cast(tuple[_typing.PyTree, ...], x0)
+    if solver is not None:
+      return typing.cast(
+          base.Solution,
+          solver.solve(
+              problem,
+              blk_x0,
+              jit=jit,
+              callback=callback,
+              time_limit=time_limit,
+          ),
+      )
+    if method is None or method.strip().lower().replace("-", "_") == "admm":
+      return admm.ADMM(opt_tol=opt_tol, feas_tol=feas_tol).solve(
+          problem,
+          blk_x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
+    raise ValueError(
+        f"Unknown BlockProblem solver method {method!r}. Expected 'admm'."
+    )
 
   if isinstance(problem, minmax.MinMaxProblem):
     mm_x0 = typing.cast(tuple[_typing.PyTree, _typing.PyTree], x0)

@@ -9,9 +9,9 @@ introductions and basic examples, see {doc}`guide/solving_problems` and
 
 ## Problems, Solutions & Top-Level `px.solve`
 
-Core problem containers (`px.CompositeProblem`, `px.SpectralProblem`,
-`px.MinMaxProblem`), the unified `px.solve` entry point, implicit
-differentiation (`px.implicit_solve`), common return types (`px.Solution`,
+Core problem containers (`px.CompositeProblem`, `px.BlockProblem`,
+`px.BlockTerm`, `px.SpectralProblem`, `px.MinMaxProblem`), the unified
+`px.solve` entry point, implicit differentiation (`px.implicit_solve`), common return types (`px.Solution`,
 `px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`),
 composable solver state trackers (`px.solvers.SolverTracker`,
 `px.solvers.ConstrainedTracker`, `px.solvers.OracleCounts`), and type aliases
@@ -92,6 +92,9 @@ together with exact subdifferential refinement (`refine`, `refine_icg`,
    :members:
 
 .. automodule:: proxax.oracle.composite
+   :members:
+
+.. automodule:: proxax.oracle.block
    :members:
 
 .. automodule:: proxax.oracle.minmax
@@ -194,6 +197,19 @@ $\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$.
    :members:
 
 .. automodule:: proxax.solvers.minmax.prox_point
+   :members:
+```
+
+---
+
+## Block-Constrained Splitting Solvers (`px.solvers`)
+
+Certified proximal ADMM for separable multi-block and consensus
+`BlockProblem` objectives $\sum_i (f_i(x_i) + h_i(x_i))$ subject to
+$\sum_i \mathcal{A}_i(x_i) = b$.
+
+```{eval-rst}
+.. automodule:: proxax.solvers.block.admm
    :members:
 ```
 

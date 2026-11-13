@@ -112,6 +112,13 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
    problems using adaptive Mirror-Prox (`ExtraGradient`), Chambolle-Pock
    (`PDHG`), or proximal point (`ProxPointMinMax`).
 
+5. **Block-Constrained Composite Optimization (`BlockProblem`):**
+
+   $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
+
+   Split separable multi-block and consensus problems across coupled
+   PyTree blocks using certified proximal `ADMM`.
+
 ---
 
 ## 30-Second Example

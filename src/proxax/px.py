@@ -16,6 +16,8 @@ from proxax import typing
 
 __version__ = "0.0.5"
 
+BlockProblem = oracle.BlockProblem
+BlockTerm = oracle.BlockTerm
 CompositeProblem = _problem.CompositeProblem
 KKTResiduals = _problem.KKTResiduals
 MinMaxOracle = oracle.MinMaxOracle
@@ -31,6 +33,8 @@ implicit_solve = implicit.implicit_solve
 solve = _solve.solve
 
 __all__ = [
+    "BlockProblem",
+    "BlockTerm",
     "CompositeProblem",
     "KKTResiduals",
     "MinMaxOracle",

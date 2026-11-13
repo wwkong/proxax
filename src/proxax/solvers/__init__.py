@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from proxax.solvers import base
+from proxax.solvers import block
 from proxax.solvers import constrained
 from proxax.solvers import inner
 from proxax.solvers import minmax
@@ -13,6 +14,7 @@ ACACGState = unconstrained.ACACGState
 ACGConfig = inner.ACGConfig
 ACGState = inner.ACGState
 ACGStatus = inner.ACGStatus
+ADMM = block.ADMM
 AG = unconstrained.AG
 AGState = unconstrained.AGState
 AIPP = unconstrained.AIPP
@@ -67,6 +69,7 @@ __all__ = [
     "ACGConfig",
     "ACGState",
     "ACGStatus",
+    "ADMM",
     "AG",
     "AGState",
     "AIPP",
@@ -114,6 +117,7 @@ __all__ = [
     "StoppingConfig",
     "UPFAG",
     "UPFAGState",
+    "block",
     "constrained",
     "inner",
     "minmax",
