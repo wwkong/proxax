@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/_static/logo.svg" alt="Proxax logo" width="110" />
+  <img src="docs/_static/logo.png" alt="Proxax logo" width="110" />
 </p>
 
 # Proxax
