@@ -40,6 +40,7 @@ myst_enable_extensions = [
 myst_heading_anchors = 3
 
 html_theme = "sphinx_book_theme"
+pygments_dark_style = "monokai"
 html_title = "Proxax"
 html_logo = "_static/logo.png"
 html_favicon = "_static/logo.png"

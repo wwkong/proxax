@@ -1,5 +1,14 @@
 # <img src="_static/logo.png" alt="" style="height: 1.15em; vertical-align: -0.18em; margin-right: 0.35em; border-radius: 0.2em;"> Proxax: Certified Composite Optimization in JAX
 
+[![PyPI](https://img.shields.io/pypi/v/proxax)](https://pypi.org/project/proxax/)
+[![Python](https://img.shields.io/pypi/pyversions/proxax)](https://pypi.org/project/proxax/)
+[![CI](https://github.com/wwkong/proxax/actions/workflows/ci.yml/badge.svg)](https://github.com/wwkong/proxax/actions/workflows/ci.yml)
+[![Docs](https://readthedocs.org/projects/proxax/badge/?version=latest)](https://proxax.readthedocs.io/en/latest/)
+
+```bash
+pip install proxax
+```
+
 **Proxax** is a library of **certified first-order proximal, spectral,
 penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
 constrained optimization in **JAX** and **Optax** — covering both convex and
