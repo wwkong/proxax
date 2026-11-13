@@ -215,7 +215,6 @@ examples/spectral
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: Reference
 
 api
 ```
