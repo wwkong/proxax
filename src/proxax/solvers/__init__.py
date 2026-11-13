@@ -22,6 +22,7 @@ AdapAPG = unconstrained.AdapAPG
 AdapAPGState = unconstrained.AdapAPGState
 AdapFISTA = unconstrained.AdapFISTA
 AdapFISTAState = unconstrained.AdapFISTAState
+ConstrainedTracker = base.ConstrainedTracker
 DAICG = unconstrained.DAICG
 DAICGState = unconstrained.DAICGState
 ECG = unconstrained.ECG
@@ -34,6 +35,7 @@ IAIPAL = constrained.IAIPAL
 IAIPALState = constrained.IAIPALState
 NCFISTA = unconstrained.NCFISTA
 NCFISTAState = unconstrained.NCFISTAState
+OracleCounts = base.OracleCounts
 PFACGConfig = inner.PFACGConfig
 PFACGState = inner.PFACGState
 PFACGStatus = inner.PFACGStatus
@@ -47,6 +49,7 @@ Solution = base.Solution
 Solver = base.Solver
 SolveStats = base.SolveStats
 SolveStatus = base.SolveStatus
+SolverTracker = base.SolverTracker
 StoppingConfig = base.StoppingConfig
 UPFAG = unconstrained.UPFAG
 UPFAGState = unconstrained.UPFAGState
@@ -67,6 +70,7 @@ __all__ = [
     "AdapAPGState",
     "AdapFISTA",
     "AdapFISTAState",
+    "ConstrainedTracker",
     "DAICG",
     "DAICGState",
     "ECG",
@@ -79,6 +83,7 @@ __all__ = [
     "IAIPALState",
     "NCFISTA",
     "NCFISTAState",
+    "OracleCounts",
     "PFACGConfig",
     "PFACGState",
     "PFACGStatus",
@@ -92,6 +97,7 @@ __all__ = [
     "SolveStats",
     "SolveStatus",
     "Solver",
+    "SolverTracker",
     "StoppingConfig",
     "UPFAG",
     "UPFAGState",
