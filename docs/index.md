@@ -73,6 +73,14 @@ Read the literature review, worst-case complexity bounds, algorithm deep dives,
 and detailed comparisons to the upstream MATLAB `nc_opt` package.
 :::
 
+:::{grid-item-card} Experiment Reports & Benchmarks
+:link: https://proxax.readthedocs.io/projects/experiments/en/latest/
+:link-type: url
+
+Explore solver benchmarks, CPU/GPU `vmap` scaling studies, and literature
+replications in the dedicated experiments portal.
+:::
+
 ::::
 
 ---

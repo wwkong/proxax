@@ -1,5 +1,7 @@
 # Experiment Reports
 
+[← Back to Proxax Documentation](https://proxax.readthedocs.io/en/latest/)
+
 This section collects writeups, tables, and replication notes for large-scale
 and paper-replication studies run under `experiments/` in the repository.
 
