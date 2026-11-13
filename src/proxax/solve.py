@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import dataclasses
 import time
 import typing
@@ -191,6 +192,92 @@ def _select_solver(
   return chosen, target
 
 
+_COMPILED_CACHE_MAXSIZE = 64
+_COMPILED_SOLVE_CACHE: collections.OrderedDict[typing.Any, typing.Any] = (
+    collections.OrderedDict()
+)
+
+
+def _x0_signature(x0: _typing.PyTree) -> tuple[typing.Any, ...]:
+  leaves, treedef = jax.tree.flatten(x0)
+  leaf_sigs = tuple(
+      (getattr(leaf, "shape", None), getattr(leaf, "dtype", type(leaf)))
+      for leaf in leaves
+  )
+  return (treedef, leaf_sigs)
+
+
+def _is_traced(tree: _typing.PyTree) -> bool:
+  return any(
+      isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(tree)
+  )
+
+
+def _block_solution(sol: base.Solution) -> None:
+  sol.status.block_until_ready()
+  for leaf in jax.tree.leaves(sol.x):
+    if hasattr(leaf, "block_until_ready"):
+      leaf.block_until_ready()
+
+
+def _run_compiled_or_direct(
+    chosen: typing.Any,
+    target: typing.Any,
+    x0: _typing.PyTree,
+    *,
+    jit: bool,
+    effective_cb: typing.Any,
+    time_limit: float | None,
+) -> tuple[base.Solution, float | None]:
+  if jit and effective_cb is None and not _is_traced(x0):
+    try:
+      cache_key = (chosen, target, time_limit, _x0_signature(x0))
+      hash(cache_key)
+    except TypeError:
+      cache_key = None
+
+    if cache_key is not None:
+      compiled = _COMPILED_SOLVE_CACHE.get(cache_key)
+      if compiled is None:
+        solve_jit: typing.Any = jax.jit(
+            lambda init: chosen.solve(
+                target,
+                init,
+                jit=True,
+                callback=None,
+                time_limit=time_limit,
+            )
+        )
+        compiled = solve_jit.lower(x0).compile()
+        _COMPILED_SOLVE_CACHE[cache_key] = compiled
+        if len(_COMPILED_SOLVE_CACHE) > _COMPILED_CACHE_MAXSIZE:
+          _COMPILED_SOLVE_CACHE.popitem(last=False)
+      else:
+        _COMPILED_SOLVE_CACHE.move_to_end(cache_key)
+
+      t0 = time.perf_counter()
+      sol = typing.cast(base.Solution, compiled(x0))
+      _block_solution(sol)
+      return sol, (time.perf_counter() - t0) * 1000.0
+
+  t0 = time.perf_counter()
+  sol = typing.cast(
+      base.Solution,
+      chosen.solve(
+          target,
+          x0,
+          jit=jit,
+          callback=effective_cb,
+          time_limit=time_limit,
+      ),
+  )
+  runtime_ms: float | None = None
+  if not isinstance(sol.status, jax.core.Tracer):
+    _block_solution(sol)
+    runtime_ms = (time.perf_counter() - t0) * 1000.0
+  return sol, runtime_ms
+
+
 def solve(
     problem: (
         problem_mod.CompositeProblem
@@ -208,7 +295,6 @@ def solve(
     callback: typing.Any = None,
     time_limit: float | None = None,
     track_history: bool = False,
-    exclude_compile: bool = False,
 ) -> base.Solution:
   """Solves a composite, block, minmax, or spectral optimization problem.
 
@@ -234,10 +320,6 @@ def solve(
     time_limit: Optional wall-clock limit in seconds (`jit=False` only).
     track_history: If True, records per-iteration objective and residual history
       into `solution.history` for `solution.plot()` (works with `jit=True`).
-    exclude_compile: If True (requires `jit=True` and no Python callback),
-      pre-compiles the solve via `jax.jit(...).lower(x0).compile()` before
-      starting the `runtime_ms` timer so `sol.runtime_ms` excludes XLA
-      compilation overhead.
 
   Returns:
     A `Solution` PyTree with certified primal `x`, optional `dual`, exact
@@ -266,48 +348,14 @@ def solve(
 
       effective_cb = _combined_cb
 
-  if exclude_compile and (not jit or effective_cb is not None):
-    raise ValueError(
-        "`exclude_compile=True` requires `jit=True` and no Python callback."
-    )
-
-  def _is_traced(tree: _typing.PyTree) -> bool:
-    return any(
-        isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(tree)
-    )
-
-  if exclude_compile and not _is_traced(x0):
-    solve_jit: typing.Any = jax.jit(
-        lambda init: chosen.solve(
-            target,
-            init,
-            jit=True,
-            callback=None,
-            time_limit=time_limit,
-        )
-    )
-    compiled = solve_jit.lower(x0).compile()
-    t0 = time.perf_counter()
-    sol = typing.cast(base.Solution, compiled(x0))
-  else:
-    t0 = time.perf_counter()
-    sol = typing.cast(
-        base.Solution,
-        chosen.solve(
-            target,
-            x0,
-            jit=jit,
-            callback=effective_cb,
-            time_limit=time_limit,
-        ),
-    )
-  runtime_ms: float | None = None
-  if not isinstance(sol.status, jax.core.Tracer):
-    sol.status.block_until_ready()
-    for leaf in jax.tree.leaves(sol.x):
-      if hasattr(leaf, "block_until_ready"):
-        leaf.block_until_ready()
-    runtime_ms = (time.perf_counter() - t0) * 1000.0
+  sol, runtime_ms = _run_compiled_or_direct(
+      chosen,
+      target,
+      x0,
+      jit=jit,
+      effective_cb=effective_cb,
+      time_limit=time_limit,
+  )
   if tracker is not None or runtime_ms is not None:
     return dataclasses.replace(
         sol,

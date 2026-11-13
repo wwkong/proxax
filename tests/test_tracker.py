@@ -155,10 +155,16 @@ def test_solution_and_stats_repr() -> None:
   )(jnp.zeros(4))
   assert jitted_sol.runtime_ms is None
 
-  exec_sol = px.solve(
-      prob, jnp.zeros(4), method="apd", opt_tol=1e-5, exclude_compile=True
-  )
+  exec_sol = px.solve(prob, jnp.ones(4), method="apd", opt_tol=1e-5)
   assert isinstance(exec_sol.runtime_ms, float) and exec_sol.runtime_ms > 0.0
+
+  # Unhashable problem (contains jax.Array in Box) falls back cleanly.
+  arr_prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((x - 1.0) ** 2),
+      proximal=px.prox.Box(lower=jnp.zeros(4), upper=jnp.ones(4)),
+  )
+  arr_sol = px.solve(arr_prob, jnp.zeros(4), method="apd", opt_tol=1e-5)
+  assert isinstance(arr_sol.runtime_ms, float) and arr_sol.runtime_ms > 0.0
   assert "x=float" in s_repr
   assert "[4]" in s_repr
   assert "dual=None" in s_repr
