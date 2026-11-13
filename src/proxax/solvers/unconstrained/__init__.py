@@ -12,6 +12,7 @@ from proxax.solvers.unconstrained import da_icg
 from proxax.solvers.unconstrained import ecg
 from proxax.solvers.unconstrained import ia_icg
 from proxax.solvers.unconstrained import nc_fista
+from proxax.solvers.unconstrained import panoc
 from proxax.solvers.unconstrained import upfag
 
 ACACG = ac_acg.ACACG
@@ -34,6 +35,8 @@ IAICG = ia_icg.IAICG
 IAICGState = ia_icg.IAICGState
 NCFISTA = nc_fista.NCFISTA
 NCFISTAState = nc_fista.NCFISTAState
+PANOC = panoc.PANOC
+PANOCState = panoc.PANOCState
 UPFAG = upfag.UPFAG
 UPFAGState = upfag.UPFAGState
 
@@ -58,6 +61,8 @@ __all__ = [
     "IAICGState",
     "NCFISTA",
     "NCFISTAState",
+    "PANOC",
+    "PANOCState",
     "UPFAG",
     "UPFAGState",
 ]

@@ -216,9 +216,16 @@ these three defaults:
 
 - **Unconstrained solvers:**
   - **Parameter-free (no curvature constants needed):** `APD` (`"apd"`),
+    `PANOC` (`"panoc"`, composite L-BFGS over the Forward-Backward Envelope),
     `AdapFISTA` (`"adap_fista"`), `AdapAPG` (`"adap_apg"`), `UPFAG` (`"upfag"`),
     `ACACG` (`"ac_acg"`), and `ECG` (`"ecg"`, simple backtracking proximal
     gradient).
+
+![Ill-Conditioned Lasso: PANOC vs. APD vs. AdapFISTA](../_static/plots/panoc_lasso.svg)
+
+See `examples/exotic_and_panoc.py` for an end-to-end comparison of `PANOC`
+against first-order solvers alongside `Spectrahedron` and `CappedSimplex`
+examples.
   - **Curvature-guided (fastest when `px.oracle.SmoothTerm` supplies
     `lower_curvature` / `upper_curvature`):** `AIPP` (`"aipp"`), `NCFISTA`
     (`"nc_fista"`), and `AG` (`"ag"`).

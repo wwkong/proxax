@@ -43,6 +43,8 @@ IAIPALState = constrained.IAIPALState
 NCFISTA = unconstrained.NCFISTA
 NCFISTAState = unconstrained.NCFISTAState
 OracleCounts = base.OracleCounts
+PANOC = unconstrained.PANOC
+PANOCState = unconstrained.PANOCState
 PAdaptADMM = block.PAdaptADMM
 PDHG = minmax.PDHG
 PDHGState = minmax.PDHGState
@@ -101,6 +103,8 @@ __all__ = [
     "NCFISTA",
     "NCFISTAState",
     "OracleCounts",
+    "PANOC",
+    "PANOCState",
     "PAdaptADMM",
     "PDHG",
     "PDHGState",

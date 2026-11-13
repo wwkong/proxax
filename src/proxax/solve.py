@@ -32,6 +32,7 @@ from proxax.solvers.unconstrained import da_icg
 from proxax.solvers.unconstrained import ecg
 from proxax.solvers.unconstrained import ia_icg
 from proxax.solvers.unconstrained import nc_fista
+from proxax.solvers.unconstrained import panoc
 from proxax.solvers.unconstrained import upfag
 
 _SolverFactory = typing.Callable[[float, float], typing.Any]
@@ -80,6 +81,7 @@ _COMPOSITE_METHODS: dict[str, _SolverFactory] = {
     "acacg": lambda ot, _ft: ac_acg.ACACG(opt_tol=ot),
     "adap_apg": lambda ot, _ft: adap_apg.AdapAPG(opt_tol=ot),
     "adapapg": lambda ot, _ft: adap_apg.AdapAPG(opt_tol=ot),
+    "panoc": lambda ot, _ft: panoc.PANOC(opt_tol=ot),
     "qp_aipp": lambda ot, ft: qp_aipp.QPAIPP(opt_tol=ot, feas_tol=ft),
     "qp_apd": lambda ot, ft: qp_apd.QPAPD(opt_tol=ot, feas_tol=ft),
     "ialm": lambda ot, ft: ialm.IALM(opt_tol=ot, feas_tol=ft),
