@@ -1,4 +1,4 @@
-# Proxax: Certified Composite Optimization in JAX
+# <img src="_static/logo.png" alt="" style="height: 1.15em; vertical-align: -0.18em; margin-right: 0.35em; border-radius: 0.2em;"> Proxax: Certified Composite Optimization in JAX
 
 **Proxax** is a library of **certified first-order proximal, spectral,
 penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
@@ -15,6 +15,86 @@ Every solver in Proxax:
   measuring true subdifferential and KKT residuals rather than heuristic step
   lengths.
 - **Depends only on `jax` and `optax`** at runtime.
+
+---
+
+## 30-Second Example
+
+Minimize an indefinite (nonconvex) quadratic over the unit box with a linear
+equality constraint:
+
+$$\min_{x \in [0, 1]^3} \; \frac{1}{2} x^\top Q x + \langle c, x \rangle \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1$$
+
+```python
+import jax.numpy as jnp
+from proxax import px
+
+q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
+c_vec = jnp.array([-0.6, 0.2, -0.4])
+
+
+def smooth_fn(x):
+  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
+
+
+problem = px.CompositeProblem(
+    smooth=smooth_fn,
+    proximal=px.prox.Box(lower=0.0, upper=1.0),
+    constraints=px.constraints.equality(jnp.sum, rhs=1.0),
+)
+
+sol = px.solve(
+    problem,
+    jnp.ones(3) / 3.0,
+    solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
+)
+print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
+# CONVERGED [0.06000053 0.9399997  0.        ] 6.80e-06
+```
+
+---
+
+## What Problems Can Proxax Solve?
+
+1. **Unconstrained Composite Optimization (`CompositeProblem`):**
+
+   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x)$$
+
+   Minimize a differentiable (possibly nonconvex) objective $f$ plus a convex
+   proximable regularizer or indicator constraint $h$ such as an $\ell_1$ norm,
+   elastic net, box, ball, or probability simplex (over $\mathbb{R}^n$ or any
+   JAX PyTree of arrays).
+
+2. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
+
+   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+
+   Add linear equalities, inequalities, two-sided box bounds, or second-order
+   cone constraints $\mathcal{C} \subseteq \mathbb{R}^m$ over any matrix or
+   matrix-free PyTree linear map $\mathcal{A}: \mathbb{R}^n \to \mathbb{R}^m$.
+
+3. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
+
+   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
+
+   Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
+   penalties on the singular values $\sigma(X)$ using a single thin SVD per
+   outer iteration.
+
+4. **Min-Max & Saddle-Point Optimization (`MinMaxProblem`):**
+
+   $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h_x(x) - h_y(y)$$
+
+   Solve convex-concave and nonconvex-nonconcave composite saddle-point
+   problems using adaptive Mirror-Prox (`ExtraGradient`), Chambolle-Pock
+   (`PDHG`), or proximal point (`ProxPointMinMax`).
+
+5. **Block-Constrained Composite Optimization (`BlockProblem`):**
+
+   $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
+
+   Split separable multi-block and consensus problems across coupled
+   PyTree blocks using certified proximal `ADMM`.
 
 ---
 
@@ -65,7 +145,7 @@ Browse full class and function signatures across `proxax`, `prox`,
 `constraints`, `oracle`, `certificates`, `solvers`, and `optax_compat`.
 :::
 
-:::{grid-item-card} Appendices: Theory & `nc_opt` Comparison
+:::{grid-item-card} Appendices: Literature & Theory
 :link: appendices/literature_and_theory
 :link-type: doc
 
@@ -73,7 +153,7 @@ Read the literature review, worst-case complexity bounds, algorithm deep dives,
 and detailed comparisons to the upstream MATLAB `nc_opt` package.
 :::
 
-:::{grid-item-card} Experiment Reports & Benchmarks
+:::{grid-item-card} Experiments
 :link: https://proxax.readthedocs.io/projects/experiments/en/latest/
 :link-type: url
 
@@ -82,86 +162,6 @@ replications in the dedicated experiments portal.
 :::
 
 ::::
-
----
-
-## What Problems Can Proxax Solve?
-
-1. **Unconstrained Composite Optimization (`CompositeProblem`):**
-
-   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x)$$
-
-   Minimize a differentiable (possibly nonconvex) objective $f$ plus a convex
-   proximable regularizer or indicator constraint $h$ such as an $\ell_1$ norm,
-   elastic net, box, ball, or probability simplex (over $\mathbb{R}^n$ or any
-   JAX PyTree of arrays).
-
-2. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
-
-   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
-
-   Add linear equalities, inequalities, two-sided box bounds, or second-order
-   cone constraints $\mathcal{C} \subseteq \mathbb{R}^m$ over any matrix or
-   matrix-free PyTree linear map $\mathcal{A}: \mathbb{R}^n \to \mathbb{R}^m$.
-
-3. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
-
-   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
-
-   Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
-   penalties on the singular values $\sigma(X)$ using a single thin SVD per
-   outer iteration.
-
-4. **Min-Max & Saddle-Point Optimization (`MinMaxProblem`):**
-
-   $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h_x(x) - h_y(y)$$
-
-   Solve convex-concave and nonconvex-nonconcave composite saddle-point
-   problems using adaptive Mirror-Prox (`ExtraGradient`), Chambolle-Pock
-   (`PDHG`), or proximal point (`ProxPointMinMax`).
-
-5. **Block-Constrained Composite Optimization (`BlockProblem`):**
-
-   $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
-
-   Split separable multi-block and consensus problems across coupled
-   PyTree blocks using certified proximal `ADMM`.
-
----
-
-## 30-Second Example
-
-Minimize an indefinite (nonconvex) quadratic over the unit box with a linear
-equality constraint:
-
-$$\min_{x \in [0, 1]^3} \; \frac{1}{2} x^\top Q x + \langle c, x \rangle \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1$$
-
-```python
-import jax.numpy as jnp
-from proxax import px
-
-q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
-c_vec = jnp.array([-0.6, 0.2, -0.4])
-
-
-def smooth_fn(x):
-  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
-
-
-problem = px.CompositeProblem(
-    smooth=smooth_fn,
-    proximal=px.prox.Box(lower=0.0, upper=1.0),
-    constraints=px.constraints.equality(jnp.sum, rhs=1.0),
-)
-
-sol = px.solve(
-    problem,
-    jnp.ones(3) / 3.0,
-    solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
-)
-print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
-# CONVERGED [0.06000053 0.9399997  0.        ] 6.80e-06
-```
 
 ---
 
