@@ -190,6 +190,7 @@ guide/optax_and_jax
 
 examples/unconstrained
 examples/constrained
+examples/minmax
 examples/spectral
 ```
 

@@ -25,7 +25,7 @@ class BenchmarkProblem:
 
   suite: str
   name: str
-  prob: px.CompositeProblem | px.SpectralProblem
+  prob: px.CompositeProblem | px.MinMaxProblem | px.SpectralProblem
   x0: typing.Any
 
 
@@ -240,6 +240,62 @@ def fantope_sparse_pca(
       name=f"fantope_spca(p={dim},k={k_rank})",
       prob=prob,
       x0={"pi": init, "phi": init},
+  )
+
+
+def minmax_simplex_game(
+    *,
+    dim: int = 16,
+    seed: int = 21,
+) -> BenchmarkProblem:
+  """Generates a bilinear zero-sum matrix game over simplices."""
+  key = jax.random.key(seed)
+  payoff = jax.random.normal(key, (dim, dim)) / jnp.sqrt(dim)
+  prob = px.MinMaxProblem(
+      coupling=lambda x, y: x @ payoff @ y,
+      prox_x=prox.Simplex(scale=1.0),
+      prox_y=prox.Simplex(scale=1.0),
+      L_xy=float(jnp.linalg.norm(payoff, ord=2)),
+  )
+  x0 = jnp.ones(dim) / dim
+  return BenchmarkProblem(
+      suite="minmax",
+      name=f"simplex_game(n={dim})",
+      prob=prob,
+      x0=(x0, x0),
+  )
+
+
+def minmax_nonconvex_concave(
+    *,
+    dim: int = 16,
+    seed: int = 22,
+) -> BenchmarkProblem:
+  """Generates a weakly nonconvex-strongly concave minimax benchmark."""
+  key = jax.random.key(seed)
+  k_a, k_x = jax.random.split(key, 2)
+  a_mat = jax.random.normal(k_a, (dim, dim)) / jnp.sqrt(dim)
+
+  def coupling(x: jax.Array, y: jax.Array) -> jax.Array:
+    return (
+        0.5 * jnp.sum(x**2)
+        + 0.3 * jnp.sum(jnp.sin(2.0 * x))
+        + jnp.dot(y, a_mat @ x)
+        - 0.5 * jnp.sum(y**2)
+    )
+
+  prob = px.MinMaxProblem(
+      coupling=coupling,
+      prox_x=prox.Box(lower=-2.0, upper=2.0),
+      prox_y=prox.Box(lower=-2.0, upper=2.0),
+      m_x=1.2,
+  )
+  x0 = jax.random.uniform(k_x, (dim,), minval=-0.5, maxval=0.5)
+  return BenchmarkProblem(
+      suite="minmax",
+      name=f"nc_concave(n={dim})",
+      prob=prob,
+      x0=(x0, jnp.zeros(dim)),
   )
 
 

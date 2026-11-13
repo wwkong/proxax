@@ -40,6 +40,18 @@ def _constrained_solvers(
   ]
 
 
+def _minmax_solvers(
+    opt_tol: float,
+) -> list[
+    tuple[str, solvers.ExtraGradient | solvers.PDHG | solvers.ProxPointMinMax]
+]:
+  return [
+      ("ExtraGradient", solvers.ExtraGradient(opt_tol=opt_tol)),
+      ("PDHG", solvers.PDHG(opt_tol=opt_tol)),
+      ("ProxPointMinMax", solvers.ProxPointMinMax(opt_tol=opt_tol)),
+  ]
+
+
 def _spectral_solvers(
     opt_tol: float,
 ) -> list[tuple[str, base.Solver]]:
@@ -54,7 +66,14 @@ def main(argv: list[str] | None = None) -> int:
   parser = argparse.ArgumentParser(description="Run Proxax benchmarks.")
   parser.add_argument(
       "--suite",
-      choices=("all", "unconstrained", "constrained", "spectral", "vmap"),
+      choices=(
+          "all",
+          "unconstrained",
+          "constrained",
+          "minmax",
+          "spectral",
+          "vmap",
+      ),
       default="all",
       help="Benchmark suite to execute.",
   )
@@ -115,6 +134,25 @@ def main(argv: list[str] | None = None) -> int:
                 solver=solver,
                 opt_tol=args.opt_tol,
                 feas_tol=args.feas_tol,
+            )
+        )
+
+  if args.suite in ("all", "minmax"):
+    mm_probs = [
+        suites.minmax_simplex_game(dim=16, seed=21),
+        suites.minmax_nonconvex_concave(dim=16, seed=22),
+    ]
+    for bp in mm_probs:
+      for s_name, mm_solver in _minmax_solvers(args.opt_tol):
+        results.append(
+            harness.time_proxax_solve(
+                suite=bp.suite,
+                problem_name=bp.name,
+                solver_name=s_name,
+                prob=bp.prob,
+                x0=bp.x0,
+                solver=mm_solver,
+                opt_tol=args.opt_tol,
             )
         )
 
