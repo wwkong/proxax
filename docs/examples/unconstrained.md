@@ -25,9 +25,11 @@ whose unique minimizer is $x^\star = 1$ with optimal value $0$.
 import jax.numpy as jnp
 from proxax import px
 
-problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5,
-)
+def smooth_fn(x):
+  return 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5
+
+
+problem = px.CompositeProblem(smooth=smooth_fn)
 
 sol = px.solve(problem, jnp.array([-3.0]), solver=px.solvers.APD(opt_tol=1e-6))
 print(sol.status_enum.name, float(sol.x[0]), float(sol.stats.opt_residual))

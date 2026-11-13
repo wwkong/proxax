@@ -36,9 +36,14 @@ from proxax import px
 
 a_mat = jnp.array([[2.0, -0.5], [-0.5, -1.0]])
 
-# Option A: Let JAX differentiate `fn` automatically, with optional curvatures
+
+def quad_fn(x: jax.Array) -> jax.Array:
+  return 0.5 * jnp.dot(x, a_mat @ x)
+
+
+# Option A: Let JAX differentiate `quad_fn` automatically, with optional curvatures
 smooth_auto = px.oracle.SmoothTerm(
-    lambda x: 0.5 * jnp.dot(x, a_mat @ x),
+    quad_fn,
     upper_curvature=2.1,
     lower_curvature=1.1,
 )
@@ -48,8 +53,9 @@ def custom_vag(x: jax.Array) -> tuple[jax.Array, jax.Array]:
   ax = a_mat @ x
   return 0.5 * jnp.dot(x, ax), ax
 
+
 smooth_custom = px.oracle.SmoothTerm(
-    lambda x: 0.5 * jnp.dot(x, a_mat @ x),
+    quad_fn,
     vag_fn=custom_vag,
 )
 ```

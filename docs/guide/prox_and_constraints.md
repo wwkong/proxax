@@ -91,9 +91,9 @@ Indicator operators enforce $x \in K$ strictly at every step:
 
 ### Convenience Constraint Builders
 
-Every builder in `px.constraints` takes a **linear operator** (either a 2D
-`jax.Array` matrix `A` or any linear Python function `lambda x: ...`) and target
-bounds:
+Every builder in `px.constraints` takes a **linear operator** (a 2D `jax.Array`
+matrix `A`, `px.constraints.identity`, or any linear Python function `lin_fn`)
+and target bounds:
 
 ```python
 import jax.numpy as jnp
@@ -115,7 +115,9 @@ c_ge = px.constraints.greater_equal(a_mat, rhs=0.0)
 c_box = px.constraints.box(a_mat, lower=-1.0, upper=1.0)
 
 # 5. Second-order (Lorentz) cone: ||[x1, x2]||_2 <= x0
-c_soc = px.constraints.in_set(lambda x: x, px.constraints.SecondOrderCone())
+c_soc = px.constraints.in_set(
+    px.constraints.identity, px.constraints.SecondOrderCone()
+)
 ```
 
 ### Matrix-Free PyTree Linear Operators
@@ -130,13 +132,21 @@ import jax.numpy as jnp
 from proxax import px
 
 # Consensus constraint X - Y == 0 on a dict of two 4x4 matrices:
+def smooth_fn(z):
+  return 0.5 * jnp.sum((z["x"] - 1.0) ** 2)
+
+
+def diff_op(z):
+  return z["x"] - z["y"]
+
+
 problem = px.CompositeProblem(
-    smooth=lambda z: 0.5 * jnp.sum((z["x"] - 1.0) ** 2),
+    smooth=smooth_fn,
     proximal=px.prox.MultiProx({
         "x": px.prox.NuclearNorm(weight=0.5),
         "y": px.prox.Box(lower=0.0, upper=0.8),
     }),
-    constraints=px.constraints.equality(lambda z: z["x"] - z["y"], rhs=0.0),
+    constraints=px.constraints.equality(diff_op, rhs=0.0),
 )
 
 z0 = {"x": jnp.zeros((4, 4)), "y": jnp.zeros((4, 4))}
@@ -160,12 +170,20 @@ keys/structure**:
 import jax.numpy as jnp
 from proxax import px
 
+def smooth_fn(x):
+  return 0.5 * jnp.sum((x - jnp.array([2.0, 0.5, -0.5])) ** 2)
+
+
+def cap_op(x):
+  return x[0] + x[1]
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.sum((x - jnp.array([2.0, 0.5, -0.5])) ** 2),
+    smooth=smooth_fn,
     proximal=px.prox.NonNegative(),
     constraints={
-        "budget": px.constraints.equality(lambda x: jnp.sum(x), rhs=1.0),
-        "cap": px.constraints.less_equal(lambda x: x[0] + x[1], rhs=0.8),
+        "budget": px.constraints.equality(jnp.sum, rhs=1.0),
+        "cap": px.constraints.less_equal(cap_op, rhs=0.8),
     },
 )
 

@@ -97,7 +97,7 @@ where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and $\frac{1}{2} b \nu^2
 
 In Proxax, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
 pair the two block regularizers via `px.prox.MultiProx`, and write the matrix
-consensus constraint directly as `lambda z: z["pi"] - z["phi"]`:
+consensus constraint as a simple linear function `z["pi"] - z["phi"]`:
 
 ```python
 import dataclasses
@@ -170,7 +170,9 @@ parameter-free with `QPAPD`:
 ```python
 problem = px.CompositeProblem(
     smooth=smooth_bmc,
-    constraints=px.constraints.box(lambda x: x, lower=0.0, upper=2.0),
+    constraints=px.constraints.box(
+        px.constraints.identity, lower=0.0, upper=2.0
+    ),
 )
 sol = px.solve(
     problem,

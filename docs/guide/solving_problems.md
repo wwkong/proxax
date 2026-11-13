@@ -31,8 +31,12 @@ constraints `constraints`:
 import jax.numpy as jnp
 from proxax import px
 
+def smooth_fn(x):
+  return 0.5 * jnp.sum((x - 1.5) ** 2)
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.sum((x - 1.5) ** 2),
+    smooth=smooth_fn,
     proximal=px.prox.L1(weight=0.2),
     constraints=None,  # omit or pass a constraint from `px.constraints`
 )
@@ -86,10 +90,18 @@ from proxax import px
 
 target = jnp.array([[3.0, 0.0], [0.0, 0.5], [0.0, 0.0]])
 
+def f1_fn(x_mat):
+  return 0.5 * jnp.sum((x_mat - target) ** 2)
+
+
+def f2_vec_fn(s):
+  return -0.1 * jnp.sum(s**2 / (1.0 + s**2))  # smooth nonconvex on singular values
+
+
 spec_prob = px.SpectralProblem(
-    f1=lambda x_mat: 0.5 * jnp.sum((x_mat - target) ** 2),
-    f2_vec=lambda s: -0.1 * jnp.sum(s**2 / (1.0 + s**2)),  # smooth nonconvex on singular values
-    prox_vec=px.prox.L1(weight=0.25),                      # 1D L1 on singular values = nuclear norm
+    f1=f1_fn,
+    f2_vec=f2_vec_fn,
+    prox_vec=px.prox.L1(weight=0.25),  # 1D L1 on singular values = nuclear norm
 )
 
 sol = px.solve(spec_prob, jnp.zeros((3, 2)), method="da_icg", opt_tol=1e-5)

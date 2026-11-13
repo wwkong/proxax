@@ -14,6 +14,7 @@ BoxSet = sets.BoxSet
 CallableLinearOperator = linear_op.CallableLinearOperator
 Constraint = linear_op.Constraint
 ConvexSet = sets.ConvexSet
+IdentityLinearOperator = linear_op.IdentityLinearOperator
 LinearOperator = linear_op.LinearOperator
 LowerBound = sets.LowerBound
 MatrixLinearOperator = linear_op.MatrixLinearOperator
@@ -28,6 +29,7 @@ as_linear_operator = linear_op.as_linear_operator
 box = linear_op.box
 equality = linear_op.equality
 greater_equal = linear_op.greater_equal
+identity = linear_op.identity
 in_set = linear_op.in_set
 less_equal = linear_op.less_equal
 normalize_constraints = linear_op.normalize_constraints
@@ -42,6 +44,7 @@ __all__ = [
     "CallableLinearOperator",
     "Constraint",
     "ConvexSet",
+    "IdentityLinearOperator",
     "LinearOperator",
     "LowerBound",
     "MatrixLinearOperator",
@@ -56,6 +59,7 @@ __all__ = [
     "box",
     "equality",
     "greater_equal",
+    "identity",
     "in_set",
     "less_equal",
     "normalize_constraints",

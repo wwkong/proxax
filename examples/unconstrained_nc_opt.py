@@ -46,9 +46,11 @@ def calibrate_qp_curvatures(
 def run_basic_convex_qp() -> None:
   """Solves `min_{x in R} 0.5 * x^2 - x + 0.5`."""
   print("=== 1. Basic Convex Univariate QP ===")
-  problem = px.CompositeProblem(
-      smooth=lambda x: 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5,
-  )
+
+  def smooth_fn(x: jax.Array) -> jax.Array:
+    return 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5
+
+  problem = px.CompositeProblem(smooth=smooth_fn)
   x0 = jnp.array([-3.0])
   sol = px.solve(problem, x0, solver=px.solvers.APD(opt_tol=1e-6))
   print(

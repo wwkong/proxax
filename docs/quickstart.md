@@ -63,8 +63,12 @@ from proxax import px
 a_mat = jnp.array([[1.0, 0.5, -0.2], [0.0, 1.2, 0.8]])
 b_vec = jnp.array([1.5, -0.6])
 
+def loss_fn(x):
+  return 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2)
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2),
+    smooth=loss_fn,
     proximal=px.prox.L1(weight=0.1),
 )
 
@@ -95,8 +99,12 @@ from proxax import px
 q_mat = jnp.array([[3.0, -1.5], [-1.5, -1.0]])
 c_vec = jnp.array([-0.8, 0.4])
 
+def quad_fn(x):
+  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
+    smooth=quad_fn,
     proximal=px.prox.Box(lower=-1.0, upper=1.0),
 )
 
@@ -122,10 +130,14 @@ from proxax import px
 q_mat = jnp.array([[3.0, -1.5], [-1.5, -1.0]])
 c_vec = jnp.array([-0.8, 0.4])
 
+def quad_fn(x):
+  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
+    smooth=quad_fn,
     proximal=px.prox.Box(lower=-1.0, upper=1.0),
-    constraints=px.constraints.equality(lambda x: jnp.sum(x), rhs=0.5),
+    constraints=px.constraints.equality(jnp.sum, rhs=0.5),
 )
 
 sol = px.solve(
@@ -144,8 +156,8 @@ print("Feasibility residual |sum(x) - 0.5|:", float(sol.stats.feas_residual))
 ```
 
 Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
-any linear Python function `x -> A(x)` — Proxax synthesizes the transpose
-$\mathcal{A}^*$ automatically via `jax.linear_transpose`.
+any linear Python function `x -> A(x)` (such as `jnp.sum`) — Proxax synthesizes
+the transpose $\mathcal{A}^*$ automatically via `jax.linear_transpose`.
 
 ---
 

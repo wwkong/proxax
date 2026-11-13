@@ -51,6 +51,33 @@ class LinearOperator(typing.Protocol):
 
 
 @jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class IdentityLinearOperator:
+  """Identity linear operator `x -> x` on arbitrary PyTrees."""
+
+  @property
+  def operator_norm_sq(self) -> float:
+    """Exact squared operator norm `||I||_op^2 = 1`."""
+    return 1.0
+
+  def matvec(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Returns `x` unchanged."""
+    return x
+
+  def rmatvec(self, y: _typing.PyTree) -> _typing.PyTree:
+    """Returns `y` unchanged (`I^* = I`)."""
+    return y
+
+  def bind(self, x_example: _typing.PyTree) -> IdentityLinearOperator:
+    """Returns `self` without tracing."""
+    del x_example
+    return self
+
+
+identity: typing.Final = IdentityLinearOperator()
+
+
+@jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class MatrixLinearOperator:
   """Dense or BCOO matrix operator `x -> matrix @ x`."""

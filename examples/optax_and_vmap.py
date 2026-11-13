@@ -62,10 +62,11 @@ def run_optax_ialm_loop() -> None:
     w = p["w"]
     return 0.5 * jnp.sum(jnp.array([3.0, -1.0, 2.0]) * (w**2)) - w[0]
 
+  def sum_weights(p: dict[str, jax.Array]) -> jax.Array:
+    return jnp.sum(p["w"])
+
   tx = px.optax_compat.ialm(
-      constraints=px.constraints.equality(
-          lambda p: jnp.sum(p["w"]), rhs=jnp.asarray(1.0)
-      ),
+      constraints=px.constraints.equality(sum_weights, rhs=jnp.asarray(1.0)),
       prox_op=px.prox.Box(lower=0.0, upper=1.0),
       opt_tol=1e-4,
       feas_tol=1e-4,
@@ -107,8 +108,11 @@ def run_batched_vmap_qps() -> None:
   solver = px.solvers.APD(opt_tol=1e-4)
 
   def solve_single(q_mat: jax.Array, c_vec: jax.Array) -> px.Solution:
+    def quad_fn(x: jax.Array) -> jax.Array:
+      return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
+
     prob = px.CompositeProblem(
-        smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
+        smooth=quad_fn,
         proximal=px.prox.Simplex(scale=1.0),
     )
     return solver.solve(prob, x0, jit=True)

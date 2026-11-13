@@ -114,10 +114,14 @@ from proxax import px
 q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
 c_vec = jnp.array([-0.6, 0.2, -0.4])
 
+def smooth_fn(x):
+  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
+
+
 problem = px.CompositeProblem(
-    smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
+    smooth=smooth_fn,
     proximal=px.prox.Box(lower=0.0, upper=1.0),
-    constraints=px.constraints.equality(lambda x: jnp.sum(x), rhs=1.0),
+    constraints=px.constraints.equality(jnp.sum, rhs=1.0),
 )
 
 sol = px.solve(

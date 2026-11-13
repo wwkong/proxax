@@ -168,6 +168,9 @@ def run_sparse_pca_fantope() -> None:
   def smooth_spca(z: dict[str, jax.Array]) -> jax.Array:
     return -jnp.sum(sigma_cov * z["pi"]) + mcp_concave_part(z["phi"])
 
+  def consensus_op(z: dict[str, jax.Array]) -> jax.Array:
+    return z["pi"] - z["phi"]
+
   problem = px.CompositeProblem(
       smooth=px.oracle.SmoothTerm(
           smooth_spca, upper_curvature=0.1, lower_curvature=1.0 / b_mcp
@@ -178,7 +181,7 @@ def run_sparse_pca_fantope() -> None:
               "phi": px.prox.L1(weight=nu),
           }
       ),
-      constraints=px.constraints.equality(lambda z: z["pi"] - z["phi"]),
+      constraints=px.constraints.equality(consensus_op),
   )
   z0 = {
       "pi": jnp.eye(dim_p) * (rank_k / dim_p),
@@ -223,7 +226,9 @@ def run_bounded_matrix_completion() -> None:
 
   problem = px.CompositeProblem(
       smooth=smooth_bmc,
-      constraints=px.constraints.box(lambda x: x, lower=0.0, upper=2.0),
+      constraints=px.constraints.box(
+          px.constraints.identity, lower=0.0, upper=2.0
+      ),
   )
   x0 = jnp.full((rows, cols), 0.5)
   sol = px.solve(

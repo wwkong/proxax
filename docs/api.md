@@ -57,9 +57,9 @@ and PyTree combinators (`MultiProx`, `Shifted`, `Zero`).
 ## Constraints & Convex Sets (`px.constraints`)
 
 Convenience builders (`equality`, `less_equal`, `greater_equal`, `box`,
-`in_set`), matrix and callable PyTree linear operators, and Euclidean-projected
-`ConvexSet` implementations (`Singleton`, `UpperBound`, `LowerBound`, `BoxSet`,
-`SecondOrderCone`, `ProductSet`).
+`in_set`), matrix, identity (`identity`), and callable PyTree linear operators,
+and Euclidean-projected `ConvexSet` implementations (`Singleton`, `UpperBound`,
+`LowerBound`, `BoxSet`, `SecondOrderCone`, `ProductSet`).
 
 ```{eval-rst}
 .. automodule:: proxax.constraints.linear_op

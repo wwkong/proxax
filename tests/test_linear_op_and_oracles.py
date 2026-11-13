@@ -24,6 +24,18 @@ def test_callable_linear_operator_auto_adjoint_on_pytree() -> None:
   rhs = tree.vdot(x_ex, op.rmatvec(y))
   assert jnp.isclose(lhs, rhs, atol=1e-6)
 
+  sum_con = constraints.equality(jnp.sum, rhs=1.0).bind(jnp.array([0.2, 0.3]))
+  assert jnp.isclose(sum_con.residual(jnp.array([0.2, 0.3])), -0.5)
+  assert jnp.allclose(sum_con.adjoint(jnp.asarray(2.0)), jnp.array([2.0, 2.0]))
+
+  id_con = constraints.box(constraints.identity, lower=0.0, upper=1.0).bind(
+      jnp.array([-0.5, 1.5])
+  )
+  assert id_con.operator_norm_sq == 1.0
+  assert jnp.allclose(
+      id_con.residual(jnp.array([-0.5, 1.5])), jnp.array([-0.5, 0.5])
+  )
+
 
 def test_penalized_oracle_grad_matches_autodiff_product() -> None:
   a_eq = jnp.array([[1.0, -1.0, 0.5], [0.0, 2.0, 1.0]])
