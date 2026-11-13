@@ -28,6 +28,12 @@ experiments/
 `results/`, `outputs/`, and `data/` subdirectories under `experiments/` are
 gitignored by default so raw artifacts stay out of version control.
 
+## Experiment Reports (ReadTheDocs)
+
+Write up results for each study as a Markdown report under
+`docs/experiments/<study>.md` and add it to `docs/experiments/index.md` so it
+appears in the **Experiments** section of the documentation.
+
 ## Running
 
 ```bash
