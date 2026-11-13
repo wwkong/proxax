@@ -7,6 +7,7 @@ End-to-end worked examples covering each problem class in Proxax, with runnable 
 - {doc}`minmax` — bilinear matrix games and nonconvex-nonconcave saddle-point problems (`examples/minmax.py`)
 - {doc}`block` — multi-block consensus and ADMM splitting (`examples/block.py`)
 - {doc}`spectral` — nuclear-norm and nonconvex spectral matrix completion (`examples/spectral_matrix_completion.py`)
+- {doc}`layers` — end-to-end Optax training through a differentiable `SimplexLayer` (`examples/layers_training.py`)
 
 ```{toctree}
 :maxdepth: 2
@@ -17,4 +18,5 @@ constrained
 minmax
 block
 spectral
+layers
 ```

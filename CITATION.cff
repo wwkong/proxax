@@ -1,11 +1,19 @@
 cff-version: 1.2.0
-message: "If Proxax was helpful for a publication, please cite this software."
-title: "Proxax: Certified first-order proximal point methods for composite optimization in JAX and Optax"
+title: "Proxax: Certified First-Order Proximal Point Methods for Composite Optimization in JAX and Optax"
+message: "If you use this software, please cite it using the metadata below."
+type: software
 authors:
   - family-names: Kong
     given-names: Weiwei
-repository-code: "https://github.com/wwkong/proxax"
-url: "https://proxax.readthedocs.io"
-license: Apache-2.0
-version: "0.2.8"
+version: 0.3.1
 date-released: "2026-11-13"
+license: MIT
+repository-code: "https://github.com/wwkong/proxax"
+url: "https://proxax.readthedocs.io/"
+keywords:
+  - jax
+  - optax
+  - proximal-algorithms
+  - composite-optimization
+  - nonconvex-optimization
+  - implicit-differentiation
