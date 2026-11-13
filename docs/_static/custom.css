@@ -5,6 +5,28 @@
   --sd-color-card-border-hover: var(--pst-color-primary);
 }
 
+/* Fill available page width (helpful for wide tables and equations) */
+.bd-page-width {
+  max-width: 100%;
+}
+
+.bd-main .bd-content .bd-article-container {
+  max-width: 100%;
+}
+
+/* Make expandable sidebar chevrons clearly visible */
+.bd-sidebar-primary nav.bd-links li.has-children > details > summary .toctree-toggle {
+  opacity: 0.85;
+  border-radius: 0.25rem;
+  transition: opacity 0.12s ease-in-out, background-color 0.12s ease-in-out;
+}
+
+.bd-sidebar-primary nav.bd-links li.has-children > details > summary .toctree-toggle:hover {
+  opacity: 1;
+  background-color: var(--pst-color-surface);
+  color: var(--pst-color-primary);
+}
+
 /* Crisp spacing around display equations */
 div.math.notranslate {
   margin: 1.1rem 0;
