@@ -1,4 +1,4 @@
-# `PAdaptADMM` CPU Benchmarks
+# Distributed QPs: `PAdaptADMM` vs. `DPADMM` (Maia et al., 2026)
 
 This report evaluates Proxax's multi-block solvers on small-scale variants of the
 nonconvex Distributed Quadratic Programming (DQP) benchmark from
