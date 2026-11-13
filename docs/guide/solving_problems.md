@@ -117,6 +117,29 @@ spec_prob = px.SpectralProblem(
 sol = px.solve(spec_prob, jnp.zeros((3, 2)), method="da_icg", opt_tol=1e-5)
 ```
 
+### `px.MinMaxProblem` (Primal-Dual Saddle-Point Problems)
+
+For composite min-max problems of the form
+$\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$, pass a coupling function
+`coupling(x, y)` and optional proximal operators `prox_x` / `prox_y` to
+`px.MinMaxProblem`:
+
+```python
+minmax_prob = px.MinMaxProblem(
+    coupling=lambda x, y: jnp.dot(y, x) + 0.5 * jnp.sum(x**2) - 0.5 * jnp.sum(y**2),
+    prox_x=px.prox.Box(-1.0, 1.0),
+    prox_y=px.prox.L2Ball(radius=1.0),
+)
+
+sol = px.solve(
+    minmax_prob,
+    (jnp.zeros(4), jnp.zeros(4)),
+    method="extra_gradient",
+    opt_tol=1e-5,
+)
+x_hat, y_hat = sol.x
+```
+
 ---
 
 ## 3. Calling `px.solve`
@@ -163,6 +186,7 @@ these three defaults:
 | **Unconstrained** (`constraints=None`) | `px.solvers.APD` | `"apd"` | Completely parameter-free; automatically adapts to both convex and nonconvex regions. |
 | **Constrained** (`constraints=...`) | `px.solvers.IALM` or `px.solvers.QPAPD` | `"ialm"` / `"qp_apd"` | Both are parameter-free out of the box; `IALM` updates dual multipliers for moderate penalties, while `QPAPD` uses pure quadratic penalties. |
 | **Matrix Spectral** (`SpectralProblem` or `NuclearNorm`) | `px.solvers.DAICG` | `"da_icg"` | Doubly accelerated; requires only one thin SVD per outer iteration. |
+| **Min-Max / Saddle-Point** (`MinMaxProblem`) | `px.solvers.ExtraGradient` or `px.solvers.ProxPointMinMax` | `"extra_gradient"` / `"prox_point"` | Adaptive Mirror-Prox (`ExtraGradient`) for convex-concave games, `PDHG` for bilinear/alternating steps, and `ProxPointMinMax` for weakly monotone/nonconvex saddle points. |
 
 ### Full Solver Catalog at a Glance (`px.solvers`)
 
@@ -185,6 +209,8 @@ these three defaults:
   - `SProxALM` (`"s_prox_alm"`): Single-loop smoothed proximal ALM for linear
     equality and box/polyhedral constraints.
 - **Matrix spectral solvers:** `DAICG` (`"da_icg"`) and `IAICG` (`"ia_icg"`).
+- **Min-max & saddle-point solvers:** `ExtraGradient` (`"extra_gradient"`),
+  `PDHG` (`"pdhg"`), and `ProxPointMinMax` (`"prox_point"`).
 
 For theoretical complexity bounds and literature references behind each method,
 see {doc}`../appendices/literature_and_theory`.

@@ -9,8 +9,9 @@ introductions and basic examples, see {doc}`guide/solving_problems` and
 
 ## Problems, Solutions & Top-Level `px.solve`
 
-Core problem containers (`px.CompositeProblem`, `px.SpectralProblem`), the
-unified `px.solve` entry point, common return types (`px.Solution`,
+Core problem containers (`px.CompositeProblem`, `px.SpectralProblem`,
+`px.MinMaxProblem`), the unified `px.solve` entry point, implicit
+differentiation (`px.implicit_solve`), common return types (`px.Solution`,
 `px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`),
 composable solver state trackers (`px.solvers.SolverTracker`,
 `px.solvers.ConstrainedTracker`, `px.solvers.OracleCounts`), and type aliases
@@ -21,6 +22,9 @@ composable solver state trackers (`px.solvers.SolverTracker`,
    :members:
 
 .. automodule:: proxax.solve
+   :members:
+
+.. automodule:: proxax.implicit
    :members:
 
 .. automodule:: proxax.solvers.base
@@ -73,14 +77,18 @@ and Euclidean-projected `ConvexSet` implementations (`Singleton`, `UpperBound`,
 
 ## Oracles & Stationarity Certificates (`px.oracle`, `px.certificates`)
 
-First-order smooth, composite, penalized, and spectral oracles, together with
-exact subdifferential refinement (`refine`, `refine_icg`).
+First-order smooth, composite, penalized, min-max, and spectral oracles,
+together with exact subdifferential refinement (`refine`, `refine_icg`,
+`refine_minmax`).
 
 ```{eval-rst}
 .. automodule:: proxax.oracle.terms
    :members:
 
 .. automodule:: proxax.oracle.composite
+   :members:
+
+.. automodule:: proxax.oracle.minmax
    :members:
 
 .. automodule:: proxax.oracle.spectral
@@ -162,6 +170,24 @@ iteration on `SpectralProblem` or `NuclearNorm` objectives.
    :members:
 
 .. automodule:: proxax.solvers.unconstrained.ia_icg
+   :members:
+```
+
+---
+
+## Min-Max & Saddle-Point Solvers (`px.solvers`)
+
+Primal-dual saddle-point solvers for `MinMaxProblem` objectives
+$\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$.
+
+```{eval-rst}
+.. automodule:: proxax.solvers.minmax.extra_gradient
+   :members:
+
+.. automodule:: proxax.solvers.minmax.pdhg
+   :members:
+
+.. automodule:: proxax.solvers.minmax.prox_point
    :members:
 ```
 

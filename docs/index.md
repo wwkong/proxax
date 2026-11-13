@@ -9,8 +9,8 @@ Every solver in Proxax:
 
 - **Works natively on JAX PyTrees** (`jax.Array`, nested `dict` / `tuple`, or
   registered dataclasses) without flattening arrays by hand.
-- **Compiles end-to-end** under `jax.jit` and vectorizes across problem batches
-  with `jax.vmap`.
+- **Compiles end-to-end** under `jax.jit`, vectorizes across problem batches
+  with `jax.vmap`, and differentiates through solutions via `px.implicit_solve`.
 - **Returns exact stationarity certificates** $(\hat{x}, \hat{p}, \hat{v})$
   measuring true subdifferential and KKT residuals rather than heuristic step
   lengths.
@@ -103,6 +103,14 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
    Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
    penalties on the singular values $\sigma(X)$ using a single thin SVD per
    outer iteration.
+
+4. **Min-Max & Saddle-Point Optimization (`MinMaxProblem`):**
+
+   $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h_x(x) - h_y(y)$$
+
+   Solve convex-concave and nonconvex-nonconcave composite saddle-point
+   problems using adaptive Mirror-Prox (`ExtraGradient`), Chambolle-Pock
+   (`PDHG`), or proximal point (`ProxPointMinMax`).
 
 ---
 
