@@ -93,3 +93,24 @@ def test_constrained_implicit_solve_panoc_alm() -> None:
   grad = jax.grad(_loss)(jnp.array(3.0))
   assert jnp.isfinite(grad)
   assert jnp.abs(grad) > 0.1
+
+
+def test_exp_cone_moreau_optimality() -> None:
+  """`ExpCone` and `ExponentialCone` satisfy Moreau decomposition."""
+  op = px.prox.ExpCone()
+  cset = px.constraints.ExponentialCone()
+  pts = jnp.array([
+      [1.0, 1.0, 5.0],    # interior
+      [2.0, -1.0, -3.0],  # polar
+      [-2.0, -1.0, 2.0],  # ray
+      [1.5, 2.0, 0.5],    # smooth boundary
+  ])
+  for v in pts:
+    p = op.prox(v, 1.0)
+    assert jnp.allclose(p, cset.project(v), atol=1e-6)
+    d = p - v
+    assert jnp.abs(jnp.dot(p, d)) < 1e-4
+    if p[1] > 1e-6:
+      assert p[1] * jnp.exp(p[0] / p[1]) <= p[2] + 1e-5
+    if d[0] < -1e-6:
+      assert -d[0] * jnp.exp(d[1] / d[0]) <= jnp.e * d[2] + 1e-4

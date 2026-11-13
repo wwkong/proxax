@@ -14,6 +14,7 @@ BoxSet = sets.BoxSet
 CallableLinearOperator = linear_op.CallableLinearOperator
 Constraint = linear_op.Constraint
 ConvexSet = sets.ConvexSet
+ExponentialCone = sets.ExponentialCone
 IdentityLinearOperator = linear_op.IdentityLinearOperator
 LinearOperator = linear_op.LinearOperator
 LowerBound = sets.LowerBound
@@ -45,6 +46,7 @@ __all__ = [
     "CallableLinearOperator",
     "Constraint",
     "ConvexSet",
+    "ExponentialCone",
     "IdentityLinearOperator",
     "LinearOperator",
     "LowerBound",

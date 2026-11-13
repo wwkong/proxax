@@ -4,6 +4,14 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-11-13
+
+### Added
+- Added 3D primal exponential cone projection (`px.prox.ExpCone` and `px.constraints.ExponentialCone`) with Moreau decomposition verification in `tests/test_prox_extra.py`.
+- Added end-to-end JAX/Optax neural network structured layer example `examples/nn_structured_layer.py` using `jax.vmap` + `px.implicit_solve(..., method="panoc")`.
+- Added interactive client-side column sorting for all Sphinx documentation tables (`docs/_static/sortable_tables.js` and `docs/_static/custom.css`).
+- Updated `docs/guide/solving_problems.md`, `docs/guide/optax_and_jax.md`, `docs/guide/prox_and_constraints.md`, and `docs/api.md` with `ExpCone`, `ExponentialCone`, `panoc_alm`, and `proxax.prox.exotic` API docs.
+
 ## [0.2.4] - 2026-11-13
 
 ### Added

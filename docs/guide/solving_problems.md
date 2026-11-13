@@ -230,9 +230,11 @@ examples.
     `lower_curvature` / `upper_curvature`):** `AIPP` (`"aipp"`), `NCFISTA`
     (`"nc_fista"`), and `AG` (`"ag"`).
 - **Set/cone-constrained solvers:**
-  - `IALM` (`"ialm"`): Inexact proximal augmented Lagrangian; supports `APD` or
-    `AIPP` inner solvers and optional multiplier dampening (`dampen` in
-    $[0, 1)$, also available via preset `method="aidal"`).
+  - `IALM` (`"ialm"` / `"panoc_alm"`): Inexact proximal augmented Lagrangian;
+    supports `APD` (`"ialm"`), `PANOC` (`subproblem_solver="panoc"`, preset
+    `method="panoc_alm"`), or `AIPP` inner solvers and optional multiplier
+    dampening (`dampen` in $[0, 1)$, also available via preset
+    `method="aidal"`).
   - `QPAPD` (`"qp_apd"`) & `QPAIPP` (`"qp_aipp"`): Quadratic penalty methods
     driven by `APD` or `AIPP`.
   - `IAIPAL` (`"iaipal"`): Classical proximal augmented Lagrangian taking a

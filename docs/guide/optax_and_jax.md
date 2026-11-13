@@ -236,7 +236,9 @@ as `(x_hat, y_hat)`).
 
 For a complete bilevel Elastic-Net tuning loop combining `px.implicit_solve`
 with `optax.adam`, see `examples/bilevel_optax.py` (as well as
-`examples/implicit_solve.py`):
+`examples/implicit_solve.py`, `examples/diff_capped_simplex.py`, and
+`examples/nn_structured_layer.py` for end-to-end batched `jax.vmap` neural
+layers):
 
 ```bash
 uv run python examples/bilevel_optax.py

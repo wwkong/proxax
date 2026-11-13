@@ -11,19 +11,34 @@ Each report documents:
 - **Summary tables & observations** (iteration counts, inner ACG/FISTA calls,
   wall-clock times, and stationarity/feasibility residuals)
 
-* [`PAdaptADMM` CPU Benchmarks](maia2026_table1_dqp.md)
-* [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
+## Benchmarks
+
+Solver comparisons and Dolan-Moré performance profiles across ill-conditioned
+and constrained composite suites:
+
 * [`PANOC` Ill-Conditioned & Exotic-Prox Benchmarks](panoc_benchmarks.md)
 * [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md)
+
+## Scaling Studies
+
+Accelerator (`vmap` / `jit` / GPU) throughput and batch-scaling studies:
+
+* [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
 * [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md)
+
+## Literature Replications
+
+Reproductions of published benchmark tables using `proxax`:
+
+* [`PAdaptADMM` CPU Benchmarks (Maia et al., 2026 — Table 1 DQP)](maia2026_table1_dqp.md)
 
 ```{toctree}
 :maxdepth: 1
 :hidden:
 
-maia2026_table1_dqp
-padapt_vmap_gpu
 panoc_benchmarks
 panoc_alm_benchmarks
+padapt_vmap_gpu
 vmap_implicit_benchmarks
+maia2026_table1_dqp
 ```

@@ -175,3 +175,91 @@ class PSDSet:
       )
 
     return jax.tree.map(_proj_leaf, y)
+
+
+def project_exp_cone(v: jax.Array) -> jax.Array:
+  """Projects a 3D vector `(v0, v1, v2)` onto the primal exponential cone."""
+  v0, v1, v2 = v[0], v[1], v[2]
+  dtype = v.dtype
+  zero = jnp.zeros_like(v)
+
+  in_primal = jnp.logical_or(
+      jnp.logical_and(
+          v1 > 0.0,
+          v1 * jnp.exp(jnp.clip(v0 / jnp.maximum(v1, 1e-30), -40.0, 40.0))
+          <= v2,
+      ),
+      jnp.logical_and(jnp.logical_and(v0 <= 0.0, v1 == 0.0), v2 >= 0.0),
+  )
+  in_polar = jnp.logical_or(
+      jnp.logical_and(
+          v0 > 0.0,
+          v0 * jnp.exp(jnp.clip(v1 / jnp.maximum(v0, 1e-30), -40.0, 40.0))
+          <= -jnp.e * v2,
+      ),
+      jnp.logical_and(jnp.logical_and(v0 == 0.0, v1 <= 0.0), v2 <= 0.0),
+  )
+
+  # Boundary ray: {x0 <= 0, x1 = 0, x2 >= 0}
+  p_ray = jnp.stack([
+      jnp.minimum(v0, 0.0),
+      jnp.asarray(0.0, dtype=dtype),
+      jnp.maximum(v2, 0.0),
+  ])
+  d_ray_sq = jnp.sum((p_ray - v) ** 2)
+
+  # Smooth boundary KKT root in r = x0 / x1
+  safe_v0 = jnp.where(jnp.abs(v0) > 1e-30, v0, 1.0)
+  safe_v1 = jnp.where(jnp.abs(v1) > 1e-30, v1, 1.0)
+  lb_x1 = jnp.where(v0 > 0.0, 1.0 - v1 / safe_v0, -30.0)
+  lb_lam = jnp.where(v1 < 0.0, v0 / safe_v1, -30.0)
+  r_lo = jnp.maximum(-30.0, jnp.maximum(lb_x1, lb_lam))
+
+  ub_x1 = jnp.where(v0 < 0.0, 1.0 - v1 / safe_v0, 30.0)
+  ub_lam = jnp.where(v1 > 0.0, v0 / safe_v1, 30.0)
+  r_hi = jnp.minimum(30.0, jnp.minimum(ub_x1, ub_lam))
+  r_hi = jnp.maximum(r_lo, r_hi)
+
+  def _h(r: jax.Array) -> jax.Array:
+    er = jnp.exp(jnp.clip(r, -30.0, 30.0))
+    emr = jnp.exp(jnp.clip(-r, -30.0, 30.0))
+    return (
+        (v1 + (r - 1.0) * v0) * er
+        - v2 * (1.0 - r + r * r)
+        - (v0 - r * v1) * emr
+    )
+
+  def _bisect_step(_: int, bounds: tuple[jax.Array, jax.Array]) -> tuple[
+      jax.Array, jax.Array
+  ]:
+    lo, hi = bounds
+    mid = 0.5 * (lo + hi)
+    go_right = _h(mid) < 0.0
+    return (jnp.where(go_right, mid, lo), jnp.where(go_right, hi, mid))
+
+  lo_f, hi_f = jax.lax.fori_loop(0, 60, _bisect_step, (r_lo, r_hi))
+  r_star = 0.5 * (lo_f + hi_f)
+  denom = 1.0 - r_star + r_star * r_star
+  x1_s = jnp.maximum((v1 + (r_star - 1.0) * v0) / denom, 0.0)
+  x0_s = r_star * x1_s
+  x2_s = x1_s * jnp.exp(jnp.clip(r_star, -30.0, 30.0))
+  p_smooth = jnp.stack([x0_s, x1_s, x2_s])
+  d_smooth_sq = jnp.sum((p_smooth - v) ** 2)
+
+  valid_smooth = jnp.logical_and(r_lo < r_hi, x1_s > 0.0)
+  p_bdy = jnp.where(
+      jnp.logical_and(valid_smooth, d_smooth_sq < d_ray_sq),
+      p_smooth,
+      p_ray,
+  )
+  return jnp.where(in_primal, v, jnp.where(in_polar, zero, p_bdy))
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class ExponentialCone:
+  """Primal 3D exponential cone indicator set."""
+
+  def project(self, y: _typing.PyTree) -> _typing.PyTree:
+    """Projects each 3-vector leaf onto the primal exponential cone."""
+    return jax.tree.map(project_exp_cone, y)

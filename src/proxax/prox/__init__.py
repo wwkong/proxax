@@ -15,6 +15,7 @@ CappedSimplex = exotic.CappedSimplex
 CardinalityBall = exotic.CardinalityBall
 ElasticNet = norms.ElasticNet
 Ellipsoid = indicators.Ellipsoid
+ExpCone = exotic.ExpCone
 Fantope = indicators.Fantope
 Halfspace = indicators.Halfspace
 Huber = norms.Huber
@@ -56,6 +57,7 @@ __all__ = [
     "CardinalityBall",
     "ElasticNet",
     "Ellipsoid",
+    "ExpCone",
     "Fantope",
     "Halfspace",
     "Huber",

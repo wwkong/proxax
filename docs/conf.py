@@ -45,6 +45,7 @@ html_logo = "_static/logo.png"
 html_favicon = "_static/logo.png"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["sortable_tables.js"]
 
 html_theme_options = {
     "repository_url": "https://github.com/wwkong/proxax",

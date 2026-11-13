@@ -219,6 +219,7 @@ for conic/matrix, ordered-regularization, barrier, and sparse problems:
 | **Conic / Matrix** | `px.prox.Spectrahedron(scale=1.0)` | Indicator of $\{X \succeq 0 : \operatorname{tr}(X) = s\}$. |
 | **Conic / Matrix** | `px.prox.Fantope(k=1)` | Indicator of $\{0 \preceq X \preceq I,\ \operatorname{tr}(X) = k\}$. |
 | **Conic / Matrix** | `px.prox.SOC()` | Second-order cone $\{\lVert x_{1:} \rVert_2 \le x_0\}$. |
+| **Conic / Matrix** | `px.prox.ExpCone()` | Exponential cone $\operatorname{cl}\{x_1 > 0,\ x_1 e^{x_0/x_1} \le x_2\}$. |
 | **Sorting / PAVA** | `px.prox.Isotonic(increasing=True)` | Monotone cone $\{x_1 \le \dots \le x_n\}$ via PAVA. |
 | **Sorting / PAVA** | `px.prox.OWL(weights)` | Ordered weighted $\ell_1$ norm $\sum_i w_i \lvert x \rvert_{(i)}$. |
 | **Sorting / PAVA** | `px.prox.OSCAR(alpha, beta)` | $\alpha \lVert x \rVert_1 + \beta \sum_{i<j} \max(\lvert x_i \rvert, \lvert x_j \rvert)$. |

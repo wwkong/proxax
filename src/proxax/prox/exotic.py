@@ -12,6 +12,7 @@ import optax
 
 from proxax import _typing
 from proxax import tree
+from proxax.constraints import sets as constraint_sets
 
 
 def _pava_nondecreasing(y: jax.Array) -> jax.Array:
@@ -545,9 +546,38 @@ class CardinalityBall:
     return jax.tree.map(self._project, x)
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class ExpCone:
+  """Indicator of the 3D primal exponential cone."""
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Returns `0.0` at feasible points."""
+    return jnp.asarray(0.0, dtype=tree.infer_dtype(x))
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Projects each 3-vector leaf onto the primal exponential cone."""
+    del step_size
+    return jax.tree.map(constraint_sets.project_exp_cone, x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Projects each 3-vector leaf onto the primal exponential cone."""
+    return jax.tree.map(constraint_sets.project_exp_cone, x)
+
+
 __all__ = [
     "CardinalityBall",
     "CappedSimplex",
+    "ExpCone",
     "Isotonic",
     "L0",
     "LogBarrier",
