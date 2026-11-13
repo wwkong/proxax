@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
 import sys
 import types
@@ -101,6 +102,12 @@ def _install_fake_pyplot(monkeypatch: pytest.MonkeyPatch) -> None:
     return fig, (fig.axes[0] if total == 1 else fig.axes)
 
   plt_mod.subplots = _subplots  # type: ignore[attr-defined]
+  plt_mod.rc_context = lambda _: contextlib.nullcontext()  # type: ignore[attr-defined]
+  style_mod = types.SimpleNamespace(
+      available=(),
+      context=lambda _: contextlib.nullcontext(),
+  )
+  plt_mod.style = style_mod  # type: ignore[attr-defined]
   mpl_mod = types.ModuleType("matplotlib")
   mpl_mod.pyplot = plt_mod  # type: ignore[attr-defined]
   monkeypatch.setitem(sys.modules, "matplotlib", mpl_mod)

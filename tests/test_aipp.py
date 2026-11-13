@@ -54,7 +54,7 @@ def test_aipp_eager_callback_and_vmap() -> None:
       callback=on_step,
   )
   assert sol.status_enum == proxax.SolveStatus.CONVERGED
-  assert len(seen) == int(sol.stats.outer_iters)
+  assert len(seen) == int(sol.stats.outer_iters) + 1
 
   inits = jnp.array([[1.2, -0.8], [-1.1, 0.7]])
   batched = jax.jit(jax.vmap(lambda x_i: solver.solve(prob, x_i)))(inits)

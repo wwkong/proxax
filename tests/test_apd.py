@@ -88,7 +88,7 @@ def test_apd_eager_callback_and_vmap_on_pytree() -> None:
   x0 = {"w": jnp.array([1.2, -0.7]), "b": jnp.array([-0.4])}
   sol = solver.solve(prob, x0, jit=False, callback=on_step)
   assert sol.status_enum == proxax.SolveStatus.CONVERGED
-  assert len(seen) == int(sol.stats.outer_iters)
+  assert len(seen) == int(sol.stats.outer_iters) + 1
 
   batch_x0 = {
       "w": jnp.array([[1.2, -0.7], [-1.1, 0.8]]),

@@ -279,6 +279,8 @@ class Solution:
       x_axis: typing.Literal["iter", "time", "evals"] = "iter",
       title: str | None = None,
       show_tol: bool = True,
+      alpha: float = 0.75,
+      style: str | None = "mocha",
       ax: typing.Any = None,
   ) -> tuple[typing.Any, list[typing.Any]]:
     """Plots recorded convergence curves if `self.history` is present."""
@@ -292,6 +294,8 @@ class Solution:
         x_axis=x_axis,
         title=title,
         show_tol=show_tol,
+        alpha=alpha,
+        style=style,
         ax=ax,
     )
 
@@ -300,12 +304,21 @@ class Solution:
       *,
       title: str | None = None,
       log_y: bool = True,
+      alpha: float = 0.75,
+      style: str | None = "mocha",
       ax: typing.Any = None,
   ) -> tuple[typing.Any, typing.Any]:
     """Plots the singular-value spectrum of a 2D matrix solution `self.x`."""
     from proxax import plotting  # noqa: PLC0415
 
-    return plotting.plot_spectrum(self.x, title=title, log_y=log_y, ax=ax)
+    return plotting.plot_spectrum(
+        self.x,
+        title=title,
+        log_y=log_y,
+        alpha=alpha,
+        style=style,
+        ax=ax,
+    )
 
   def __repr__(self) -> str:
     """Returns a concise summary without dumping full array payloads."""
@@ -1068,6 +1081,8 @@ class HistoryTracker:
       x_axis: typing.Literal["iter", "time", "evals"] = "iter",
       title: str | None = None,
       show_tol: bool = True,
+      alpha: float = 0.75,
+      style: str | None = "mocha",
       ax: typing.Any = None,
   ) -> tuple[typing.Any, list[typing.Any]]:
     """Plots recorded objective and residual trajectories via Matplotlib."""
@@ -1078,6 +1093,8 @@ class HistoryTracker:
         x_axis=x_axis,
         title=title,
         show_tol=show_tol,
+        alpha=alpha,
+        style=style,
         ax=ax,
     )
 

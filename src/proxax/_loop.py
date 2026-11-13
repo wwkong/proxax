@@ -52,6 +52,8 @@ def while_loop(
     return jax.lax.while_loop(cond_fun, body_fun, init_val)
 
   state = init_val
+  if callback is not None and callback(state):
+    return state
   start_time = time.perf_counter()
   while bool(cond_fun(state)):
     if (

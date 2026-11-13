@@ -203,7 +203,8 @@ def test_history_tracker_unconstrained_and_constrained(
       callback=hist,
   )
   assert sol.status_enum == px.SolveStatus.CONVERGED
-  assert len(hist) >= 1
+  assert len(hist) >= 2
+  assert hist.outer_iters[0] == 0
   assert len(hist.obj_vals) == len(hist)
   assert hist.opt_tols[-1] > 0.0
   assert all(v == 0.0 for v in hist.feas_residuals)
