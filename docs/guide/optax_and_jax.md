@@ -240,6 +240,16 @@ with `optax.adam`, see `examples/bilevel_optax.py` (as well as
 `examples/nn_structured_layer.py` for end-to-end batched `jax.vmap` neural
 layers):
 
+For 1-line neural network integration, use the drop-in wrappers in
+`px.layers` (`ProxLayer`, `CappedSimplexLayer`, `SimplexLayer`, `BoxLayer`,
+and `QPLayer`), which expose both `__call__(scores)` and `.batched(scores_batch)`
+(via `jax.vmap`):
+
+```python
+layer = px.layers.CappedSimplexLayer(scale=2.0, upper=1.0)
+probs = jax.jit(layer.batched)(logits)  # shape (batch, dim)
+```
+
 ```bash
 uv run python examples/bilevel_optax.py
 ```

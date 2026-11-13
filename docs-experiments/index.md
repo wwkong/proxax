@@ -20,6 +20,7 @@ and constrained composite suites:
 
 * [`PANOC` Ill-Conditioned & Exotic-Prox Benchmarks](panoc_benchmarks.md)
 * [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md)
+* [Conic Optimization Benchmarks (`ExpCone`, `SOC`, `Spectrahedron`)](conic_benchmarks.md)
 
 ## Scaling Studies
 
@@ -41,6 +42,7 @@ Reproductions of published benchmark tables using `proxax`:
 
 panoc_benchmarks
 panoc_alm_benchmarks
+conic_benchmarks
 ```
 
 ```{toctree}

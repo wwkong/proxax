@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-13
+
+### Added
+- Added `proxax.layers` (`px.layers`: `ProxLayer`, `CappedSimplexLayer`, `SimplexLayer`, `BoxLayer`, `QPLayer`) providing drop-in differentiable optimization layers with `.batched()` (`jax.vmap`) support, tested in `tests/test_layers.py`.
+- Added conic optimization benchmark suite (`experiments/conic_benchmarks/run.py`, `docs-experiments/conic_benchmarks.md`, `docs-experiments/_static/plots/conic_benchmark_profile.svg`) evaluating `PANOC-ALM` across `ExpCone`, `SOC`, and `Spectrahedron` problems.
+- Added a Solver Selection Flowchart in `docs/guide/solving_problems.md` and `px.layers` documentation in `docs/api.md` and `docs/guide/optax_and_jax.md`.
+
 ## [0.2.6] - 2026-11-13
 
 ### Changed

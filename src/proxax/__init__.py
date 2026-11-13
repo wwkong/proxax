@@ -5,6 +5,7 @@ from __future__ import annotations
 from proxax import certificates
 from proxax import constraints
 from proxax import implicit
+from proxax import layers
 from proxax import optax_compat
 from proxax import oracle
 from proxax import plotting
@@ -55,6 +56,7 @@ __all__ = [
     "constraints",
     "implicit",
     "implicit_solve",
+    "layers",
     "optax_compat",
     "oracle",
     "plotting",

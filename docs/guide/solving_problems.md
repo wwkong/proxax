@@ -212,6 +212,26 @@ these three defaults:
 | **Min-Max / Saddle-Point** (`MinMaxProblem`) | `px.solvers.ExtraGradient` or `px.solvers.ProxPointMinMax` | `"extra_gradient"` / `"prox_point"` | Adaptive Mirror-Prox (`ExtraGradient`) for convex-concave games, `PDHG` for bilinear/alternating steps, and `ProxPointMinMax` for weakly monotone/nonconvex saddle points. |
 | **Block-Constrained** (`BlockProblem`) | `px.solvers.DPADMM`, `px.solvers.PAdaptADMM`, or `px.solvers.ADMM` | `"dp_admm"` / `"p_adapt_admm"` / `"admm"` | `DPADMM` (cyclic dampened) and `PAdaptADMM` (parallel Jacobi adaptive) provide certified $\mathcal{O}(\varepsilon^{-3})$ convergence on nonconvex problems; `ADMM` is fast for fixed-penalty convex splitting. |
 
+### Solver Selection Flowchart
+
+```text
+What problem class are you solving?
+├── CompositeProblem (f(x) + h(x))
+│   ├── Unconstrained (constraints=None)
+│   │   ├── Ill-conditioned / quasi-Newton? ──▶ method="panoc" (L-BFGS + FBE)
+│   │   ├── Known curvatures (m, M)?          ──▶ method="aipp" or "nc_fista"
+│   │   └── Parameter-free default?           ──▶ method="apd" (or "adap_fista")
+│   └── Constrained (constraints=...)
+│       ├── Ill-conditioned / conic?          ──▶ method="panoc_alm"
+│       ├── Parameter-free ALM / penalty?     ──▶ method="ialm" / "qp_apd"
+│       └── Known curvatures?                 ──▶ method="iaipal" / "qp_aipp"
+├── SpectralProblem (singular-value penalty)  ──▶ method="da_icg" / "ia_icg"
+├── MinMaxProblem (saddle-point game)
+│   ├── Convex-concave / bilinear?          ──▶ method="extra_gradient" / "pdhg"
+│   └── Weakly nonconvex-strongly concave?    ──▶ method="prox_point"
+└── BlockProblem (multi-block splitting)      ──▶ method="p_adapt_admm" / "dp_admm"
+```
+
 ### Full Solver Catalog at a Glance (`px.solvers`)
 
 - **Unconstrained solvers:**
