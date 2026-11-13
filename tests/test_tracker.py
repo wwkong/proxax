@@ -32,7 +32,7 @@ def test_solver_tracker_pytree_and_properties() -> None:
       x0,
       v0,
       jnp.linalg.norm(v0),
-      jnp.float32(2.5),
+      jnp.asarray(2.5),
       opt_tol=1e-3,
       smooth_evals=1,
       grad_evals=1,

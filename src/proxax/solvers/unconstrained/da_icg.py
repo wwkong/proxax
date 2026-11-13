@@ -203,10 +203,12 @@ class DAICG:
           jnp.sum(z_xtilde * z_xtilde) - jnp.sum(d_xt * d_xt),
       )
       acg_cfg_step = dataclasses.replace(acg_cfg, rhs_offset_sq=orth_gap_sq)
+      # Project s_xt onto dom(prox_vec) so ACG starts at a feasible point.
+      s_xt_feas = oracle.prox_vec.prox(s_xt, jnp.asarray(0.0, dtype=dtype))
       sub_L_init = st.lam * st.m2_est + 0.5
       acg_st = acg.run_acg(
           vec_oracle,
-          s_xt,
+          s_xt_feas,
           prox_center=d_xt,
           lam=jnp.asarray(1.0, dtype=dtype),
           lipschitz_init=sub_L_init,

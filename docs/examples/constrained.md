@@ -15,7 +15,7 @@ All code on this page can be executed directly via
 `examples/constrained_nc_opt.py`:
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/constrained_nc_opt.py
+uv run python examples/constrained_nc_opt.py
 ```
 
 ---
@@ -92,8 +92,8 @@ $q_{b,\nu}(\Phi)$ yields a two-block consensus problem:
 
 $$\min_{\Pi, \Phi \in \mathbb{R}^{p \times p}} \; -\langle \widehat{\Sigma}, \Pi \rangle + q_{b,\nu}(\Phi) + \delta_{\mathcal{F}^k}(\Pi) + \nu \|\Phi\|_1 \quad \text{s.t.} \quad \Pi - \Phi = 0$$
 
-where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and $\frac{1}{2} b \nu^2
-- \nu |t|$ otherwise.
+where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and
+$\frac{1}{2} b \nu^2 - \nu |t|$ otherwise.
 
 In Proxax, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
 pair the two block regularizers via `px.prox.MultiProx`, and write the matrix

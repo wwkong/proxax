@@ -125,7 +125,11 @@ c_soc = px.constraints.in_set(
 Because `constraints` accepts arbitrary linear Python functions, you never have
 to materialize huge Kronecker or block matrices for matrix variables or nested
 dictionaries. Proxax computes the adjoint $\mathcal{A}^*$ automatically via
-`jax.linear_transpose`:
+`jax.linear_transpose`. For example, the consensus matrix problem
+
+$$\min_{X \in \mathbb{R}^{4 \times 4},\; Y \in [0, 0.8]^{4 \times 4}} \; \frac{1}{2}\|X - \mathbf{1}\|_F^2 + 0.5 \|X\|_* \quad \text{s.t.} \quad X - Y = 0$$
+
+can be written directly over a dictionary PyTree:
 
 ```python
 import jax.numpy as jnp
@@ -165,6 +169,8 @@ Python `dict`, `tuple`, or `list` of `Constraint` objects directly to
 `px.CompositeProblem(constraints=...)`. Proxax automatically combines them
 into a `ProductConstraint` and returns `sol.dual` with the **exact same
 keys/structure**:
+
+$$\min_{x \in \mathbb{R}_+^3} \; \frac{1}{2}\|x - (2, 0.5, -0.5)^\top\|_2^2 \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1, \quad x_1 + x_2 \le 0.8$$
 
 ```python
 import jax.numpy as jnp

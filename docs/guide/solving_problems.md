@@ -25,7 +25,12 @@ You only need a single import line (`from proxax import px`, or equivalently
 
 Use `px.CompositeProblem` whenever you want to minimize a smooth function
 `smooth`, a nonsmooth regularizer or simple set `proximal`, and/or linear/cone
-constraints `constraints`:
+constraints `constraints`. For example, to solve the L1-regularized
+least-squares problem
+
+$$\min_{x \in \mathbb{R}^n} \; \frac{1}{2}\|x - 1.5\|_2^2 + 0.2 \|x\|_1$$
+
+write:
 
 ```python
 import jax.numpy as jnp
@@ -52,7 +57,10 @@ All three arguments are optional:
 ### Using PyTree Variables (`dict`, `tuple`, Dataclasses)
 
 Your optimization variable `x` does **not** have to be a flat 1D vector. Any
-JAX PyTree works out of the box:
+JAX PyTree works out of the box—for instance, sparse linear regression with
+weights $w \in \mathbb{R}^2$ and unpenalized scalar bias $b \in \mathbb{R}$:
+
+$$\min_{w \in \mathbb{R}^2,\; b \in \mathbb{R}} \; \frac{1}{2N}\|X w + b \mathbf{1} - y\|_2^2 + 0.1\|w\|_1$$
 
 ```python
 import jax
@@ -83,6 +91,8 @@ When optimizing over a 2D matrix $X \in \mathbb{R}^{p \times q}$ with penalties
 that depend only on the singular values $\sigma(X)$, use `px.SpectralProblem`
 so spectral solvers (`DAICG`, `IAICG`) only compute **one thin SVD per outer
 iteration**:
+
+$$\min_{X \in \mathbb{R}^{3 \times 2}} \; \frac{1}{2}\|X - T\|_F^2 - 0.1 \sum_{i=1}^2 \frac{\sigma_i(X)^2}{1 + \sigma_i(X)^2} + 0.25 \|X\|_*$$
 
 ```python
 import jax.numpy as jnp

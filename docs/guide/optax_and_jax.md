@@ -13,7 +13,7 @@ PyTree state machines. You can:
 All examples on this page can be run via `examples/optax_and_vmap.py`:
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/optax_and_vmap.py
+uv run python examples/optax_and_vmap.py
 ```
 
 ---

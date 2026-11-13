@@ -8,7 +8,7 @@ All code on this page can be run directly via
 `examples/unconstrained_nc_opt.py`:
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/unconstrained_nc_opt.py
+uv run python examples/unconstrained_nc_opt.py
 ```
 
 ---

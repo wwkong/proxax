@@ -188,8 +188,9 @@ $\theta \in (0, 1)$ gives dampened ALM (`AIDAL`).
 ## 4. Spectral Oracles (`SpectralOracle` & `VectorSpectralSubOracle`)
 
 `SpectralOracle(f1=..., f2_vec=..., prox_vec=..., domain_proj=...)` implements
-the matrix spectral composite model $\Phi(X) = f_1(X) + f_2^{\mathcal{V}}(\sigma(X))
-+ h^{\mathcal{V}}(\sigma(X))$ in two ways simultaneously:
+the matrix spectral composite model
+$\Phi(X) = f_1(X) + f_2^{\mathcal{V}}(\sigma(X)) + h^{\mathcal{V}}(\sigma(X))$
+in two ways simultaneously:
 
 1. **As a full matrix `CompositeOracleProtocol`:** evaluating thin SVDs so any
    general solver (`APD`, `AIPP`, `ECG`) can optimize a `SpectralProblem`.

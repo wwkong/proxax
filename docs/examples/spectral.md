@@ -8,7 +8,7 @@ All code on this page can be executed via
 `examples/spectral_matrix_completion.py`:
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/spectral_matrix_completion.py
+uv run python examples/spectral_matrix_completion.py
 ```
 
 ---
