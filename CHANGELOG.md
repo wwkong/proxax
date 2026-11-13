@@ -4,10 +4,15 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-13
+
 ### Added
 - `examples/minmax.py` and `examples/block.py` runnable examples for `px.MinMaxProblem` and `px.BlockProblem`.
 - Sphinx `Experiments` documentation section with reproducible DQP benchmark report (`maia2026_table1_dqp`).
 - Project logo (`docs/_static/logo.png`) and Read the Docs theme/sidebar enhancements.
+
+### Fixed
+- `PAdaptADMM` parameter handling and `adaptive_tau` bisection behavior.
 
 ### Changed
 - Renamed `examples/unconstrained_nc_opt.py` and `examples/constrained_nc_opt.py` to `examples/unconstrained.py` and `examples/constrained.py`.

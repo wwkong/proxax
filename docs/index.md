@@ -166,7 +166,7 @@ If Proxax was helpful for a publication, please cite this repository:
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.1.1},
+  version = {0.1.2},
   year = {2026},
 }
 ```
@@ -206,6 +206,7 @@ guide/optax_and_jax
 examples/unconstrained
 examples/constrained
 examples/minmax
+examples/block
 examples/spectral
 ```
 
