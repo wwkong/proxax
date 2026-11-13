@@ -13,6 +13,19 @@ PLOTS_DIR = Path("/home/wkong/Projects/proxax/docs-experiments/_static/plots")
 DATA_DIR = Path("/tmp/proxax_repl")
 
 plt.rcParams.update({
+    "figure.facecolor": "#1e1e2e",
+    "axes.facecolor": "#181825",
+    "axes.edgecolor": "#45475a",
+    "axes.labelcolor": "#cdd6f4",
+    "axes.titlecolor": "#cdd6f4",
+    "text.color": "#cdd6f4",
+    "xtick.color": "#bac2de",
+    "ytick.color": "#bac2de",
+    "grid.color": "#313244",
+    "legend.facecolor": "#1e1e2e",
+    "legend.edgecolor": "#45475a",
+    "savefig.facecolor": "#1e1e2e",
+    "savefig.edgecolor": "#1e1e2e",
     "font.size": 10,
     "axes.titlesize": 11,
     "axes.labelsize": 10,
@@ -20,12 +33,12 @@ plt.rcParams.update({
     "xtick.labelsize": 9,
     "ytick.labelsize": 9,
     "axes.grid": True,
-    "grid.alpha": 0.28,
+    "grid.alpha": 0.65,
     "axes.spines.top": False,
     "axes.spines.right": False,
 })
 
-PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+PALETTE = ["#89b4fa", "#f38ba8", "#a6e3a1", "#fab387", "#cba6f7", "#94e2d5"]
 MARKERS = ["o", "s", "^", "D", "v", "P"]
 
 
@@ -110,7 +123,7 @@ def _plot_kong2024_dpadmm() -> None:
   ]:
     ax.set_yscale("log")
     ax.set_xticks([1, 2, 4, 6])
-    ax.axhline(1e-3, color="black", linestyle="--", linewidth=1.0, alpha=0.6, label=r"tol ($10^{-3}$)")
+    ax.axhline(1e-3, color="#bac2de", linestyle="--", linewidth=1.0, alpha=0.7, label=r"tol ($10^{-3}$)")
     ax.set_title(title)
     ax.set_xlabel(r"Rank of $A_3$ ($m=6$; $r < 6$ is rank-deficient)")
     ax.set_ylabel(ylabel)
@@ -137,7 +150,7 @@ def _plot_kong2022_spectral() -> None:
   axes[0].set_xlabel("Observed matrix entries (%)")
   axes[0].set_ylabel("Oracle evaluations")
   axes[1].set_yscale("log")
-  axes[1].axhline(1e-3, color="black", linestyle="--", linewidth=1.0, alpha=0.6, label=r"tol ($10^{-3}$)")
+  axes[1].axhline(1e-3, color="#bac2de", linestyle="--", linewidth=1.0, alpha=0.7, label=r"tol ($10^{-3}$)")
   axes[1].set_title("Final Stationarity Residual (600 outer iters cap)")
   axes[1].set_xlabel("Observed matrix entries (%)")
   axes[1].set_ylabel("Stationarity residual")
