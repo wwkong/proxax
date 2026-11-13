@@ -1,11 +1,11 @@
 # Proxax Roadmap
 
 This document tracks planned features, algorithmic extensions, and engineering
-milestones for **Proxax** beyond the current `v0.0.4` baseline.
+milestones for **Proxax** beyond the current `v0.0.5` baseline.
 
 ---
 
-## Current Baseline (`v0.0.4`)
+## Current Baseline (`v0.0.5`)
 
 - **Problem classes (least to most specialized):**
   1. Unconstrained composite optimization: $\min_{x \in \mathbb{R}^n} f(x) + h(x)$
@@ -24,9 +24,11 @@ milestones for **Proxax** beyond the current `v0.0.4` baseline.
      (`px.SpectralProblem` — 2 single-SVD solvers: `DAICG`, `IAICG`).
 - **Core infrastructure:** Unified `from proxax import px` facade, PyTree-native
   oracles and composable state trackers, exact subdifferential/KKT refinement
-  certificates, single-step Optax transformations (`px.optax_compat`), `jax.jit`
-  / `jax.vmap` support, Sphinx Book Theme documentation on Read the Docs, and
-  automated PyPI publishing (`.github/workflows/publish.yml`).
+  certificates, implicit differentiation (`px.implicit_solve`), single-step Optax
+  transformations (`px.optax_compat`), `jax.jit` / `jax.vmap` support,
+  reproducible `benchmarks/` suite, GitHub Actions CI (`.github/workflows/ci.yml`),
+  Sphinx Book Theme documentation on Read the Docs, and automated PyPI
+  publishing (`.github/workflows/publish.yml`).
 
 ---
 
@@ -99,9 +101,9 @@ through `px.solve` via `jax.custom_vjp` without unrolling inner
 
 ---
 
-## Milestone 4: Folded-Concave Regularizers, Cones & Splitting
+## Milestone 4: Folded-Concave Regularizers & Cone/Prox Primitives
 
-Reduce boilerplate for common structured penalties and multi-block constraints:
+Reduce boilerplate for common structured penalties and matrix/vector constraints:
 
 - **Nonconvex regularizer decompositions:** Turnkey **SCAD**, **MCP**,
   **Log-Sum**, and **Capped-$\ell_1$** helpers that automatically split a
@@ -112,17 +114,28 @@ Reduce boilerplate for common structured penalties and multi-block constraints:
   - Symmetric positive semidefinite cone (`px.constraints.PSDSet`) and built-in
     $k$-Fantope (`px.prox.Fantope`).
   - Group Lasso (`L21`), $\ell_\infty$ ball/norm, and 1D total variation.
-- **Multi-block splitting:** Certified proximal `ADMM` for separable two-block
-  and consensus composite problems.
 
 ---
 
-## Milestone 5: Continuous Integration & `v0.1.0` Release
+## Milestone 5: Block-Constrained Composite Optimization & Splitting (`ADMM`)
 
-- **GitHub Actions CI (`.github/workflows/ci.yml`):** Run `ruff check .`,
-  `mypy`, `pytest` (both default `float32` and `JAX_ENABLE_X64=1`), and
-  `sphinx-build -T -W -b html docs site` on every push and pull request across
-  Python 3.11–3.14 (complementing `.github/workflows/publish.yml`).
-- **API & example polish:** Standardize example formatting, add Doctest /
-  example smoke checks in CI, and tag `v0.1.0` once Min-Max and the benchmark
-  harness land.
+Add dedicated support for separable multi-block and consensus composite
+problems:
+
+$$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b \;\; (\text{or } \in \mathcal{C})$$
+
+- **Block problem & oracle abstraction:** Separable block terms
+  $(f_i, h_i, \mathcal{A}_i)$ over arbitrary PyTree blocks with certified KKT
+  primal/dual stationarity and feasibility residuals.
+- **Splitting solvers (`px.solvers`):** Certified proximal `ADMM` for two-block,
+  multi-block, and consensus composite optimization (covering both convex and
+  weakly-convex smooth blocks).
+
+---
+
+## Milestone 6: Example Smoke Checks & `v0.1.0` Release
+
+- **CI coverage (`.github/workflows/ci.yml`):** Add Doctest / runnable example
+  smoke checks alongside the existing `ruff`, `mypy`, `pytest` (`float32` &
+  `float64`), and `sphinx-build` gates.
+- **API & example polish:** Standardize example formatting and tag `v0.1.0`.
