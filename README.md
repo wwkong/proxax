@@ -83,14 +83,15 @@ print("x =", sol.x)
 Solution(
   status=CONVERGED,
   obj=-8.090005e-01,
-  opt_res=7.039e-06,
+  opt_res=5.972e-06,
   feas_res=2.384e-07,
   iters=8 (inner=423),
   evals=(smooth=991, grad=892, prox=449),
+  runtime_ms=0.46,
   x=float32[3],
   dual=float32[],
 )
-x = [0.06000054 0.9399997  0.        ]
+x = [0.06000032 0.93999994 0.        ]
 ```
 
 ## Problem Classes

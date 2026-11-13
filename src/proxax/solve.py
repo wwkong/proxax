@@ -8,6 +8,7 @@ import time
 import typing
 
 import jax
+from jax._src import core as jax_core
 
 from proxax import _typing
 from proxax import problem as problem_mod
@@ -229,7 +230,12 @@ def _run_compiled_or_direct(
     effective_cb: typing.Any,
     time_limit: float | None,
 ) -> tuple[base.Solution, float | None]:
-  if jit and effective_cb is None and not _is_traced(x0):
+  if (
+      jit
+      and effective_cb is None
+      and jax_core.trace_ctx.is_top_level()
+      and not _is_traced(x0)
+  ):
     try:
       cache_key = (chosen, target, time_limit, _x0_signature(x0))
       hash(cache_key)

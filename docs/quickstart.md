@@ -87,6 +87,7 @@ Solution(
   feas_res=0.000e+00,
   iters=12 (inner=82),
   evals=(smooth=200, grad=174, prox=88),
+  runtime_ms=0.29,
   x=float32[3],
   dual=None,
 )
@@ -138,6 +139,7 @@ Solution(
   feas_res=0.000e+00,
   iters=11 (inner=35),
   evals=(smooth=105, grad=80, prox=42),
+  runtime_ms=0.36,
   x=float32[2],
   dual=None,
 )
@@ -190,14 +192,15 @@ print("x =", sol.x)
 Solution(
   status=CONVERGED,
   obj=-1.352509e-01,
-  opt_res=1.291e-06,
-  feas_res=3.517e-06,
-  iters=9 (inner=221),
-  evals=(smooth=548, grad=490, prox=247),
+  opt_res=1.251e-06,
+  feas_res=3.457e-06,
+  iters=9 (inner=222),
+  evals=(smooth=550, grad=492, prox=248),
+  runtime_ms=0.30,
   x=float32[2],
   dual=float32[],
 )
-x = [0.29000032 0.2100032 ]
+x = [0.29000032 0.21000314]
 ```
 
 Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
