@@ -1,4 +1,4 @@
-# Nonconvex Distributed QP (Table 1 Variants, arXiv:2611.00570)
+# `PAdaptADMM` CPU Benchmarks
 
 This report evaluates Proxax's multi-block solvers on small-scale variants of the
 nonconvex Distributed Quadratic Programming (DQP) benchmark from

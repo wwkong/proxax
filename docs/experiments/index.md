@@ -11,7 +11,7 @@ Each report documents:
 - **Summary tables & observations** (iteration counts, inner ACG/FISTA calls,
   wall-clock times, and stationarity/feasibility residuals)
 
-* [Nonconvex Distributed QP (Table 1 Variants, arXiv:2611.00570)](maia2026_table1_dqp.md)
+* [`PAdaptADMM` CPU Benchmarks](maia2026_table1_dqp.md)
 * [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
 
 ```{toctree}

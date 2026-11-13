@@ -65,6 +65,7 @@ table.grouped-4-table tbody tr:nth-child(4n):not(:last-child) td,
 }
 
 /* Make SVG plots fill the horizontal article width cleanly */
+.bd-article img[src*="_images/"][src$=".svg"],
 .bd-article img[src*="_static/plots/"][src$=".svg"] {
   width: 100%;
   height: auto;
