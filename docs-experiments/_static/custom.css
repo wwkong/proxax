@@ -64,16 +64,25 @@ table.grouped-4-table tbody tr:nth-child(4n):not(:last-child) td,
   border-bottom: 2px solid var(--pst-color-text-muted);
 }
 
-/* Make plot images fill the horizontal article width cleanly */
+/* Make SVG plots fill the horizontal article width cleanly */
 .bd-article img[src*="_images/"][src$=".svg"],
-.bd-article img[src*="_static/plots/"][src$=".svg"],
+.bd-article img[src*="_static/plots/"][src$=".svg"] {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0.375rem;
+}
+
+/* Keep raster GIF/PNG plots at crisp native resolution (never upscaled) */
 .bd-article img[src*="_images/"][src$=".gif"],
 .bd-article img[src*="_static/plots/"][src$=".gif"],
 .bd-article img[src*="_images/"][src$=".png"],
 .bd-article img[src*="_static/plots/"][src$=".png"] {
-  width: 100%;
+  max-width: 100%;
+  width: auto;
   height: auto;
   display: block;
+  margin: 1rem auto;
   border-radius: 0.375rem;
 }
 
