@@ -81,19 +81,20 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
 
 1. **Unconstrained Composite Optimization (`CompositeProblem`):**
 
-   $$\min_{x \in \mathcal{X}} \; f(x) + h(x)$$
+   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x)$$
 
    Minimize a differentiable (possibly nonconvex) objective $f$ plus a convex
    proximable regularizer or indicator constraint $h$ such as an $\ell_1$ norm,
-   elastic net, box, ball, or probability simplex.
+   elastic net, box, ball, or probability simplex (over $\mathbb{R}^n$ or any
+   JAX PyTree of arrays).
 
 2. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
 
-   $$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
 
    Add linear equalities, inequalities, two-sided box bounds, or second-order
-   cone constraints over any matrix or matrix-free PyTree linear map
-   $\mathcal{A}$.
+   cone constraints $\mathcal{C} \subseteq \mathbb{R}^m$ over any matrix or
+   matrix-free PyTree linear map $\mathcal{A}: \mathbb{R}^n \to \mathbb{R}^m$.
 
 3. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
 
@@ -107,12 +108,18 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
 
 ## 30-Second Example
 
+Minimize an indefinite (nonconvex) quadratic over the unit box with a linear
+equality constraint:
+
+$$\min_{x \in [0, 1]^3} \; \frac{1}{2} x^\top Q x + \langle c, x \rangle \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1$$
+
 ```python
 import jax.numpy as jnp
 from proxax import px
 
 q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
 c_vec = jnp.array([-0.6, 0.2, -0.4])
+
 
 def smooth_fn(x):
   return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
@@ -129,7 +136,8 @@ sol = px.solve(
     jnp.ones(3) / 3.0,
     solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
 )
-print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
+print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
+# CONVERGED [0.06000053 0.9399997  0.        ] 6.80e-06
 ```
 
 ---
@@ -143,7 +151,7 @@ If Proxax was helpful for a publication, please cite this repository:
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.0.2},
+  version = {0.0.3},
   year = {2026},
 }
 ```

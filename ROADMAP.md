@@ -1,18 +1,18 @@
 # Proxax Roadmap
 
 This document tracks planned features, algorithmic extensions, and engineering
-milestones for **Proxax** beyond the current `v0.0.2` baseline.
+milestones for **Proxax** beyond the current `v0.0.3` baseline.
 
 ---
 
-## Current Baseline (`v0.0.2`)
+## Current Baseline (`v0.0.3`)
 
 - **Problem classes (least to most specialized):**
-  1. Unconstrained composite optimization: $\min_{x \in \mathcal{X}} f(x) + h(x)$
+  1. Unconstrained composite optimization: $\min_{x \in \mathbb{R}^n} f(x) + h(x)$
      (`px.CompositeProblem` — 9 solvers: `APD`, `AIPP`, `ACACG`, `AdapFISTA`,
      `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`).
   2. Set- and cone-constrained composite optimization:
-     $\min_{x \in \mathcal{X}} f(x) + h(x)$ s.t. $\mathcal{A}(x) \in \mathcal{C}$
+     $\min_{x \in \mathbb{R}^n} f(x) + h(x)$ s.t. $\mathcal{A}(x) \in \mathcal{C}$
      (`px.CompositeProblem` — 5 solvers: `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`,
      `SProxALM`).
   3. Matrix spectral composite optimization:
