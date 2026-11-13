@@ -1,15 +1,16 @@
-# Optax Transforms & `jax.vmap`
+# Optax Integration & `jax.vmap`
 
-Every algorithm in `proxax` is built from pure functional PyTree state machines
-registered with `jax.tree_util.register_dataclass`. You can:
+Every operator and solver in `proxax` is implemented using pure functional JAX
+PyTree state machines. You can:
 
-1. Drive `proxax` **one inner step at a time** inside a standard Optax
-   `tx.init` / `tx.update` / `optax.apply_updates` loop via
-   `proxax.optax_compat`.
-2. Solve **batches of nonconvex optimization instances in parallel** on CPU,
-   GPU, or TPU with `jax.jit(jax.vmap(...))`.
+1. Plug any `ProxOperator` into an `optax.chain` in 3 lines via
+   `optax_compat.proximal`.
+2. Step through certified nonconvex solvers (`apd`, `aipp`, `ialm`, `qp_apd`,
+   `qp_aipp`) **one inner iteration at a time** inside a standard Optax loop.
+3. Solve **batches of independent optimization problems in parallel** on GPU or
+   TPU using `jax.jit(jax.vmap(...))`.
 
-All code on this page can be executed directly via `examples/optax_and_vmap.py`:
+All examples on this page can be run via `examples/optax_and_vmap.py`:
 
 ```bash
 XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/optax_and_vmap.py
@@ -17,13 +18,45 @@ XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/optax_and_vmap.py
 
 ---
 
-## 1. Step-by-Step Trajectory via `optax_compat.apd`
+## 1. Proximal Gradient / SGD in `optax.chain` (`optax_compat.proximal`)
 
-Unlike black-box solvers that only return the final iterate,
-`proxax.optax_compat.apd` advances **one inner `PF.ACG` step** per `tx.update`
-call while maintaining exact stationarity certificates `state.opt_residual`
-($\|\hat{v}\|_2$) and adaptive weak-convexity estimates `state.lower_curvature`
-($\hat{m}_k$) inside a `jax.jit`-compiled step function:
+When training a model with Optax and you want every parameter update to apply a
+proximal operator (such as soft-thresholding or simplex/box projection), append
+`optax_compat.proximal(prox_op, step_size)` to `optax.chain` and pass `params`
+to `tx.update`:
+
+```python
+import jax
+import jax.numpy as jnp
+import optax
+from proxax import optax_compat
+from proxax import prox
+
+lr = 1e-2
+tx = optax.chain(
+    optax.scale(-lr),
+    optax_compat.proximal(prox.L1(weight=0.05), step_size=lr),
+)
+
+params = jnp.array([0.5, -0.02, 1.2])
+state = tx.init(params)
+
+grads = jnp.array([0.1, 0.05, -0.3])
+updates, state = tx.update(grads, state, params)
+params = optax.apply_updates(params, updates)
+```
+
+`step_size` can be either a float scalar or an `optax.Schedule`.
+
+---
+
+## 2. Certified Unconstrained Optax Loops (`optax_compat.apd`)
+
+If you want to inspect iterates, log custom metrics, or interleave solver steps
+with external JAX simulation code, `optax_compat.apd` (and `optax_compat.aipp`)
+advances **one inner step per `tx.update` call** while tracking the exact
+stationarity residual `state.opt_residual` and adaptive curvature estimate
+`state.lower_curvature`:
 
 $$\min_{x \in [-1, 1]^4} \; \frac{1}{2}\sum_{i=1}^4 q_i x_i^2 + \langle c, x \rangle, \qquad q = (6, -2.5, 4, -1.5)$$
 
@@ -57,13 +90,11 @@ def step_fn(
   updates, next_st = tx.update(grads, st, p, value=val, value_fn=loss_fn)
   return optax.apply_updates(p, updates), next_st
 
-for step_idx in range(1, 80):
+for _ in range(80):
   params, state = step_fn(params, state)
   if bool(state.converged):
     break
 ```
-
-### Verified Step-by-Step Trajectory
 
 | Inner Step | Outer Stage | Objective $f(x_t)$ | Certified $\|\hat{v}\|_2$ | Adaptive $\hat{m}_k$ |
 | ---: | ---: | ---: | ---: | ---: |
@@ -75,12 +106,11 @@ for step_idx in range(1, 80):
 
 ---
 
-## 2. Constrained Optax Loop via `optax_compat.ialm`
+## 3. Constrained Optax Loops (`optax_compat.ialm`, `qp_apd`, `qp_aipp`)
 
-For set- or cone-constrained PyTree models $\mathcal{A}(w) \in \mathcal{C}$,
-`proxax.optax_compat.ialm` (along with `qp_apd` and `qp_aipp`) tracks both the
-primal iterate `params` and the dual multiplier `state.dual` inside an Optax
-loop:
+For problems with linear or cone constraints $\mathcal{A}(w) \in \mathcal{C}$,
+`optax_compat.ialm` (along with `qp_apd` and `qp_aipp`) updates both `params`
+and the Lagrange multipliers `state.dual` inside an Optax step function:
 
 $$\min_{w \in [0, 1]^3} \; \frac{1}{2}\big(3 w_1^2 - w_2^2 + 2 w_3^2\big) - w_1 \quad \text{s.t.} \quad \sum_{i=1}^3 w_i = 1$$
 
@@ -123,24 +153,13 @@ for _ in range(300):
 # converged=True, w*=[6.61e-05, 1.0, 0.0], stat=2.23e-05, feas=6.60e-05
 ```
 
-You can also compose any `ProxOperator` directly inside an `optax.chain` for
-standard proximal stochastic or deterministic gradient training via
-`optax_compat.proximal`:
-
-```python
-tx_prox_sgd = optax.chain(
-    optax.scale(-1e-2),
-    optax_compat.proximal(prox.L1(weight=0.05), step_size=1e-2),
-)
-```
-
 ---
 
-## 3. Batched Nonconvex Solves with `jax.jit(jax.vmap(...))`
+## 4. Batched Solves with `jax.jit(jax.vmap(...))`
 
-Because `proxax` solvers compile their inner and outer loops with
-`jax.lax.while_loop` (`jit=True`), `solver.solve` can be vectorized directly
-over problem data `(Q_b, c_b)` using `jax.vmap`:
+Because `proxax` compiles solver loops with `jax.lax.while_loop` (`jit=True`),
+you can wrap `solver.solve` in `jax.vmap` to solve dozens or thousands of
+parameterized optimization instances simultaneously on an accelerator:
 
 $$\min_{x \in \Delta^{10}} \; \frac{1}{2} x^\top Q_b x + \langle c_b, x \rangle, \qquad b = 1, \dots, 16$$
 
@@ -167,5 +186,6 @@ def solve_single(q_mat: jax.Array, c_vec: jax.Array) -> solvers.Solution:
   return solver.solve(prob, x0, jit=True)
 
 batched_sol = jax.jit(jax.vmap(solve_single))(q_batch, c_batch)
-# Solved 16/16 instances in parallel: max ||v_hat||_2 = 0.00e+00, mean inner iters = 7.7
+print("Statuses:", batched_sol.status)          # shape (16,), all 0 (CONVERGED)
+print("Solutions shape:", batched_sol.x.shape)  # shape (16, 10)
 ```

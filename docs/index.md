@@ -1,130 +1,128 @@
 # `proxax`: Certified Composite Optimization in JAX
 
-**`proxax`** is a library of **certified first-order proximal point, spectral,
-penalty, and augmented Lagrangian methods** for unconstrained and
-set/cone-constrained **nonconvex composite optimization** in **JAX** and
-**Optax**, porting the complete algorithm suite of
-[`wwkong/nc_opt`](https://github.com/wwkong/nc_opt).
+**`proxax`** is a library of **certified first-order proximal, spectral,
+penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
+constrained optimization in **JAX** and **Optax** — covering both convex and
+nonconvex objectives.
 
-Every solver operates natively on arbitrary **JAX PyTrees**, compiles end-to-end
-under `jax.jit` and `jax.vmap`, depends strictly on **`jax` and `optax` only**,
-and returns **exact primal-dual stationarity certificates** rather than
-unverified raw iterates.
+Every solver in `proxax`:
+
+- **Works natively on JAX PyTrees** (`jax.Array`, nested `dict` / `tuple`, or
+  registered dataclasses) without flattening arrays by hand.
+- **Compiles end-to-end** under `jax.jit` and vectorizes across problem batches
+  with `jax.vmap`.
+- **Returns exact stationarity certificates** $(\hat{x}, \hat{p}, \hat{v})$
+  measuring true subdifferential and KKT residuals rather than heuristic step
+  lengths.
+- **Depends only on `jax` and `optax`** at runtime.
 
 ---
 
-## Explore the Documentation
+## Documentation Overview
 
 ::::{grid} 1 2 2 2
 :gutter: 3
 
-:::{grid-item-card} Getting Started & Solver Guide
+:::{grid-item-card} Installation & Quickstart
 :link: quickstart
 :link-type: doc
 
-Install `proxax`, understand exact stationarity certificates $(\hat{x}, \hat{v})$,
-build `CompositeProblem` PyTrees, and pick the right solver across all 16
-methods.
+Install `proxax` and solve your first unconstrained, box-constrained, and
+linearly-constrained problems in a few lines of JAX.
 :::
 
-:::{grid-item-card} Unconstrained `nc_opt` Examples
+:::{grid-item-card} Problem Classes & Oracles
+:link: foundations/problem_classes
+:link-type: doc
+
+Explore the mathematical formulations of composite, spectral, and
+cone-constrained problems, curvature bounds $(m, M)$, first-order oracles, and
+exact stationarity certificates.
+:::
+
+:::{grid-item-card} Plain-English API Guide
+:link: guide/solving_problems
+:link-type: doc
+
+Learn how to assemble problems, pick solvers, combine `prox` operators and
+`constraints` over PyTrees, and step through Optax loops or `jax.vmap` batches.
+:::
+
+:::{grid-item-card} Worked Examples
 :link: examples/unconstrained
 :link-type: doc
 
-Solve univariate convex QPs, simplex-constrained nonconvex QPs, and nonconvex
-$\tanh$-loss SVMs with parameter-free `APD`, `AIPP`, `ACACG`, `AdapFISTA`, and
-`UPFAG`.
+Walk through complete runnable benchmarks: simplex QPs, nonconvex SVMs,
+spectral matrix completion, $k$-Fantope Sparse PCA, and bounded matrix
+completion.
 :::
 
-:::{grid-item-card} Spectral Matrix Completion
-:link: examples/spectral
-:link-type: doc
-
-Exploit thin-SVD structure in nonconvex log-sum and nuclear-norm matrix
-completion with `SpectralProblem`, `IAICG`, and doubly-accelerated `DAICG`.
-:::
-
-:::{grid-item-card} Constrained Penalty & ALM Examples
-:link: examples/constrained
-:link-type: doc
-
-Tackle linearly-constrained simplex QPs, $k$-Fantope consensus Sparse PCA, and
-bounded matrix completion with `QPAPD`, `QPAIPP`, `IALM`, `IAIPAL`, and
-`SProxALM`.
-:::
-
-:::{grid-item-card} Optax Transforms & `jax.vmap`
-:link: examples/optax_and_jax
-:link-type: doc
-
-Step through certified proximal stages inside custom `optax` loops and solve
-batches of nonconvex programs in parallel on GPU with `jax.jit(jax.vmap(...))`.
-:::
-
-:::{grid-item-card} API & Theory Reference
+:::{grid-item-card} API Reference
 :link: api
 :link-type: doc
 
-Browse full signatures for `CompositeProblem`, `SpectralProblem`, `prox`,
-`constraints`, all 16 certified solvers, and the `nc_opt` / `PF.APD` theory map.
+Browse full class and function signatures across `proxax`, `prox`,
+`constraints`, `oracle`, `certificates`, `solvers`, and `optax_compat`.
+:::
+
+:::{grid-item-card} Appendices: Theory & `nc_opt` Comparison
+:link: appendices/literature_and_theory
+:link-type: doc
+
+Read the literature review, worst-case complexity bounds, algorithm deep dives,
+and detailed comparisons to the upstream MATLAB `nc_opt` package.
 :::
 
 ::::
 
 ---
 
-## Problem Classes at a Glance
+## What Problems Can `proxax` Solve?
 
-1. **Unconstrained Nonconvex Composite Optimization (`CompositeProblem`):**
+1. **Unconstrained Composite Optimization (`CompositeProblem`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x)$$
 
-   where $f$ is differentiable and $(m, M)$-weakly convex/smooth on a PyTree
-   space $\mathcal{X}$, and $h$ is proper, closed, convex, and proximable.
+   Minimize a differentiable (possibly nonconvex) objective $f$ plus a convex
+   proximable regularizer or indicator constraint $h$ such as an $\ell_1$ norm,
+   elastic net, box, ball, or probability simplex.
 
-2. **Unconstrained Matrix Spectral Optimization (`SpectralProblem`):**
+2. **Matrix Spectral Composite Optimization (`SpectralProblem`):**
 
    $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
 
-   where $\sigma(X)$ denotes the singular values of $X$ and $(f_2^{\mathcal{V}},
-   h^{\mathcal{V}})$ are absolutely symmetric functions on $\mathbb{R}^{\min(p, q)}$.
+   Minimize a smooth matrix loss $f_1(X)$ coupled with convex or nonconvex
+   penalties on the singular values $\sigma(X)$ using a single thin SVD per
+   outer iteration.
 
-3. **Set / Cone-Constrained Nonconvex Composite Optimization:**
+3. **Set- and Cone-Constrained Composite Optimization (`CompositeProblem`):**
 
    $$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
 
-   where $\mathcal{A}: \mathcal{X} \to \mathcal{Y}$ is a matrix or PyTree linear
-   map (with automatic `jax.linear_transpose` adjoint $\mathcal{A}^*$) and
-   $\mathcal{C} \subseteq \mathcal{Y}$ is a closed convex set with Euclidean
-   projector $\Pi_{\mathcal{C}}$.
+   Add linear equalities, inequalities, two-sided box bounds, or second-order
+   cone constraints over any matrix or matrix-free PyTree linear map
+   $\mathcal{A}$.
 
 ---
 
-## 30-Second Quick Example
+## 30-Second Example
 
 ```python
 import jax.numpy as jnp
 import proxax
 from proxax import constraints
 from proxax import prox
-from proxax import solvers
 
 q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
 c_vec = jnp.array([-0.6, 0.2, -0.4])
-a_mat = jnp.array([[1.0, 1.0, 1.0]])
-b_vec = jnp.array([1.0])
 
 problem = proxax.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
     proximal=prox.Box(lower=0.0, upper=1.0),
-    constraints=constraints.equality(lambda x: a_mat @ x, rhs=b_vec),
+    constraints=constraints.equality(lambda x: jnp.sum(x), rhs=1.0),
 )
 
-sol = proxax.solve(
-    problem,
-    jnp.ones(3) / 3.0,
-    solver=solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
-)
+sol = proxax.solve(problem, jnp.ones(3) / 3.0, method="ialm", opt_tol=1e-5, feas_tol=1e-5)
 print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
 ```
 
@@ -139,19 +137,45 @@ quickstart
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: Examples (from nc_opt)
+:caption: Problem Classes & Oracles
 
-examples/unconstrained
-examples/spectral
-examples/constrained
-examples/optax_and_jax
+foundations/problem_classes
+foundations/oracles
 ```
 
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: Reference & Theory
+:caption: User Guide
 
-nc_opt_reference
+guide/solving_problems
+guide/prox_and_constraints
+guide/optax_and_jax
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: Worked Examples
+
+examples/unconstrained
+examples/spectral
+examples/constrained
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: Reference
+
 api
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: Appendices
+
+appendices/literature_and_theory
+appendices/nc_opt_comparison
 ```

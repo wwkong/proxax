@@ -1,15 +1,14 @@
-# Constrained Examples (`nc_opt`)
+# Constrained QP, Sparse PCA & Matrix Completion
 
-This tutorial ports three classic constrained nonconvex composite benchmarks
-from [`nc_opt/examples/`](https://github.com/wwkong/nc_opt/tree/master/examples):
+This page demonstrates set- and cone-constrained optimization in `proxax` on
+three problems:
 
-1. **Linearly-constrained nonconvex simplex QP** (`nonconvex_lin_constr_qp.m` /
-   `test_fn_lin_constr_01.m`) comparing all five constrained solvers (`QPAPD`,
-   `QPAIPP`, `IALM`, `IAIPAL`, `SProxALM`).
-2. **MCP-regularized Sparse PCA on the $k$-Fantope** (`nonconvex_sparse_pca.m` /
-   `test_fn_spca_01.m`) showcasing custom matrix projectors, `prox.MultiProx`,
-   and PyTree consensus constraints $\Pi - \Phi = 0$.
-3. **Box-constrained nonconvex matrix completion** (`nonconvex_bounded_mc.m`).
+1. **Linearly-constrained nonconvex QP** over the probability simplex, comparing
+   all five constrained solvers (`IALM`, `IAIPAL`, `QPAPD`, `SProxALM`,
+   `QPAIPP`).
+2. **Consensus Sparse PCA on the $k$-Fantope**, combining a custom matrix
+   projector, `prox.MultiProx`, and a matrix-free dictionary PyTree constraint.
+3. **Box-constrained nonconvex matrix completion** with entrywise rating bounds.
 
 All code on this page can be executed directly via
 `examples/constrained_nc_opt.py`:
@@ -20,17 +19,15 @@ XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python examples/constrained_nc_opt.py
 
 ---
 
-## 1. Linearly-Constrained Nonconvex Simplex QP (`nonconvex_lin_constr_qp.m`)
+## 1. Linearly-Constrained Nonconvex Simplex QP
 
-From Kong, Melo, and Monteiro (*Comput. Optim. Appl.*, 2019; *Optim. Methods
-Softw.*, 2023) and `test_fn_lin_constr_01.m`, we minimize an indefinite
-quadratic over the intersection of the probability simplex $\Delta^n$ and an
-affine subspace $A_{\text{eq}} x = b$:
+We minimize an indefinite quadratic over the intersection of the probability
+simplex $\Delta^n$ and an affine subspace $A_{\text{eq}} x = b$:
 
 $$\min_{x \in \mathbb{R}^n} \; \frac{\tau}{2}\|C x - d\|_2^2 - \frac{\xi}{2}\|D B x\|_2^2 + \delta_{\Delta^n}(x) \quad \text{s.t.} \quad A_{\text{eq}} x = b$$
 
-Every constrained solver in `proxax` returns a primal-dual pair
-$(\hat{x}, \hat{p})$ together with an exact Lagrangian stationarity certificate
+Every constrained solver returns $(\hat{x}, \hat{p}, \hat{v})$ satisfying exact
+Lagrangian subdifferential membership:
 
 $$\hat{v} \in \nabla f(\hat{x}) + N_{\Delta^n}(\hat{x}) + A_{\text{eq}}^\top \hat{p}, \qquad \|\hat{v}\|_2 \le \rho, \qquad \|A_{\text{eq}} \hat{x} - b\|_2 \le \eta.$$
 
@@ -75,37 +72,35 @@ problem = proxax.CompositeProblem(
 )
 ```
 
-### Verified Solver Comparison (`opt_tol = feas_tol = 5e-4`)
+### Solver Comparison (`opt_tol = feas_tol = 5e-4`)
 
 | Solver | Method Family | Status | Objective | $\|\hat{v}\|_2$ | $\|A_{\text{eq}}\hat{x} - b\|_2$ | $\nabla f$ Evals |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: |
-| `IALM` (`NL-IAPIAL`) | Parameter-free inexact ALM | `CONVERGED` | `-0.04166` | `3.96e-04` | `3.62e-04` | `196` |
-| `IAIPAL` | Adaptive penalty/ALM (`m` + `M`) | `CONVERGED` | `-0.04145` | `2.97e-04` | `3.62e-06` | `251` |
+| `IALM` | Parameter-free inexact ALM | `CONVERGED` | `-0.04166` | `3.96e-04` | `3.62e-04` | `196` |
+| `IAIPAL` | Single-step proximal ALM (`m` + `M`) | `CONVERGED` | `-0.04145` | `2.97e-04` | `3.62e-06` | `251` |
 | `QPAPD` | Parameter-free quadratic penalty | `CONVERGED` | `-0.04164` | `4.70e-04` | `3.04e-04` | `796` |
 | `SProxALM` | Single-loop smoothed proximal ALM | `CONVERGED` | `-0.04139` | `4.90e-04` | `1.10e-04` | `1016` |
 | `QPAIPP` | Quadratic penalty + adaptive `AIPP` | `CONVERGED` | `-0.04164` | `3.83e-04` | `3.04e-04` | `2719` |
 
 ---
 
-## 2. Consensus Sparse PCA on the $k$-Fantope (`nonconvex_sparse_pca.m`)
+## 2. Consensus Sparse PCA on the $k$-Fantope
 
-From Kong, Melo, and Monteiro (*J. Global Optim.*, 2023) and
-`utils/generators/test_fn_spca_01.m`, consider Sparse Principal Component
-Analysis with the nonconvex Minimax Concave Penalty (MCP) over the $k$-Fantope
-$\mathcal{F}^k = \{\Pi \in \mathbb{S}^p_+ : 0 \preceq \Pi \preceq I, \,
+Sparse Principal Component Analysis seeks a rank-$k$ projection matrix with
+sparse entries using the nonconvex Minimax Concave Penalty (MCP) over the
+$k$-Fantope $\mathcal{F}^k = \{\Pi \in \mathbb{S}_+^p : 0 \preceq \Pi \preceq I,\,
 \operatorname{tr}(\Pi) = k\}$. Splitting the MCP penalty into its convex
-$\ell_1$ part $\nu \|\Phi\|_1$ and smooth $1/b$-weakly-convex concave part
-$q_{b,\nu}(\Phi)$ yields the PyTree consensus problem:
+$\ell_1$ part $\nu \|\Phi\|_1$ and smooth $1/b$-weakly convex concave part
+$q_{b,\nu}(\Phi)$ yields a two-block consensus problem:
 
 $$\min_{\Pi, \Phi \in \mathbb{R}^{p \times p}} \; -\langle \widehat{\Sigma}, \Pi \rangle + q_{b,\nu}(\Phi) + \delta_{\mathcal{F}^k}(\Pi) + \nu \|\Phi\|_1 \quad \text{s.t.} \quad \Pi - \Phi = 0$$
 
 where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and $\frac{1}{2} b \nu^2
 - \nu |t|$ otherwise.
 
-In `proxax`, we represent the primal variable directly as a dictionary PyTree
-`{"pi": ..., "phi": ...}`, pair the two block regularizers via
-`prox.MultiProx`, and pass the matrix equality `lambda z: z["pi"] - z["phi"]`
-without flattening any arrays:
+In `proxax`, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
+pair the two block regularizers via `prox.MultiProx`, and write the matrix
+consensus constraint directly as `lambda z: z["pi"] - z["phi"]`:
 
 ```python
 import dataclasses
@@ -162,7 +157,7 @@ class FantopeProx:
 With ground-truth rank-1 spike $v^\star = \frac{1}{\sqrt{3}}(1, 1, 1, 0, 0, 0,
 0, 0)^\top$ and covariance $\widehat{\Sigma} = 8 v^\star (v^\star)^\top + 0.25
 I_8$, `IALM` recovers the exact $3 \times 3$ support (`9/64` nonzeros) and unit
-cosine similarity with $v^\star$:
+subspace cosine similarity:
 
 ```text
 IALM -> status=CONVERGED, stat=8.49e-04, ||Pi - Phi||_F=5.29e-04, subspace_cos=1.0000, nnz(Phi)=9/64
@@ -170,16 +165,15 @@ IALM -> status=CONVERGED, stat=8.49e-04, ||Pi - Phi||_F=5.29e-04, subspace_cos=1
 
 ---
 
-## 3. Box-Constrained Nonconvex Matrix Completion (`nonconvex_bounded_mc.m`)
+## 3. Box-Constrained Nonconvex Matrix Completion
 
-From `examples/matrix_completion/nonconvex_bounded_mc.m`, when rating entries
-must lie in a bounded interval $[l, u]$ (e.g., $[0, 2]$) under a smooth
-nonconvex log-penalty:
+When matrix entries represent bounded ratings in $[0, 2]$ under an entrywise
+smooth nonconvex log-penalty:
 
 $$\min_{X \in \mathbb{R}^{m \times n}} \; \frac{1}{2}\|P_\Omega(X - M_{\text{obs}})\|_F^2 + \mu \beta \sum_{i,j} \log\!\left(1 + \frac{\sqrt{X_{ij}^2 + \epsilon^2}}{\theta}\right) \quad \text{s.t.} \quad 0 \le X_{ij} \le 2$$
 
-we can express the box bounds as `constraints.box(lambda x: x, lower=0.0,
-upper=2.0)` and solve parameter-free with `QPAPD`:
+we can enforce the box constraint via `constraints.box` and solve parameter-free
+with `QPAPD`:
 
 ```python
 problem = proxax.CompositeProblem(
