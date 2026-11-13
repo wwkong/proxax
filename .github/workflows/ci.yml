@@ -39,7 +39,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv sync --python ${{ matrix.python-version }} --extra dev
+        run: uv sync --python ${{ matrix.python-version }} --extra dev --extra plot
       - name: Run pytest (float32)
         env:
           XLA_PYTHON_CLIENT_PREALLOCATE: "false"
