@@ -4,6 +4,16 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-13
+
+### Added
+- Concise, tracer-safe `__repr__` implementations for `px.Solution`, `px.SolveStats`, and `px.solvers.OracleCounts`.
+- `px.HistoryTracker` callback for recording per-iteration objective values, residuals, tolerances, oracle counts, and wall-clock times (with optional `verbose=True` table output).
+- Tutorial section in `docs/guide/solving_problems.md` and runnable example `examples/history_tracker.py`.
+
+### Changed
+- Refactored core modules from code audit: split `optax_compat/transforms.py` into focused submodules, extracted shared `_penalty_common.py` and `_icg_common.py` helpers, replaced `if/elif` chains in `solve.py` with dispatch tables, decomposed `oracle/spectral.py`, trimmed `solvers/base.py` via `OracleCountsMixin`, and extracted `PAdaptADMM` module-level helpers.
+
 ## [0.1.2] - 2026-11-13
 
 ### Added
