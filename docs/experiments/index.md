@@ -11,5 +11,11 @@ Each report documents:
 - **Summary tables & observations** (iteration counts, inner ACG/FISTA calls,
   wall-clock times, and stationarity/feasibility residuals)
 
-*No experiment reports have been added yet — add `docs/experiments/<study>.md`
-and list it here in a `{toctree}` as studies are completed.*
+* [Nonconvex Distributed QP (Table 1 Variants, arXiv:2611.00570)](maia2026_table1_dqp.md)
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+
+maia2026_table1_dqp
+```

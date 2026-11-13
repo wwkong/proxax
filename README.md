@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/_static/logo.svg" alt="Proxax logo" width="110" />
+</p>
+
 # Proxax
 
 [![CI](https://github.com/wwkong/proxax/actions/workflows/ci.yml/badge.svg)](https://github.com/wwkong/proxax/actions/workflows/ci.yml)

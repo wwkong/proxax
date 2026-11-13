@@ -125,6 +125,8 @@ class PAdaptADMM:
     max_stage_iters: Maximum `P-ABIPP` calls per stage.
     max_inner_iters: Maximum `PF.ACG` iterations per block subproblem.
     max_lam_halvings: Maximum proximal stepsize halvings per `P-ABIPP` call.
+    adaptive_tau: Whether to run Appendix B's 8-step bisection search for the
+      relaxation parameter ``tau in [1/(4(B-1)), 1]`` (practical variant).
     norm_kind: Norm type (``'l2'`` or ``'linf'``) for stopping checks.
   """
 
@@ -138,6 +140,7 @@ class PAdaptADMM:
   max_stage_iters: int = 200
   max_inner_iters: int = 200
   max_lam_halvings: int = 25
+  adaptive_tau: bool = False
   norm_kind: str = "l2"
 
   def solve(
@@ -169,7 +172,7 @@ class PAdaptADMM:
     lmt_val = (
         self.lmt_bound if self.lmt_bound is not None else max(1.0, self.opt_tol)
     )
-    lmt_c = jnp.asarray(lmt_val, dtype=dtype)
+    lmt_c_sq = jnp.asarray(lmt_val * lmt_val, dtype=dtype)
     alpha_val = jnp.asarray(self.alpha, dtype=dtype)
 
     ax_init = problem.coupling_residual(x_init, bound_ops)
@@ -319,7 +322,7 @@ class PAdaptADMM:
           )
           lc_trial = _aug_lagrangian(trial_blocks, q_vec, c_val)
           d_az = _op.matvec(dz)
-          req_dec = (tau_bar / (2.0 * lam_cur)) * tree.norm_sq(dz) + (
+          req_dec = ((tau_bar**2) / (2.0 * lam_cur)) * tree.norm_sq(dz) + (
               0.25 * c_val * tau_bar
           ) * tree.norm_sq(d_az)
           dec_ok = (lc_y - lc_trial) >= req_dec - 1e-10 * (1.0 + jnp.abs(lc_y))
@@ -365,8 +368,59 @@ class PAdaptADMM:
 
       z_blocks = tuple(z_next_list)
       lam_next = tuple(lam_next_list)
+
+      if self.adaptive_tau:
+        dz_blocks = tuple(
+            tree.sub(z_t, y_t)
+            for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
+        )
+        dz_lam_sum = sum(
+            (
+                tree.norm_sq(dz_t) / lam_t
+                for dz_t, lam_t in zip(dz_blocks, lam_next, strict=True)
+            ),
+            jnp.asarray(0.0, dtype=dtype),
+        )
+        daz_sum = sum(
+            (
+                tree.norm_sq(op.matvec(dz_t))
+                for op, dz_t in zip(bound_ops, dz_blocks, strict=True)
+            ),
+            jnp.asarray(0.0, dtype=dtype),
+        )
+
+        def _bisect_body(
+            _: int,
+            bounds: tuple[jax.Array, jax.Array],
+        ) -> tuple[jax.Array, jax.Array]:
+          tau_lo, tau_hi = bounds
+          tau_mid = 0.5 * (tau_lo + tau_hi)
+          y_mid = tuple(
+              tree.add(y_t, tree.scale(tau_mid, dz_t))
+              for y_t, dz_t in zip(y_blocks, dz_blocks, strict=True)
+          )
+          lc_mid = _aug_lagrangian(y_mid, q_vec, c_val)
+          req = (
+              0.5 * (tau_mid**2) * dz_lam_sum
+              + (0.125 * c_val * tau_mid) * daz_sum
+          )
+          admissible = (lc_y - lc_mid) >= req - 1e-10 * (1.0 + jnp.abs(lc_y))
+          return (
+              jnp.where(admissible, tau_mid, tau_lo),
+              jnp.where(admissible, tau_hi, tau_mid),
+          )
+
+        tau_used, _ = jax.lax.fori_loop(
+            0,
+            8,
+            _bisect_body,
+            (tau_bar, jnp.asarray(1.0, dtype=dtype)),
+        )
+      else:
+        tau_used = tau_bar
+
       y_next = tuple(
-          tree.add(y_t, tree.scale(tau_bar, tree.sub(z_t, y_t)))
+          tree.add(y_t, tree.scale(tau_used, tree.sub(z_t, y_t)))
           for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
       )
 
@@ -487,7 +541,7 @@ class PAdaptADMM:
         i_next = i_prev + 1
         sum_res_next = sum_res_prev + r_sq
         avg_res = sum_res_next / i_next.astype(dtype)
-        lmt_ok = (r_sq <= lmt_c) & (avg_res >= t_i / (alpha_val * r_cap))
+        lmt_ok = (r_sq <= lmt_c_sq) & (avg_res >= t_i / (alpha_val * r_cap))
 
         q_next = jax.tree.map(
             lambda qc, qp: jnp.where(stat_ok | lmt_ok, qc, qp),
