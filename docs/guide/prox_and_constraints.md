@@ -208,7 +208,7 @@ print("Cap dual (>=0): ", sol.dual["cap"])
 
 ---
 
-## 5. Conic, Sorting-Based, Barrier & Sparse Prox Operators
+## 3. Conic, Sorting-Based, Barrier & Sparse Prox Operators
 
 Beyond standard norms and boxes, `px.prox` provides JIT-compatible operators
 for conic/matrix, ordered-regularization, barrier, and sparse problems:

@@ -85,83 +85,19 @@ sol = px.solve(problem, x0, method="apd")
 print(sol.x["w"], sol.x["b"])
 ```
 
-### `px.SpectralProblem` (Matrix Singular-Value Problems)
+### Other Problem Classes (`SpectralProblem`, `MinMaxProblem`, `BlockProblem`)
 
-When optimizing over a 2D matrix $X \in \mathbb{R}^{p \times q}$ with penalties
-that depend only on the singular values $\sigma(X)$, use `px.SpectralProblem`
-so spectral solvers (`DAICG`, `IAICG`) only compute **one thin SVD per outer
-iteration**:
-
-$$\min_{X \in \mathbb{R}^{3 \times 2}} \; \frac{1}{2}\|X - T\|_F^2 - 0.1 \sum_{i=1}^2 \frac{\sigma_i(X)^2}{1 + \sigma_i(X)^2} + 0.25 \|X\|_*$$
-
-```python
-import jax.numpy as jnp
-from proxax import px
-
-target = jnp.array([[3.0, 0.0], [0.0, 0.5], [0.0, 0.0]])
-
-def f1_fn(x_mat):
-  return 0.5 * jnp.sum((x_mat - target) ** 2)
-
-
-def f2_vec_fn(s):
-  return -0.1 * jnp.sum(s**2 / (1.0 + s**2))  # smooth nonconvex on singular values
-
-
-spec_prob = px.SpectralProblem(
-    f1=f1_fn,
-    f2_vec=f2_vec_fn,
-    prox_vec=px.prox.L1(weight=0.25),  # 1D L1 on singular values = nuclear norm
-)
-
-sol = px.solve(spec_prob, jnp.zeros((3, 2)), method="da_icg", opt_tol=1e-5)
-```
-
-### `px.MinMaxProblem` (Primal-Dual Saddle-Point Problems)
-
-For composite min-max problems of the form
-$\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$, pass a coupling function
-`coupling(x, y)` and optional proximal operators `prox_x` / `prox_y` to
-`px.MinMaxProblem`:
-
-```python
-minmax_prob = px.MinMaxProblem(
-    coupling=lambda x, y: jnp.dot(y, x) + 0.5 * jnp.sum(x**2) - 0.5 * jnp.sum(y**2),
-    prox_x=px.prox.Box(-1.0, 1.0),
-    prox_y=px.prox.L2Ball(radius=1.0),
-)
-
-sol = px.solve(
-    minmax_prob,
-    (jnp.zeros(4), jnp.zeros(4)),
-    method="extra_gradient",
-    opt_tol=1e-5,
-)
-x_hat, y_hat = sol.x
-```
-
-### `px.BlockProblem` (Multi-Block Splitting & Consensus)
-
-For separable problems $\min_{x_1, \dots, x_K} \sum_i (f_i(x_i) + h_i(x_i))$
-subject to $\sum_i \mathcal{A}_i(x_i) = b$, wrap each block in
-`px.BlockTerm(smooth=..., proximal=..., linear_op=...)`:
-
-```python
-blk_prob = px.BlockProblem(
-    blocks=(
-        px.BlockTerm(smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2)),
-        px.BlockTerm(proximal=px.prox.L1(weight=0.25), linear_op=-jnp.eye(4)),
-    ),
-    rhs=0.0,
-)
-sol = px.solve(
-    blk_prob,
-    (jnp.zeros(4), jnp.zeros(4)),
-    method="admm",
-    opt_tol=1e-4,
-    feas_tol=1e-4,
-)
-```
+- **`px.SpectralProblem(f1=..., f2_vec=..., prox_vec=...)`:** Matrix singular-value
+  optimization $\min_X f_1(X) + (f_2^{\mathcal{V}} + h^{\mathcal{V}})(\sigma(X))$
+  using one thin SVD per outer step (`DAICG` / `IAICG`). See
+  {doc}`../examples/spectral` and `examples/spectral_matrix_completion.py`.
+- **`px.MinMaxProblem(coupling=..., prox_x=..., prox_y=...)`:** Saddle-point
+  problems $\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$ solved with
+  `ExtraGradient`, `PDHG`, or `ProxPointMinMax`. See {doc}`../examples/minmax`.
+- **`px.BlockProblem(blocks=(...), rhs=...)`:** Multi-block splitting
+  $\min \sum_i (f_i(x_i) + h_i(x_i))$ s.t. $\sum_i \mathcal{A}_i(x_i) = b$
+  using `BlockTerm` and `ADMM` / `DPADMM` / `PAdaptADMM`. See
+  {doc}`../examples/block`.
 
 ---
 

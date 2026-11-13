@@ -242,4 +242,5 @@ Experiment Reports & Benchmarks <https://proxax.readthedocs.io/projects/experime
 
 appendices/literature_and_theory
 appendices/nc_opt_comparison
+appendices/oracles_and_certificates
 ```
