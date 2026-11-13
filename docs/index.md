@@ -185,13 +185,6 @@ If Proxax was helpful for a publication, please cite this repository:
 :caption: Getting Started
 
 quickstart
-```
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-:caption: Problem Classes & Oracles
-
 foundations/problem_classes
 foundations/oracles
 ```
@@ -214,7 +207,7 @@ guide/plotting
 
 examples/index
 api
-Experiment Reports & Benchmarks <https://proxax.readthedocs.io/projects/experiments/en/latest/>
+Experiments <https://proxax.readthedocs.io/projects/experiments/en/latest/>
 ```
 
 ```{toctree}
@@ -222,7 +215,7 @@ Experiment Reports & Benchmarks <https://proxax.readthedocs.io/projects/experime
 :hidden:
 :caption: Appendices
 
-appendices/literature_and_theory
+Appendix A: Literature & Theory <appendices/literature_and_theory>
 appendices/nc_opt_comparison
 appendices/oracles_and_certificates
 ```
