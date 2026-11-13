@@ -57,7 +57,7 @@ html_theme_options = {
     "use_issues_button": True,
     "use_download_button": True,
     "show_toc_level": 2,
-    "show_navbar_depth": 2,
+    "show_navbar_depth": 1,
     "navigation_with_keys": False,
 }
 
