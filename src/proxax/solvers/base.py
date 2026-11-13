@@ -259,6 +259,8 @@ class Solution:
     status: Scalar `int32` JAX array encoding `SolveStatus`.
     stats: `SolveStats` counters and final residuals.
     history: Optional `HistoryTracker` recorded when `track_history=True`.
+    runtime_ms: Optional host wall-clock runtime in milliseconds recorded by
+      `px.solve` when executed outside JAX tracing.
   """
 
   x: _typing.PyTree
@@ -267,6 +269,7 @@ class Solution:
   status: jax.Array
   stats: SolveStats
   history: HistoryTracker | None = dataclasses.field(default=None)
+  runtime_ms: float | None = dataclasses.field(default=None)
 
   @property
   def status_enum(self) -> SolveStatus:
@@ -325,6 +328,11 @@ class Solution:
   def __repr__(self) -> str:
     """Returns a concise summary without dumping full array payloads."""
     st = self.stats
+    runtime_line = (
+        f"  runtime_ms={self.runtime_ms:.2f},\n"
+        if self.runtime_ms is not None
+        else ""
+    )
     return (
         "Solution(\n"
         f"  status={_fmt_status(self.status)},\n"
@@ -336,6 +344,7 @@ class Solution:
         f"  evals=(smooth={_fmt_int(st.smooth_evals)}, "
         f"grad={_fmt_int(st.grad_evals)}, "
         f"prox={_fmt_int(st.prox_evals)}),\n"
+        f"{runtime_line}"
         f"  x={_fmt_pytree(self.x)},\n"
         f"  dual={_fmt_pytree(self.dual)},\n"
         ")"
@@ -345,7 +354,7 @@ class Solution:
 jax.tree_util.register_dataclass(
     Solution,
     data_fields=["x", "dual", "subgrad", "status", "stats"],
-    meta_fields=["history"],
+    meta_fields=["history", "runtime_ms"],
 )
 
 

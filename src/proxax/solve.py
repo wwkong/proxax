@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
+import time
 import typing
+
+import jax
 
 from proxax import _typing
 from proxax import problem as problem_mod
@@ -258,6 +261,7 @@ def solve(
 
       effective_cb = _combined_cb
 
+  t0 = time.perf_counter()
   sol = typing.cast(
       base.Solution,
       chosen.solve(
@@ -268,6 +272,17 @@ def solve(
           time_limit=time_limit,
       ),
   )
-  if tracker is not None:
-    return dataclasses.replace(sol, history=tracker)
+  runtime_ms: float | None = None
+  if not isinstance(sol.status, jax.core.Tracer):
+    sol.status.block_until_ready()
+    for leaf in jax.tree.leaves(sol.x):
+      if hasattr(leaf, "block_until_ready"):
+        leaf.block_until_ready()
+    runtime_ms = (time.perf_counter() - t0) * 1000.0
+  if tracker is not None or runtime_ms is not None:
+    return dataclasses.replace(
+        sol,
+        history=tracker if tracker is not None else sol.history,
+        runtime_ms=runtime_ms,
+    )
   return sol

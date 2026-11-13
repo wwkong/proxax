@@ -144,9 +144,16 @@ def test_solution_and_stats_repr() -> None:
       proximal=px.prox.L1(0.1),
   )
   sol = px.solve(prob, jnp.zeros(4), method="apd", opt_tol=1e-5)
+  assert isinstance(sol.runtime_ms, float) and sol.runtime_ms > 0.0
   s_repr = repr(sol)
   assert "Solution(" in s_repr
+  assert "runtime_ms=" in s_repr
   assert "status=CONVERGED" in s_repr
+
+  jitted_sol = jax.jit(
+      lambda x0: px.solve(prob, x0, method="apd", opt_tol=1e-5)
+  )(jnp.zeros(4))
+  assert jitted_sol.runtime_ms is None
   assert "x=float" in s_repr
   assert "[4]" in s_repr
   assert "dual=None" in s_repr
