@@ -46,7 +46,11 @@ print(sol.status_enum.name, float(sol.stats.opt_residual))
 
 Both `method="extra_gradient"` (adaptive Mirror-Prox) and `method="pdhg"`
 (over-relaxed Chambolle-Pock) solve this bilinear saddle-point problem with
-exact simplex feasibility at every step.
+exact simplex feasibility at every step. On an unconstrained bilinear game
+(`px.plotting.animate_phase_trajectory`), you can also visualize cycling vs.
+damping around `(0, 0)`:
+
+![Bilinear Min-Max Phase Portrait](../_static/plots/minmax_phase.gif)
 
 ---
 
