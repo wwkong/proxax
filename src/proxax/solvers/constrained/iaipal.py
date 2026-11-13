@@ -8,7 +8,6 @@ import math
 import jax
 import jax.numpy as jnp
 
-from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -20,7 +19,7 @@ from proxax.solvers.inner import acg
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class IAIPALState:
+class IAIPALState(base.ConstrainedTrackerMixin):
   """Iteration state of the `IAIPAL` solver."""
 
   z0: _typing.PyTree
@@ -36,21 +35,7 @@ class IAIPALState:
   stage_al_base: jax.Array
   delta_psqr_avg: jax.Array
   multiplier_updates: jax.Array
-  best_x: _typing.PyTree
-  best_dual: _typing.PyTree
-  best_subgrad: _typing.PyTree
-  best_opt_res: jax.Array
-  best_feas_res: jax.Array
-  best_kkt_score: jax.Array
-  best_obj: jax.Array
-  target_opt_tol: jax.Array
-  target_feas_tol: jax.Array
-  outer_iters: jax.Array
-  inner_iters: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
-  status: jax.Array
+  tracker: base.ConstrainedTracker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -242,35 +227,20 @@ class IAIPAL:
     opt_res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
     obj0 = base_oracle.value(ref0.x_hat)
 
-    target_opt = jnp.asarray(self.opt_tol, dtype=dtype) + (
-        jnp.asarray(self.rel_opt_tol, dtype=dtype) * opt_res0
-    )
-    target_feas = jnp.asarray(self.feas_tol, dtype=dtype) + (
-        jnp.asarray(self.rel_feas_tol, dtype=dtype) * feas_res0
-    )
-
-    tiny = jnp.asarray(1e-30, dtype=dtype)
-    score0 = jnp.maximum(
-        opt_res0 / jnp.maximum(target_opt, tiny),
-        feas_res0 / jnp.maximum(target_feas, tiny),
-    )
-    finite0 = jnp.logical_and(
-        tree.all_finite(ref0.x_hat),
-        jnp.logical_and(jnp.isfinite(opt_res0), jnp.isfinite(feas_res0)),
-    )
-    converged0 = jnp.logical_and(
-        opt_res0 <= target_opt,
-        feas_res0 <= target_feas,
-    )
-    running_code = jnp.asarray(int(base.SolveStatus.RUNNING), dtype=jnp.int32)
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-        jnp.where(
-            converged0,
-            jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-            running_code,
-        ),
+    tracker0 = base.ConstrainedTracker.from_init(
+        ref0.x_hat,
+        p0_hat,
+        ref0.v_hat,
+        opt_res0,
+        feas_res0,
+        obj0,
+        opt_tol=self.opt_tol,
+        feas_tol=self.feas_tol,
+        rel_opt_tol=self.rel_opt_tol,
+        rel_feas_tol=self.rel_feas_tol,
+        smooth_evals=ref_base.smooth_evals + ref0.smooth_evals + 1,
+        grad_evals=ref_base.grad_evals + ref0.grad_evals,
+        prox_evals=ref_base.prox_evals + ref0.prox_evals,
     )
 
     init_state = IAIPALState(
@@ -287,25 +257,8 @@ class IAIPAL:
         stage_al_base=jnp.asarray(0.0, dtype=dtype),
         delta_psqr_avg=jnp.asarray(0.0, dtype=dtype),
         multiplier_updates=jnp.asarray(0, dtype=jnp.int32),
-        best_x=ref0.x_hat,
-        best_dual=p0_hat,
-        best_subgrad=ref0.v_hat,
-        best_opt_res=opt_res0,
-        best_feas_res=feas_res0,
-        best_kkt_score=score0,
-        best_obj=obj0,
-        target_opt_tol=target_opt,
-        target_feas_tol=target_feas,
-        outer_iters=jnp.asarray(0, dtype=jnp.int32),
-        inner_iters=jnp.asarray(0, dtype=jnp.int32),
-        smooth_evals=ref_base.smooth_evals + ref0.smooth_evals + 1,
-        grad_evals=ref_base.grad_evals + ref0.grad_evals,
-        prox_evals=ref_base.prox_evals + ref0.prox_evals,
-        status=status0,
+        tracker=tracker0,
     )
-
-    def _cond(st: IAIPALState) -> jax.Array:
-      return st.status == running_code
 
     def _body(st: IAIPALState) -> IAIPALState:
       pen_oracle = composite.PenalizedOracle(
@@ -382,35 +335,10 @@ class IAIPAL:
       raw_feas = tree.norm(bound_c.residual(ref.x_hat), kind=self.norm_kind)
       feas_res = jnp.maximum(al_feas, raw_feas)
       cand_obj = base_oracle.value(ref.x_hat)
-      cand_score = jnp.maximum(
-          opt_res / jnp.maximum(st.target_opt_tol, tiny),
-          feas_res / jnp.maximum(st.target_feas_tol, tiny),
-      )
-
       cand_finite = jnp.logical_and(
           tree.all_finite(ref.x_hat),
           jnp.logical_and(jnp.isfinite(opt_res), jnp.isfinite(feas_res)),
       )
-      is_better = jnp.logical_and(cand_finite, cand_score <= st.best_kkt_score)
-      best_x = jax.tree.map(
-          lambda cx, bx: jnp.where(is_better, cx, bx),
-          ref.x_hat,
-          st.best_x,
-      )
-      best_p = jax.tree.map(
-          lambda cp, bp: jnp.where(is_better, cp, bp),
-          p_hat,
-          st.best_dual,
-      )
-      best_v = jax.tree.map(
-          lambda cv, bv: jnp.where(is_better, cv, bv),
-          w_hat,
-          st.best_subgrad,
-      )
-      best_opt = jnp.where(is_better, opt_res, st.best_opt_res)
-      best_feas = jnp.where(is_better, feas_res, st.best_feas_res)
-      best_score = jnp.where(is_better, cand_score, st.best_kkt_score)
-      best_obj = jnp.where(is_better, cand_obj, st.best_obj)
 
       x_acg = acg_st.y
       p_cand = pen_oracle.effective_dual(x_acg)
@@ -535,35 +463,25 @@ class IAIPAL:
           0,
       )
 
-      next_outer = st.outer_iters + 1
-      kkt_converged = jnp.logical_and(
-          best_opt <= st.target_opt_tol,
-          best_feas <= st.target_feas_tol,
-      )
       ls_fail_code = jnp.asarray(
           int(acg.ACGStatus.LINE_SEARCH_FAILED), dtype=jnp.int32
       )
-      next_status = jnp.where(
-          jnp.logical_not(cand_finite),
-          jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-          jnp.where(
-              acg_st.status == ls_fail_code,
-              jnp.asarray(
-                  int(base.SolveStatus.LINE_SEARCH_FAILED), dtype=jnp.int32
-              ),
-              jnp.where(
-                  kkt_converged,
-                  jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-                  jnp.where(
-                      next_outer >= self.max_outer_iters,
-                      jnp.asarray(
-                          int(base.SolveStatus.MAX_ITER_REACHED),
-                          dtype=jnp.int32,
-                      ),
-                      running_code,
-                  ),
-              ),
-          ),
+      tracker = st.tracker.update_incumbent(
+          ref.x_hat,
+          p_hat,
+          w_hat,
+          opt_res,
+          feas_res,
+          cand_obj,
+      ).advance(
+          inner_inc=acg_st.iteration,
+          smooth_inc=ref.smooth_evals + 2,
+          grad_inc=ref.grad_evals,
+          prox_inc=ref.prox_evals,
+          counts_inc=acg_st.counts,
+          max_iters=self.max_outer_iters,
+          line_search_failed=acg_st.status == ls_fail_code,
+          finite_ok=cand_finite,
       )
 
       return IAIPALState(
@@ -580,42 +498,15 @@ class IAIPAL:
           stage_al_base=base_next,
           delta_psqr_avg=dpsqr_next,
           multiplier_updates=mult_upd_next,
-          best_x=best_x,
-          best_dual=best_p,
-          best_subgrad=best_v,
-          best_opt_res=best_opt,
-          best_feas_res=best_feas,
-          best_kkt_score=best_score,
-          best_obj=best_obj,
-          target_opt_tol=st.target_opt_tol,
-          target_feas_tol=st.target_feas_tol,
-          outer_iters=next_outer,
-          inner_iters=st.inner_iters + acg_st.iteration,
-          smooth_evals=(
-              st.smooth_evals + acg_st.smooth_evals + ref.smooth_evals + 2
-          ),
-          grad_evals=st.grad_evals + acg_st.grad_evals + ref.grad_evals,
-          prox_evals=st.prox_evals + acg_st.prox_evals + ref.prox_evals,
-          status=next_status,
+          tracker=tracker,
       )
 
-    def _on_timeout(st: IAIPALState) -> IAIPALState:
-      return dataclasses.replace(
-          st,
-          status=jnp.asarray(
-              int(base.SolveStatus.TIME_LIMIT_REACHED),
-              dtype=jnp.int32,
-          ),
-      )
-
-    return _loop.while_loop(
-        _cond,
+    return base.run_solver_loop(
         _body,
         init_state,
         jit=jit,
         callback=callback,
         time_limit=time_limit,
-        on_time_limit=_on_timeout,
     )
 
   def solve(
@@ -635,20 +526,4 @@ class IAIPAL:
         callback=callback,
         time_limit=time_limit,
     )
-    stats = base.SolveStats(
-        outer_iters=fin.outer_iters,
-        inner_iters=fin.inner_iters,
-        smooth_evals=fin.smooth_evals,
-        grad_evals=fin.grad_evals,
-        prox_evals=fin.prox_evals,
-        opt_residual=fin.best_opt_res,
-        feas_residual=fin.best_feas_res,
-        obj_val=fin.best_obj,
-    )
-    return base.Solution(
-        x=fin.best_x,
-        dual=fin.best_dual,
-        subgrad=fin.best_subgrad,
-        status=fin.status,
-        stats=stats,
-    )
+    return fin.to_solution()

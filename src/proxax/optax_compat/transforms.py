@@ -18,6 +18,7 @@ from proxax.constraints import linear_op
 from proxax.oracle import composite
 from proxax.oracle import terms
 from proxax.prox import base as prox_base
+from proxax.solvers import base as solver_base
 from proxax.solvers.inner import acg
 from proxax.solvers.inner import pf_acg
 
@@ -294,9 +295,7 @@ def aipp(
           lipschitz=st.lipschitz + smooth_reg,
           iteration=st.inner_iter,
           status=jnp.asarray(int(acg.ACGStatus.RUNNING), dtype=jnp.int32),
-          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
-          grad_evals=jnp.asarray(0, dtype=jnp.int32),
-          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+          counts=solver_base.OracleCounts.zeros(),
       )
       acg_out = acg.step_acg(
           sub_oracle,
@@ -748,9 +747,7 @@ def qp_aipp(
           lipschitz=st.lipschitz + smooth_reg,
           iteration=st.inner_iter,
           status=jnp.asarray(int(acg.ACGStatus.RUNNING), dtype=jnp.int32),
-          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
-          grad_evals=jnp.asarray(0, dtype=jnp.int32),
-          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+          counts=solver_base.OracleCounts.zeros(),
       )
       acg_out = acg.step_acg(
           sub_oracle,
@@ -1206,9 +1203,7 @@ def apd(
           lipschitz=st.pf_lipschitz,
           iteration=st.inner_iter,
           status=running_code,
-          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
-          grad_evals=jnp.asarray(0, dtype=jnp.int32),
-          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+          counts=solver_base.OracleCounts.zeros(),
       )
       pf_out = pf_acg.step_pf_acg(
           sub_oracle,
@@ -1710,9 +1705,7 @@ def qp_apd(
           lipschitz=st.pf_lipschitz,
           iteration=st.inner_iter,
           status=running_code,
-          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
-          grad_evals=jnp.asarray(0, dtype=jnp.int32),
-          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+          counts=solver_base.OracleCounts.zeros(),
       )
       pf_out = pf_acg.step_pf_acg(
           sub_oracle,
@@ -2303,9 +2296,7 @@ def ialm(
           lipschitz=st.pf_lipschitz,
           iteration=st.inner_iter,
           status=running_code,
-          smooth_evals=jnp.asarray(0, dtype=jnp.int32),
-          grad_evals=jnp.asarray(0, dtype=jnp.int32),
-          prox_evals=jnp.asarray(0, dtype=jnp.int32),
+          counts=solver_base.OracleCounts.zeros(),
       )
       pf_out = pf_acg.step_pf_acg(
           sub_oracle,

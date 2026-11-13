@@ -8,7 +8,6 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -20,7 +19,7 @@ from proxax.solvers.inner import acg
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class IAICGState:
+class IAICGState(base.SolverTrackerMixin):
   """Outer iteration state of the `IAICG` (`IA-ICG`) spectral solver."""
 
   z0: jax.Array
@@ -28,17 +27,7 @@ class IAICGState:
   lam: jax.Array
   xi: jax.Array
   m2_est: jax.Array
-  best_x: jax.Array
-  best_subgrad: jax.Array
-  best_opt_res: jax.Array
-  best_obj: jax.Array
-  target_opt_tol: jax.Array
-  outer_iters: jax.Array
-  inner_iters: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
-  status: jax.Array
+  tracker: base.SolverTracker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -126,12 +115,18 @@ class IAICG:
     z0_hat = typing.cast(jax.Array, ref0.x_hat)
     v0_hat = typing.cast(jax.Array, ref0.v_hat)
     res0 = tree.norm(v0_hat, kind=self.norm_kind)
-    if opt_tol_override is not None:
-      target_tol = jnp.asarray(opt_tol_override, dtype=dtype)
-    else:
-      target_tol = jnp.asarray(self.opt_tol, dtype=dtype) + (
-          jnp.asarray(self.rel_opt_tol, dtype=dtype) * res0
-      )
+    tracker0 = base.SolverTracker.from_init(
+        z0_hat,
+        v0_hat,
+        res0,
+        ref0.obj_val,
+        opt_tol=self.opt_tol,
+        rel_opt_tol=self.rel_opt_tol,
+        opt_tol_override=opt_tol_override,
+        smooth_evals=ref0.smooth_evals,
+        grad_evals=ref0.grad_evals,
+        prox_evals=ref0.prox_evals,
+    )
 
     known_m1 = oracle.f1_obj.curvature_upper
     known_m2 = oracle.f2_vec_obj.curvature_upper
@@ -174,40 +169,14 @@ class IAICG:
         max_iters=self.max_inner_iters,
     )
 
-    finite0 = jnp.logical_and(tree.all_finite(z0_hat), jnp.isfinite(res0))
-    converged0 = res0 <= target_tol
-    running_code = jnp.asarray(int(base.SolveStatus.RUNNING), dtype=jnp.int32)
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-        jnp.where(
-            converged0,
-            jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-            running_code,
-        ),
-    )
-
     init_state = IAICGState(
         z0=z0_hat,
         z0_svals=jnp.linalg.svdvals(z0_hat),
         lam=lam0,
         xi=xi0,
         m2_est=m2_est0 + xi0,
-        best_x=z0_hat,
-        best_subgrad=v0_hat,
-        best_opt_res=res0,
-        best_obj=ref0.obj_val,
-        target_opt_tol=target_tol,
-        outer_iters=jnp.asarray(0, dtype=jnp.int32),
-        inner_iters=jnp.asarray(0, dtype=jnp.int32),
-        smooth_evals=ref0.smooth_evals,
-        grad_evals=ref0.grad_evals,
-        prox_evals=ref0.prox_evals,
-        status=status0,
+        tracker=tracker0,
     )
-
-    def _cond(st: IAICGState) -> jax.Array:
-      return st.status == running_code
 
     def _body(st: IAICGState) -> IAICGState:
       eps_val = tree.eps(dtype)
@@ -320,11 +289,6 @@ class IAICG:
           tree.all_finite(ref.z_hat_mat),
           jnp.isfinite(res_cand),
       )
-      is_better = jnp.logical_and(cand_finite, res_cand <= st.best_opt_res)
-      best_x = jnp.where(is_better, ref.z_hat_mat, st.best_x)
-      best_v = jnp.where(is_better, ref.v_hat_mat, st.best_subgrad)
-      best_res = jnp.where(is_better, res_cand, st.best_opt_res)
-      best_obj = jnp.where(is_better, ref.obj_val, st.best_obj)
 
       rejected = jnp.logical_or(
           jnp.logical_or(acg_bad, f1_bad),
@@ -367,22 +331,19 @@ class IAICG:
       z_svals_sorted = jnp.sort(jnp.abs(z_vec))[::-1]
       z0_svals_next = jnp.where(rejected, st.z0_svals, z_svals_sorted)
 
-      next_outer = st.outer_iters + 1
-      converged_now = best_res <= st.target_opt_tol
-      next_status = jnp.where(
-          jnp.logical_not(cand_finite),
-          jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-          jnp.where(
-              converged_now,
-              jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-              jnp.where(
-                  next_outer >= self.max_outer_iters,
-                  jnp.asarray(
-                      int(base.SolveStatus.MAX_ITER_REACHED), dtype=jnp.int32
-                  ),
-                  running_code,
-              ),
-          ),
+      tracker = st.tracker.update_incumbent(
+          ref.z_hat_mat,
+          ref.v_hat_mat,
+          res_cand,
+          ref.obj_val,
+      ).advance(
+          inner_inc=acg_st.iteration,
+          smooth_inc=1 + extra_f1 + ref.f1_evals,
+          grad_inc=1 + ref.f1_grad_evals,
+          prox_inc=1,
+          counts_inc=acg_st.counts,
+          max_iters=self.max_outer_iters,
+          finite_ok=cand_finite,
       )
 
       return IAICGState(
@@ -391,42 +352,15 @@ class IAICG:
           lam=lam_next,
           xi=xi_next,
           m2_est=m2_est_next,
-          best_x=best_x,
-          best_subgrad=best_v,
-          best_opt_res=best_res,
-          best_obj=best_obj,
-          target_opt_tol=st.target_opt_tol,
-          outer_iters=next_outer,
-          inner_iters=st.inner_iters + acg_st.iteration,
-          smooth_evals=(
-              st.smooth_evals
-              + 1
-              + extra_f1
-              + ref.f1_evals
-              + acg_st.smooth_evals
-          ),
-          grad_evals=st.grad_evals + 1 + ref.f1_grad_evals + acg_st.grad_evals,
-          prox_evals=st.prox_evals + acg_st.prox_evals + 1,
-          status=next_status,
+          tracker=tracker,
       )
 
-    def _on_timeout(st: IAICGState) -> IAICGState:
-      return dataclasses.replace(
-          st,
-          status=jnp.asarray(
-              int(base.SolveStatus.TIME_LIMIT_REACHED),
-              dtype=jnp.int32,
-          ),
-      )
-
-    return _loop.while_loop(
-        _cond,
+    return base.run_solver_loop(
         _body,
         init_state,
         jit=jit,
         callback=callback,
         time_limit=time_limit,
-        on_time_limit=_on_timeout,
     )
 
   def solve(
@@ -448,20 +382,4 @@ class IAICG:
         callback=callback,
         time_limit=time_limit,
     )
-    stats = base.SolveStats(
-        outer_iters=fin.outer_iters,
-        inner_iters=fin.inner_iters,
-        smooth_evals=fin.smooth_evals,
-        grad_evals=fin.grad_evals,
-        prox_evals=fin.prox_evals,
-        opt_residual=fin.best_opt_res,
-        feas_residual=jnp.asarray(0.0, dtype=fin.best_opt_res.dtype),
-        obj_val=fin.best_obj,
-    )
-    return base.Solution(
-        x=fin.best_x,
-        dual=None,
-        subgrad=fin.best_subgrad,
-        status=fin.status,
-        stats=stats,
-    )
+    return fin.to_solution()

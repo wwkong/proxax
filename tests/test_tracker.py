@@ -99,3 +99,38 @@ def test_constrained_tracker_kkt_incumbent_and_solution() -> None:
   sol = st1.to_solution()
   assert sol.dual is not None
   assert jnp.allclose(sol.dual, jnp.array([0.2]))
+
+
+def test_solver_states_compose_trackers_and_expose_properties() -> None:
+  unconstrained_fields = {
+      f.name for f in dataclasses.fields(px.solvers.APDState)
+  }
+  assert "tracker" in unconstrained_fields
+  assert "best_x" not in unconstrained_fields
+
+  constrained_fields = {
+      f.name for f in dataclasses.fields(px.solvers.IALMState)
+  }
+  assert "tracker" in constrained_fields
+  assert "best_dual" not in constrained_fields
+
+  prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((x - 1.0) ** 2),
+      proximal=px.prox.L1(0.1),
+  )
+  apd_st = px.solvers.APD(opt_tol=1e-5).solve_oracle(prob.oracle, jnp.zeros(3))
+  assert isinstance(apd_st.tracker, px.solvers.SolverTracker)
+  assert isinstance(apd_st.counts, px.solvers.OracleCounts)
+  assert jnp.array_equal(apd_st.best_x, apd_st.tracker.best_x)
+  assert int(apd_st.smooth_evals) == int(apd_st.tracker.counts.smooth_evals)
+
+  c_prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((x - 2.0) ** 2),
+      constraints=px.constraints.equality(jnp.ones((1, 2)), jnp.array([1.0])),
+  )
+  ialm_st = px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5).solve_state(
+      c_prob, jnp.zeros(2)
+  )
+  assert isinstance(ialm_st.tracker, px.solvers.ConstrainedTracker)
+  assert jnp.array_equal(ialm_st.best_dual, ialm_st.tracker.best_dual)
+  assert float(ialm_st.best_feas_res) == float(ialm_st.tracker.best_feas_res)

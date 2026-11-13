@@ -12,6 +12,7 @@ from proxax import _loop
 from proxax import _typing
 from proxax import tree
 from proxax.oracle import composite
+from proxax.solvers import base
 
 
 class PFACGStatus(enum.IntEnum):
@@ -27,7 +28,7 @@ class PFACGStatus(enum.IntEnum):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PFACGState:
+class PFACGState(base.OracleCountsMixin):
   """Functional state of `PF.ACG` (Algorithms 3.1--3.2 of Kong 2024)."""
 
   x: _typing.PyTree
@@ -40,9 +41,7 @@ class PFACGState:
   lipschitz: jax.Array
   iteration: jax.Array
   status: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
+  counts: base.OracleCounts
 
 
 @jax.tree_util.register_dataclass
@@ -100,9 +99,7 @@ def init_pf_acg(
       lipschitz=L0,
       iteration=jnp.asarray(0, dtype=jnp.int32),
       status=jnp.asarray(int(PFACGStatus.RUNNING), dtype=jnp.int32),
-      smooth_evals=jnp.asarray(1, dtype=jnp.int32),
-      grad_evals=jnp.asarray(0, dtype=jnp.int32),
-      prox_evals=jnp.asarray(0, dtype=jnp.int32),
+      counts=base.OracleCounts.create(smooth=1),
   )
 
 
@@ -330,9 +327,11 @@ def step_pf_acg(
       lipschitz=L_used,
       iteration=next_iter,
       status=status,
-      smooth_evals=state.smooth_evals + 2 * trials,
-      grad_evals=state.grad_evals + 2 * trials,
-      prox_evals=state.prox_evals + trials,
+      counts=state.counts.add(
+          smooth=2 * trials,
+          grad=2 * trials,
+          prox=trials,
+      ),
   )
 
 

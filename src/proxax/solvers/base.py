@@ -113,6 +113,28 @@ class OracleCounts:
     )
 
 
+class OracleCountsMixin:
+  """Zero-slot `@property` forwarding mixin for states composing `counts`."""
+
+  __slots__ = ()
+  counts: OracleCounts
+
+  @property
+  def smooth_evals(self) -> jax.Array:
+    """Cumulative smooth function value evaluations."""
+    return self.counts.smooth_evals
+
+  @property
+  def grad_evals(self) -> jax.Array:
+    """Cumulative smooth gradient evaluations."""
+    return self.counts.grad_evals
+
+  @property
+  def prox_evals(self) -> jax.Array:
+    """Cumulative proximal operator evaluations."""
+    return self.counts.prox_evals
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SolveStats:

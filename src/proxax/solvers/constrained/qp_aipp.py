@@ -8,7 +8,6 @@ import time
 import jax
 import jax.numpy as jnp
 
-from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -20,28 +19,14 @@ from proxax.solvers.unconstrained import aipp as aipp_mod
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class QPAIPPState:
+class QPAIPPState(base.ConstrainedTrackerMixin):
   """Outer homotopy iteration state of the `QPAIPP` solver."""
 
   primal: _typing.PyTree
-  best_x: _typing.PyTree
-  best_dual: _typing.PyTree
-  best_subgrad: _typing.PyTree
-  best_opt_res: jax.Array
-  best_feas_res: jax.Array
-  best_kkt_score: jax.Array
-  best_obj: jax.Array
-  target_opt_tol: jax.Array
-  target_feas_tol: jax.Array
   penalty: jax.Array
   lam: jax.Array
   lipschitz: jax.Array
-  outer_iters: jax.Array
-  inner_iters: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
-  status: jax.Array
+  tracker: base.ConstrainedTracker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -166,57 +151,28 @@ class QPAIPP:
     feas_res0 = tree.norm(bound_c.residual(ref0.x_hat), kind=self.norm_kind)
     obj0 = base_oracle.value(ref0.x_hat)
 
-    target_opt = jnp.asarray(self.opt_tol, dtype=dtype) + (
-        jnp.asarray(self.rel_opt_tol, dtype=dtype) * opt_res0
-    )
-    target_feas = jnp.asarray(self.feas_tol, dtype=dtype) + (
-        jnp.asarray(self.rel_feas_tol, dtype=dtype) * feas_res0
-    )
-    tiny = jnp.asarray(1e-30, dtype=dtype)
-    kkt_score0 = jnp.maximum(
-        opt_res0 / jnp.maximum(target_opt, tiny),
-        feas_res0 / jnp.maximum(target_feas, tiny),
-    )
-
-    finite0 = jnp.logical_and(
-        tree.all_finite(ref0.x_hat),
-        jnp.logical_and(jnp.isfinite(opt_res0), jnp.isfinite(feas_res0)),
-    )
-    converged0 = jnp.logical_and(
-        opt_res0 <= target_opt,
-        feas_res0 <= target_feas,
-    )
-    running_code = jnp.asarray(int(base.SolveStatus.RUNNING), dtype=jnp.int32)
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-        jnp.where(
-            converged0,
-            jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-            running_code,
-        ),
+    tracker0 = base.ConstrainedTracker.from_init(
+        ref0.x_hat,
+        p0,
+        ref0.v_hat,
+        opt_res0,
+        feas_res0,
+        obj0,
+        opt_tol=self.opt_tol,
+        feas_tol=self.feas_tol,
+        rel_opt_tol=self.rel_opt_tol,
+        rel_feas_tol=self.rel_feas_tol,
+        smooth_evals=extra_s_evals + ref0.smooth_evals + 1,
+        grad_evals=extra_g_evals + ref0.grad_evals,
+        prox_evals=extra_p_evals + ref0.prox_evals,
     )
 
     init_state = QPAIPPState(
         primal=ref0.x_hat,
-        best_x=ref0.x_hat,
-        best_dual=p0,
-        best_subgrad=ref0.v_hat,
-        best_opt_res=opt_res0,
-        best_feas_res=feas_res0,
-        best_kkt_score=kkt_score0,
-        best_obj=obj0,
-        target_opt_tol=target_opt,
-        target_feas_tol=target_feas,
         penalty=c0,
         lam=lam0,
         lipschitz=ref0.lipschitz_used,
-        outer_iters=jnp.asarray(0, dtype=jnp.int32),
-        inner_iters=jnp.asarray(0, dtype=jnp.int32),
-        smooth_evals=extra_s_evals + ref0.smooth_evals + 1,
-        grad_evals=extra_g_evals + ref0.grad_evals,
-        prox_evals=extra_p_evals + ref0.prox_evals,
-        status=status0,
+        tracker=tracker0,
     )
 
     aipp_solver = aipp_mod.AIPP(
@@ -234,9 +190,6 @@ class QPAIPP:
     start_wall = (
         time.perf_counter() if (not jit and time_limit is not None) else 0.0
     )
-
-    def _cond(st: QPAIPPState) -> jax.Array:
-      return st.status == running_code
 
     def _body(st: QPAIPPState) -> QPAIPPState:
       pen_oracle = composite.PenalizedOracle(
@@ -266,122 +219,42 @@ class QPAIPP:
       cand_opt = aipp_st.best_opt_res
       cand_feas = tree.norm(bound_c.residual(cand_x), kind=self.norm_kind)
       cand_obj = base_oracle.value(cand_x)
-      cand_score = jnp.maximum(
-          cand_opt / jnp.maximum(st.target_opt_tol, tiny),
-          cand_feas / jnp.maximum(st.target_feas_tol, tiny),
-      )
 
-      is_better = cand_score <= st.best_kkt_score
-      best_x = jax.tree.map(
-          lambda cx, bx: jnp.where(is_better, cx, bx),
-          cand_x,
-          st.best_x,
-      )
-      best_p = jax.tree.map(
-          lambda cp, bp: jnp.where(is_better, cp, bp),
-          cand_p,
-          st.best_dual,
-      )
-      best_v = jax.tree.map(
-          lambda cv, bv: jnp.where(is_better, cv, bv),
-          cand_v,
-          st.best_subgrad,
-      )
-      best_opt = jnp.where(is_better, cand_opt, st.best_opt_res)
-      best_feas = jnp.where(is_better, cand_feas, st.best_feas_res)
-      best_score = jnp.where(is_better, cand_score, st.best_kkt_score)
-      best_obj = jnp.where(is_better, cand_obj, st.best_obj)
-
-      next_outer = st.outer_iters + 1
       c_next = jnp.minimum(
           st.penalty * self.penalty_factor,
           jnp.asarray(self.penalty_max, dtype=dtype),
       )
       L_next = aipp_st.lipschitz * (c_next / st.penalty)
 
-      finite_ok = jnp.logical_and(
-          tree.all_finite(best_x),
-          jnp.logical_and(jnp.isfinite(best_opt), jnp.isfinite(best_feas)),
-      )
-      kkt_converged = jnp.logical_and(
-          best_opt <= st.target_opt_tol,
-          best_feas <= st.target_feas_tol,
-      )
-      timeout_code = jnp.asarray(
-          int(base.SolveStatus.TIME_LIMIT_REACHED),
-          dtype=jnp.int32,
-      )
-      ls_fail_code = jnp.asarray(
-          int(base.SolveStatus.LINE_SEARCH_FAILED),
-          dtype=jnp.int32,
-      )
-      next_status = jnp.where(
-          jnp.logical_not(finite_ok),
-          jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-          jnp.where(
-              aipp_st.status == timeout_code,
-              timeout_code,
-              jnp.where(
-                  aipp_st.status == ls_fail_code,
-                  ls_fail_code,
-                  jnp.where(
-                      kkt_converged,
-                      jnp.asarray(
-                          int(base.SolveStatus.CONVERGED),
-                          dtype=jnp.int32,
-                      ),
-                      jnp.where(
-                          next_outer >= self.max_penalty_iters,
-                          jnp.asarray(
-                              int(base.SolveStatus.MAX_ITER_REACHED),
-                              dtype=jnp.int32,
-                          ),
-                          running_code,
-                      ),
-                  ),
-              ),
-          ),
+      tracker = st.tracker.update_incumbent(
+          cand_x,
+          cand_p,
+          cand_v,
+          cand_opt,
+          cand_feas,
+          cand_obj,
+      ).advance(
+          inner_inc=aipp_st.inner_iters,
+          smooth_inc=1,
+          counts_inc=aipp_st.counts,
+          max_iters=self.max_penalty_iters,
+          sub_status=aipp_st.status,
       )
 
       return QPAIPPState(
           primal=cand_x,
-          best_x=best_x,
-          best_dual=best_p,
-          best_subgrad=best_v,
-          best_opt_res=best_opt,
-          best_feas_res=best_feas,
-          best_kkt_score=best_score,
-          best_obj=best_obj,
-          target_opt_tol=st.target_opt_tol,
-          target_feas_tol=st.target_feas_tol,
           penalty=c_next,
           lam=aipp_st.lam,
           lipschitz=L_next,
-          outer_iters=next_outer,
-          inner_iters=st.inner_iters + aipp_st.inner_iters,
-          smooth_evals=st.smooth_evals + aipp_st.smooth_evals + 1,
-          grad_evals=st.grad_evals + aipp_st.grad_evals,
-          prox_evals=st.prox_evals + aipp_st.prox_evals,
-          status=next_status,
+          tracker=tracker,
       )
 
-    def _on_timeout(st: QPAIPPState) -> QPAIPPState:
-      return dataclasses.replace(
-          st,
-          status=jnp.asarray(
-              int(base.SolveStatus.TIME_LIMIT_REACHED),
-              dtype=jnp.int32,
-          ),
-      )
-
-    return _loop.while_loop(
-        _cond,
+    return base.run_solver_loop(
         _body,
         init_state,
         jit=jit,
         callback=callback,
         time_limit=time_limit,
-        on_time_limit=_on_timeout,
     )
 
   def solve(
@@ -401,20 +274,4 @@ class QPAIPP:
         callback=callback,
         time_limit=time_limit,
     )
-    stats = base.SolveStats(
-        outer_iters=fin.outer_iters,
-        inner_iters=fin.inner_iters,
-        smooth_evals=fin.smooth_evals,
-        grad_evals=fin.grad_evals,
-        prox_evals=fin.prox_evals,
-        opt_residual=fin.best_opt_res,
-        feas_residual=fin.best_feas_res,
-        obj_val=fin.best_obj,
-    )
-    return base.Solution(
-        x=fin.best_x,
-        dual=fin.best_dual,
-        subgrad=fin.best_subgrad,
-        status=fin.status,
-        stats=stats,
-    )
+    return fin.to_solution()

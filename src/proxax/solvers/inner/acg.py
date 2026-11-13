@@ -12,6 +12,7 @@ from proxax import _loop
 from proxax import _typing
 from proxax import tree
 from proxax.oracle import composite
+from proxax.solvers import base
 
 
 class ACGStatus(enum.IntEnum):
@@ -26,7 +27,7 @@ class ACGStatus(enum.IntEnum):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ACGState:
+class ACGState(base.OracleCountsMixin):
   """Functional state of the estimating-sequence `ACG` method."""
 
   x: _typing.PyTree
@@ -40,9 +41,7 @@ class ACGState:
   lipschitz: jax.Array
   iteration: jax.Array
   status: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
+  counts: base.OracleCounts
 
 
 @jax.tree_util.register_dataclass
@@ -97,9 +96,7 @@ def init_acg(
       lipschitz=L0,
       iteration=jnp.asarray(0, dtype=jnp.int32),
       status=jnp.asarray(int(ACGStatus.RUNNING), dtype=jnp.int32),
-      smooth_evals=jnp.asarray(1, dtype=jnp.int32),
-      grad_evals=jnp.asarray(0, dtype=jnp.int32),
-      prox_evals=jnp.asarray(0, dtype=jnp.int32),
+      counts=base.OracleCounts.create(smooth=1),
   )
 
 
@@ -301,9 +298,11 @@ def step_acg(
       lipschitz=next_L,
       iteration=next_iter,
       status=status,
-      smooth_evals=state.smooth_evals + 2 * trials,
-      grad_evals=state.grad_evals + trials,
-      prox_evals=state.prox_evals + trials,
+      counts=state.counts.add(
+          smooth=2 * trials,
+          grad=trials,
+          prox=trials,
+      ),
   )
 
 

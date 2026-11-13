@@ -9,7 +9,6 @@ import typing
 import jax
 import jax.numpy as jnp
 
-from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -21,25 +20,15 @@ from proxax.solvers.inner import pf_acg
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class APDState:
+class APDState(base.SolverTrackerMixin):
   """Outer iteration state of Kong's `PF.APD` (`APD`) solver."""
 
   center: _typing.PyTree
   center_obj: jax.Array
-  best_x: _typing.PyTree
-  best_subgrad: _typing.PyTree
-  best_opt_res: jax.Array
-  best_obj: jax.Array
-  target_opt_tol: jax.Array
   lower_curvature: jax.Array
   upper_curvature: jax.Array
   never_increased_m: jax.Array
-  outer_iters: jax.Array
-  inner_iters: jax.Array
-  smooth_evals: jax.Array
-  grad_evals: jax.Array
-  prox_evals: jax.Array
-  status: jax.Array
+  tracker: base.SolverTracker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -148,12 +137,18 @@ class APD:
     # stationarity (avoiding zero-step degeneracy if x0 is already optimal).
     ref0 = certificates.refine(oracle, x_proj, L_seed, jit=jit)
     res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
-    if opt_tol_override is not None:
-      target_tol = jnp.asarray(opt_tol_override, dtype=dtype)
-    else:
-      target_tol = jnp.asarray(self.opt_tol, dtype=dtype) + (
-          jnp.asarray(self.rel_opt_tol, dtype=dtype) * res0
-      )
+    tracker0 = base.SolverTracker.from_init(
+        ref0.x_hat,
+        ref0.v_hat,
+        res0,
+        ref0.obj_val,
+        opt_tol=self.opt_tol,
+        rel_opt_tol=self.rel_opt_tol,
+        opt_tol_override=opt_tol_override,
+        smooth_evals=ref0.smooth_evals,
+        grad_evals=ref0.grad_evals,
+        prox_evals=ref0.prox_evals,
+    )
 
     m_min_arr = jnp.asarray(self.lower_curvature_min, dtype=dtype)
     m_max_arr = jnp.asarray(self.lower_curvature_max, dtype=dtype)
@@ -174,7 +169,7 @@ class APD:
       m0 = jnp.where(
           m_known > 0.0,
           jnp.clip(m_known, m_min_arr, m_max_arr),
-          jnp.maximum(target_tol, m_min_arr),
+          jnp.maximum(tracker0.target_opt_tol, m_min_arr),
       )
     else:
       m0 = jnp.clip(jnp.asarray(1.0, dtype=dtype), m_min_arr, m_max_arr)
@@ -192,35 +187,13 @@ class APD:
     else:
       M0 = jnp.maximum(ref0.lipschitz_used, jnp.asarray(1e-8, dtype=dtype))
 
-    finite0 = jnp.logical_and(tree.all_finite(ref0.x_hat), jnp.isfinite(res0))
-    running_code = jnp.asarray(int(base.SolveStatus.RUNNING), dtype=jnp.int32)
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-        jnp.where(
-            res0 <= target_tol,
-            jnp.asarray(int(base.SolveStatus.CONVERGED), dtype=jnp.int32),
-            running_code,
-        ),
-    )
-
     init_state = APDState(
         center=ref0.x_hat,
         center_obj=ref0.obj_val,
-        best_x=ref0.x_hat,
-        best_subgrad=ref0.v_hat,
-        best_opt_res=res0,
-        best_obj=ref0.obj_val,
-        target_opt_tol=target_tol,
         lower_curvature=m0,
         upper_curvature=M0,
         never_increased_m=jnp.asarray(True, dtype=jnp.bool_),
-        outer_iters=jnp.asarray(0, dtype=jnp.int32),
-        inner_iters=jnp.asarray(0, dtype=jnp.int32),
-        smooth_evals=ref0.smooth_evals,
-        grad_evals=ref0.grad_evals,
-        prox_evals=ref0.prox_evals,
-        status=status0,
+        tracker=tracker0,
     )
 
     eff_rho = self._effective_rho
@@ -232,9 +205,6 @@ class APD:
         max_iters=self.max_inner_iters,
         lipschitz_min=0.5,
     )
-
-    def _cond(st: APDState) -> jax.Array:
-      return st.status == running_code
 
     def _body(st: APDState) -> APDState:
       m_hat = st.lower_curvature
@@ -274,26 +244,10 @@ class APD:
           tree.add(pf_st.r, tree.sub(st.center, y_cand)),
       )
       cand_res = tree.norm(v_cand, kind=self.norm_kind)
-      cand_finite = jnp.logical_and(
-          tree.all_finite(y_cand),
-          jnp.isfinite(cand_res),
-      )
 
       # Exact inclusion v_cand in grad_f(y_cand) + dh(y_cand) holds at every
       # PF.ACG iterate (Lemma 3.1(b)), so always update best certificate.
-      is_better = jnp.logical_and(cand_finite, cand_res <= st.best_opt_res)
-      best_x = jax.tree.map(
-          lambda cy, bx: jnp.where(is_better, cy, bx),
-          y_cand,
-          st.best_x,
-      )
-      best_v = jax.tree.map(
-          lambda cv, bv: jnp.where(is_better, cv, bv),
-          v_cand,
-          st.best_subgrad,
-      )
-      best_res = jnp.where(is_better, cand_res, st.best_opt_res)
-      best_obj = jnp.where(is_better, phi_y, st.best_obj)
+      tr_upd = st.tracker.update_incumbent(y_cand, v_cand, cand_res, phi_y)
 
       # Algorithm 3.3 Step 2 proximal descent checks (Eq. (3.11)).
       eps_val = tree.eps(dtype)
@@ -317,7 +271,7 @@ class APD:
           int(pf_acg.PFACGStatus.LINE_SEARCH_FAILED),
           dtype=jnp.int32,
       )
-      converged_now = best_res <= st.target_opt_tol
+      converged_now = tr_upd.best_opt_res <= st.target_opt_tol
       step_rejected = jnp.logical_and(
           jnp.logical_not(converged_now),
           jnp.logical_and(
@@ -333,39 +287,24 @@ class APD:
           jnp.asarray(1e-8, dtype=dtype),
           two_m * (pf_st.lipschitz - 1.0),
       )
-      next_outer = st.outer_iters + 1
-      s_evals = st.smooth_evals + pf_st.smooth_evals + 1
-      g_evals = st.grad_evals + pf_st.grad_evals
-      p_evals = st.prox_evals + pf_st.prox_evals
-      in_iters = st.inner_iters + pf_st.iteration
 
       def _on_reject() -> APDState:
         grown_m = jnp.minimum(m_hat * self.alpha, m_max_arr)
         M_keep = jnp.maximum(st.upper_curvature, M_from_acg)
-        next_status = jnp.where(
-            next_outer >= self.max_outer_iters,
-            jnp.asarray(
-                int(base.SolveStatus.MAX_ITER_REACHED), dtype=jnp.int32
-            ),
-            running_code,
+        next_tr = tr_upd.advance(
+            inner_inc=pf_st.iteration,
+            smooth_inc=1,
+            counts_inc=pf_st.counts,
+            max_iters=self.max_outer_iters,
+            check_converged=False,
         )
         return APDState(
             center=st.center,
             center_obj=st.center_obj,
-            best_x=best_x,
-            best_subgrad=best_v,
-            best_opt_res=best_res,
-            best_obj=best_obj,
-            target_opt_tol=st.target_opt_tol,
             lower_curvature=grown_m,
             upper_curvature=M_keep,
             never_increased_m=jnp.asarray(False, dtype=jnp.bool_),
-            outer_iters=next_outer,
-            inner_iters=in_iters,
-            smooth_evals=s_evals,
-            grad_evals=g_evals,
-            prox_evals=p_evals,
-            status=next_status,
+            tracker=next_tr,
         )
 
       def _on_accept() -> APDState:
@@ -384,53 +323,20 @@ class APD:
           m_bitonic = jnp.maximum(m_min_arr, m_hat / self.alpha)
           m_next = jnp.where(st.never_increased_m, m_bitonic, m_hat)
 
-        finite_ok = jnp.logical_and(
-            tree.all_finite(best_x),
-            jnp.isfinite(best_res),
-        )
-        next_status = jnp.where(
-            jnp.logical_not(finite_ok),
-            jnp.asarray(int(base.SolveStatus.NON_FINITE), dtype=jnp.int32),
-            jnp.where(
-                pf_st.status == ls_fail_code,
-                jnp.asarray(
-                    int(base.SolveStatus.LINE_SEARCH_FAILED),
-                    dtype=jnp.int32,
-                ),
-                jnp.where(
-                    converged_now,
-                    jnp.asarray(
-                        int(base.SolveStatus.CONVERGED),
-                        dtype=jnp.int32,
-                    ),
-                    jnp.where(
-                        next_outer >= self.max_outer_iters,
-                        jnp.asarray(
-                            int(base.SolveStatus.MAX_ITER_REACHED),
-                            dtype=jnp.int32,
-                        ),
-                        running_code,
-                    ),
-                ),
-            ),
+        next_tr = tr_upd.advance(
+            inner_inc=pf_st.iteration,
+            smooth_inc=1,
+            counts_inc=pf_st.counts,
+            max_iters=self.max_outer_iters,
+            line_search_failed=pf_st.status == ls_fail_code,
         )
         return APDState(
             center=y_cand,
             center_obj=phi_y,
-            best_x=best_x,
-            best_subgrad=best_v,
-            best_opt_res=best_res,
-            best_obj=best_obj,
-            target_opt_tol=st.target_opt_tol,
             lower_curvature=m_next,
             upper_curvature=M_next,
             never_increased_m=st.never_increased_m,
-            outer_iters=next_outer,
-            inner_iters=in_iters,
-            smooth_evals=s_evals,
-            grad_evals=g_evals,
-            prox_evals=p_evals,
-            status=next_status,
+            tracker=next_tr,
         )
 
       if jit:
@@ -440,23 +346,12 @@ class APD:
         )
       return _on_reject() if bool(step_rejected) else _on_accept()
 
-    def _on_timeout(st: APDState) -> APDState:
-      return dataclasses.replace(
-          st,
-          status=jnp.asarray(
-              int(base.SolveStatus.TIME_LIMIT_REACHED),
-              dtype=jnp.int32,
-          ),
-      )
-
-    return _loop.while_loop(
-        _cond,
+    return base.run_solver_loop(
         _body,
         init_state,
         jit=jit,
         callback=callback,
         time_limit=time_limit,
-        on_time_limit=_on_timeout,
     )
 
   def solve(
@@ -474,28 +369,10 @@ class APD:
           "APD solves unconstrained composite problems; use QPAPD, QPAIPP, or "
           "IALM for problems with `constraints`."
       )
-    fin = self.solve_oracle(
+    return self.solve_oracle(
         problem.oracle,
         x0,
         jit=jit,
         callback=callback,
         time_limit=time_limit,
-    )
-    dtype = fin.best_opt_res.dtype
-    stats = base.SolveStats(
-        outer_iters=fin.outer_iters,
-        inner_iters=fin.inner_iters,
-        smooth_evals=fin.smooth_evals,
-        grad_evals=fin.grad_evals,
-        prox_evals=fin.prox_evals,
-        opt_residual=fin.best_opt_res,
-        feas_residual=jnp.asarray(0.0, dtype=dtype),
-        obj_val=fin.best_obj,
-    )
-    return base.Solution(
-        x=fin.best_x,
-        dual=None,
-        subgrad=fin.best_subgrad,
-        status=fin.status,
-        stats=stats,
-    )
+    ).to_solution()
