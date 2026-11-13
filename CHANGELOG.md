@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-13
+
+### Added
+- `px.plotting.plot_eval_breakdown`, `px.plotting.plot_tolerance_scaling`, `px.plotting.plot_phase_trajectory`, `px.plotting.animate_phase_trajectory`, and `px.plotting.plot_sparse_recovery` with Catppuccin `"mocha"` styling.
+- `record_iterates=True` option on `px.HistoryTracker` for capturing iterate trajectories.
+- Documentation sections 5–8 in `docs/guide/plotting.md` with SVGs and animated min-max phase portrait GIF.
+
 ## [0.1.3] - 2026-11-13
 
 ### Added
