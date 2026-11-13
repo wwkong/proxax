@@ -229,11 +229,17 @@ theta0 = jnp.array([-0.5, 0.3, 1.5])
 grad_theta = jax.grad(outer_loss)(theta0)
 ```
 
-For constrained `CompositeProblem` instances solved with `IALM` or `QPAPD`, pass
+For constrained `CompositeProblem` and `BlockProblem` instances, pass
 `return_dual=True` if you also need the optimal dual multiplier $p^*(\theta)$ in
-downstream losses. See `examples/implicit_solve.py` for a runnable bilevel
-hyperparameter-tuning and KKT-sensitivity script:
+downstream losses. `px.implicit_solve` also supports `MinMaxProblem` (returned
+as `(x_hat, y_hat)`).
+
+For a complete bilevel Elastic-Net tuning loop combining `px.implicit_solve`
+with `optax.adam`, see `examples/bilevel_optax.py` (as well as
+`examples/implicit_solve.py`):
 
 ```bash
-uv run python examples/implicit_solve.py
+uv run python examples/bilevel_optax.py
 ```
+
+![Bilevel Elastic-Net Tuning via px.implicit_solve + Optax Adam](../_static/plots/bilevel_optax.svg)

@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
+### Added
+- Extended `px.implicit_solve` (`proxax.implicit`) to support `MinMaxProblem` and `BlockProblem` (including `return_dual=True` for multi-block multipliers) via a shared `_implicit_vjp_solve` adjoint helper.
+- Added `examples/bilevel_optax.py` and `docs/_static/plots/bilevel_optax.svg` demonstrating bilevel Elastic-Net hyperparameter tuning with `px.implicit_solve` and `optax.adam`.
+- Added unit tests for `MinMaxProblem` (`ExtraGradient`) and `BlockProblem` (`DPADMM`) implicit differentiation in `tests/test_implicit.py`.
+
 ## [0.1.4] - 2026-11-13
 
 ### Added
