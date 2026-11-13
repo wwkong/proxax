@@ -10,6 +10,13 @@ Install Matplotlib support with:
 pip install proxax[plot]
 ```
 
+A runnable end-to-end script covering these diagnostics is available at
+`examples/plotting.py`:
+
+```bash
+uv run python examples/plotting.py
+```
+
 ---
 
 ## 1. Plotting Convergence Curves (`sol.plot()` / `history.plot()`)

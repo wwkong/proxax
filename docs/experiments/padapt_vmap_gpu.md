@@ -49,6 +49,8 @@ Script: `experiments/padapt_vmap_gpu/run.py`
 | 2 | (64, 128) | 32 | `GPU vmap` | 28/32 | 669.4 | 243.203 | 241.503 | 7546.98 |
 ```
 
+![PAdaptADMM CPU/GPU and vmap Scaling](../_static/plots/padapt_vmap_scaling.svg)
+
 ## Key Observations
 
 1. **Straggler effect in `jax.vmap(while_loop)`:**
