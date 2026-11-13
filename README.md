@@ -22,6 +22,7 @@ constrained optimization in **JAX** and **Optax**.
 [Documentation](https://proxax.readthedocs.io/en/latest/) ·
 [User Guide](https://proxax.readthedocs.io/en/latest/guide/solving_problems.html) ·
 [API Reference](https://proxax.readthedocs.io/en/latest/api.html) ·
+[Roadmap](https://github.com/wwkong/proxax/blob/main/ROADMAP.md) ·
 [Open an Issue](https://github.com/wwkong/proxax/issues)
 
 ## Installation
