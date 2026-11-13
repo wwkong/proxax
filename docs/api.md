@@ -38,9 +38,12 @@ composable solver state trackers (`px.solvers.SolverTracker`,
 
 ## Proximal Operators (`px.prox`)
 
-Convex norm regularizers (`L1`, `L2`, `L2Squared`, `ElasticNet`, `NuclearNorm`),
-set indicators (`NonNegative`, `Box`, `BoxL1`, `Simplex`, `L2Ball`, `L1Ball`),
-and PyTree combinators (`MultiProx`, `Shifted`, `Zero`).
+Convex norm regularizers (`L1`, `L2`, `L21`, `L2Squared`, `LInf`, `ElasticNet`,
+`NuclearNorm`, `TV1D`), set indicators (`NonNegative`, `Box`, `BoxL1`, `Simplex`,
+`L2Ball`, `L1Ball`, `LInfBall`, `Fantope`), folded-concave decompositions
+(`mcp_decomposition`, `scad_decomposition`, `logsum_decomposition`,
+`capped_l1_decomposition`), and PyTree combinators (`MultiProx`, `Shifted`,
+`Zero`).
 
 ```{eval-rst}
 .. automodule:: proxax.prox.base
@@ -50,6 +53,9 @@ and PyTree combinators (`MultiProx`, `Shifted`, `Zero`).
    :members:
 
 .. automodule:: proxax.prox.indicators
+   :members:
+
+.. automodule:: proxax.prox.folded_concave
    :members:
 
 .. automodule:: proxax.prox.combinators
@@ -63,7 +69,7 @@ and PyTree combinators (`MultiProx`, `Shifted`, `Zero`).
 Convenience builders (`equality`, `less_equal`, `greater_equal`, `box`,
 `in_set`), matrix, identity (`identity`), and callable PyTree linear operators,
 and Euclidean-projected `ConvexSet` implementations (`Singleton`, `UpperBound`,
-`LowerBound`, `BoxSet`, `SecondOrderCone`, `ProductSet`).
+`LowerBound`, `BoxSet`, `SecondOrderCone`, `PSDSet`, `ProductSet`).
 
 ```{eval-rst}
 .. automodule:: proxax.constraints.linear_op

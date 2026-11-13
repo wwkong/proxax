@@ -6,6 +6,7 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
+import optax
 
 from proxax import _typing
 from proxax import tree
@@ -188,4 +189,196 @@ class NuclearNorm:
 
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Identity projection (`dom(NuclearNorm)` is the full matrix space)."""
+    return x
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class L21:
+  """Group Lasso norm `h(x) = weight * sum_g ||x_g||_2` along `axis`."""
+
+  weight: _typing.Scalar = 1.0
+  axis: int = dataclasses.field(default=-1, metadata={"static": True})
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `weight * sum ||x_g||_2` across all leaves."""
+    leaves = jax.tree.leaves(x)
+    if not leaves:
+      return jnp.asarray(0.0)
+    total = tree.functools_sum([
+        jnp.sum(jnp.linalg.norm(leaf, axis=self.axis))
+        for leaf in leaves
+    ])
+    return self.weight * total
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Applies groupwise block soft-thresholding along `axis`."""
+    thresh = step_size * self.weight
+
+    def _group_prox(leaf: jax.Array) -> jax.Array:
+      norms = jnp.linalg.norm(leaf, axis=self.axis, keepdims=True)
+      safe = jnp.where(norms > 0.0, norms, 1.0)
+      scale = jnp.where(norms > thresh, 1.0 - thresh / safe, 0.0)
+      return leaf * scale
+
+    return jax.tree.map(_group_prox, x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Identity projection."""
+    return x
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class LInf:
+  """L-infinity norm `h(x) = weight * ||x||_inf`."""
+
+  weight: _typing.Scalar = 1.0
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `weight * max_i |x_i|` across all leaves."""
+    leaves = jax.tree.leaves(x)
+    if not leaves:
+      return jnp.asarray(0.0)
+    max_val = jnp.max(
+        jnp.stack([jnp.max(jnp.abs(leaf)) for leaf in leaves])
+    )
+    return self.weight * max_val
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Computes `prox` via Moreau decomposition onto the L1 ball."""
+    proj = optax.projections.projection_l1_ball(x, step_size * self.weight)
+    return tree.sub(x, proj)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Identity projection."""
+    return x
+
+
+def _tv1d_adjoint(p: jax.Array) -> jax.Array:
+  """Computes `D^T p` along the last axis where `(Du)_i = u_{i+1} - u_i`."""
+  return jnp.concatenate(
+      [-p[..., :1], p[..., :-1] - p[..., 1:], p[..., -1:]],
+      axis=-1,
+  )
+
+
+def _tv1d_prox_leaf(
+    arr: jax.Array,
+    lam: _typing.Scalar,
+    axis: int,
+    max_iters: int,
+    tol: float,
+) -> jax.Array:
+  """Solves 1D TV prox along `axis` via restarted dual FISTA."""
+  y = jnp.moveaxis(arr, axis, -1)
+  n = y.shape[-1]
+  if n <= 1:
+    return arr
+
+  dual_shape = (*y.shape[:-1], n - 1)
+  p0 = jnp.zeros(dual_shape, dtype=y.dtype)
+  u0 = y
+  t0 = jnp.asarray(1.0, dtype=y.dtype)
+  y_scale = jnp.maximum(jnp.max(jnp.abs(y)), 1.0)
+  stop_tol = tol * y_scale
+
+  _TVState = tuple[
+      jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array
+  ]
+
+  def _cond(state: _TVState) -> jax.Array:
+    _, _, _, _, diff, it = state
+    return (it < max_iters) & (diff > stop_tol)
+
+  def _body(state: _TVState) -> _TVState:
+    p_cur, z_cur, u_prev, t_cur, _, it = state
+    u_grad = y - _tv1d_adjoint(z_cur)
+    grad = -(u_grad[..., 1:] - u_grad[..., :-1])
+    p_next = jnp.clip(z_cur - 0.25 * grad, -lam, lam)
+    u_next = y - _tv1d_adjoint(p_next)
+    diff = jnp.max(jnp.abs(u_next - u_prev))
+
+    # Adaptive gradient-based restart when momentum opposes descent.
+    restart = jnp.sum((z_cur - p_next) * (p_next - p_cur)) > 0.0
+    t_next = jnp.where(
+        restart,
+        jnp.asarray(1.0, dtype=y.dtype),
+        0.5 * (1.0 + jnp.sqrt(1.0 + 4.0 * t_cur * t_cur)),
+    )
+    zero_scalar = jnp.asarray(0.0, dtype=y.dtype)
+    beta = jnp.where(restart, zero_scalar, (t_cur - 1.0) / t_next)
+    z_next = p_next + beta * (p_next - p_cur)
+    return p_next, z_next, u_next, t_next, diff, it + 1
+
+  init_diff = jnp.asarray(jnp.inf, dtype=y.dtype)
+  init_it = jnp.asarray(0, dtype=jnp.int32)
+  _, _, u_final, _, _, _ = jax.lax.while_loop(
+      _cond,
+      _body,
+      (p0, p0, u0, t0, init_diff, init_it),
+  )
+  return jnp.moveaxis(u_final, -1, axis)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class TV1D:
+  """1D Total Variation norm `h(x) = weight * sum_i |x_{i+1} - x_i|`."""
+
+  weight: _typing.Scalar = 1.0
+  axis: int = dataclasses.field(default=-1, metadata={"static": True})
+  max_iters: int = dataclasses.field(default=500, metadata={"static": True})
+  tol: float = dataclasses.field(default=1e-7, metadata={"static": True})
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates `weight * sum_i |x_{i+1} - x_i|` along `axis`."""
+    leaves = jax.tree.leaves(x)
+    if not leaves:
+      return jnp.asarray(0.0)
+    total = tree.functools_sum([
+        jnp.sum(jnp.abs(jnp.diff(leaf, axis=self.axis)))
+        for leaf in leaves
+    ])
+    return self.weight * total
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Computes the 1D TV proximal operator via restarted dual FISTA."""
+    lam = step_size * self.weight
+    return jax.tree.map(
+        lambda leaf: _tv1d_prox_leaf(
+            leaf, lam, self.axis, self.max_iters, self.tol
+        ),
+        x,
+    )
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Identity projection."""
     return x

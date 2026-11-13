@@ -18,6 +18,7 @@ IdentityLinearOperator = linear_op.IdentityLinearOperator
 LinearOperator = linear_op.LinearOperator
 LowerBound = sets.LowerBound
 MatrixLinearOperator = linear_op.MatrixLinearOperator
+PSDSet = sets.PSDSet
 ProductConstraint = linear_op.ProductConstraint
 ProductSet = sets.ProductSet
 SecondOrderCone = sets.SecondOrderCone
@@ -48,6 +49,7 @@ __all__ = [
     "LinearOperator",
     "LowerBound",
     "MatrixLinearOperator",
+    "PSDSet",
     "ProductConstraint",
     "ProductSet",
     "SecondOrderCone",

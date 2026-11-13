@@ -156,3 +156,22 @@ class ProductSet:
         y,
         is_leaf=_is_convex_set,
     )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class PSDSet:
+  """Symmetric positive semidefinite cone `{Z : Z = Z^T, Z >= 0}`."""
+
+  def project(self, y: _typing.PyTree) -> _typing.PyTree:
+    """Projects each symmetric matrix leaf onto the PSD cone."""
+
+    def _proj_leaf(mat: jax.Array) -> jax.Array:
+      sym = 0.5 * (mat + jnp.swapaxes(mat, -1, -2))
+      eigvals, eigvecs = jnp.linalg.eigh(sym)
+      clipped = jnp.maximum(eigvals, 0.0)
+      return jnp.asarray(
+          (eigvecs * clipped[..., None, :]) @ jnp.swapaxes(eigvecs, -1, -2)
+      )
+
+    return jax.tree.map(_proj_leaf, y)
