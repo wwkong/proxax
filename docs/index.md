@@ -53,8 +53,8 @@ problem = px.CompositeProblem(
 )
 
 sol = px.solve(
-    problem,
-    jnp.ones(3) / 3.0,
+    problem=problem,
+    x0=jnp.ones(3) / 3.0,
     solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
 )
 print(sol)

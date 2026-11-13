@@ -72,7 +72,7 @@ problem = px.CompositeProblem(
     proximal=px.prox.L1(weight=0.1),
 )
 
-sol = px.solve(problem, x0=jnp.zeros(3), method="apd", opt_tol=1e-6)
+sol = px.solve(problem=problem, x0=jnp.zeros(3), method="apd", opt_tol=1e-6)
 print(sol)
 print("x =", sol.x)
 ```
@@ -123,7 +123,7 @@ problem = px.CompositeProblem(
     proximal=px.prox.Box(lower=-1.0, upper=1.0),
 )
 
-sol = px.solve(problem, x0=jnp.zeros(2), method="apd", opt_tol=1e-6)
+sol = px.solve(problem=problem, x0=jnp.zeros(2), method="apd", opt_tol=1e-6)
 print(sol)
 print("x =", sol.x)
 ```
@@ -173,7 +173,7 @@ problem = px.CompositeProblem(
 )
 
 sol = px.solve(
-    problem,
+    problem=problem,
     x0=jnp.zeros(2),
     method="ialm",
     opt_tol=1e-5,
