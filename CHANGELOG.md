@@ -4,7 +4,7 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-11-13
+## [0.2.2] - 2026-11-13
 
 ### Added
 - Added `px.solvers.PANOC` (`method="panoc"`), a JIT- and `vmap`-compatible composite quasi-Newton solver combining proximal gradient steps with L-BFGS directions over the Forward-Backward Envelope.
