@@ -35,6 +35,7 @@ class _FakeAxis:
     self.ylabel: str | None = None
     self.title: str | None = None
     self.legend_called = False
+    self.transAxes = object()
 
   def plot(
       self,
@@ -43,8 +44,14 @@ class _FakeAxis:
       *,
       label: str | None = None,
       **_: typing.Any,
-  ) -> None:
+  ) -> list[typing.Any]:
     self.lines.append((list(xs), list(ys), label))
+    return [
+        types.SimpleNamespace(
+            get_color=lambda: "#89b4fa",
+            set_data=lambda *_args: None,
+        )
+    ]
 
   def step(
       self,
@@ -124,8 +131,11 @@ class _FakeAxis:
   def grid(self, *_: typing.Any, **__: typing.Any) -> None:
     pass
 
-  def legend(self) -> None:
+  def legend(self, *_: typing.Any, **__: typing.Any) -> None:
     self.legend_called = True
+
+  def text(self, *_: typing.Any, **__: typing.Any) -> typing.Any:
+    return types.SimpleNamespace(set_text=lambda _txt: None)
 
 
 class _FakeFigure:
@@ -137,6 +147,9 @@ class _FakeFigure:
 
   def suptitle(self, title: str) -> None:
     self.title = title
+
+  def get_facecolor(self) -> str:
+    return "#1e1e2e"
 
 
 def _install_fake_pyplot(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -161,8 +174,30 @@ def _install_fake_pyplot(monkeypatch: pytest.MonkeyPatch) -> None:
   plt_mod.style = style_mod  # type: ignore[attr-defined]
   mpl_mod = types.ModuleType("matplotlib")
   mpl_mod.pyplot = plt_mod  # type: ignore[attr-defined]
+  anim_mod = types.ModuleType("matplotlib.animation")
+
+  class _FakeFuncAnimation:
+    def __init__(
+        self,
+        _fig: typing.Any,
+        func: typing.Any,
+        *,
+        frames: typing.Sequence[int],
+        **_: typing.Any,
+    ) -> None:
+      self.frames = list(frames)
+      for frame in self.frames:
+        func(frame)
+
+    def save(self, *_: typing.Any, **__: typing.Any) -> None:
+      pass
+
+  anim_mod.FuncAnimation = _FakeFuncAnimation  # type: ignore[attr-defined]
+  anim_mod.PillowWriter = lambda **_kw: object()  # type: ignore[attr-defined]
+  mpl_mod.animation = anim_mod  # type: ignore[attr-defined]
   monkeypatch.setitem(sys.modules, "matplotlib", mpl_mod)
   monkeypatch.setitem(sys.modules, "matplotlib.pyplot", plt_mod)
+  monkeypatch.setitem(sys.modules, "matplotlib.animation", anim_mod)
 
 
 def test_solution_track_history_and_plot(
@@ -325,6 +360,15 @@ def test_new_diagnostic_plots_and_record_iterates(
   )
   assert len(phase_ax.lines) == 1
   assert len(phase_ax.scatters) == 1
+
+  _, anim_ax, anim = px.plotting.animate_phase_trajectory(
+      {"EG": ([1.0, 0.5, 0.0], [1.0, -0.2, 0.0])},
+      optimum=(0.0, 0.0),
+      title="Phase Anim",
+      save_path="dummy.gif",
+  )
+  assert len(anim_ax.scatters) == 1
+  assert anim.frames == [0, 1, 2]
 
   _, sparse_ax = px.plotting.plot_sparse_recovery(
       {"L1": jnp.array([1.0, 0.0, -0.5])},

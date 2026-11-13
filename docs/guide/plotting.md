@@ -145,22 +145,24 @@ fig, ax = px.plotting.plot_tolerance_scaling(
 
 ![Lasso Oracle Complexity vs. Tolerance](../_static/plots/tolerance_scaling.svg)
 
-## 7. Min-Max Phase Trajectory (`plot_phase_trajectory`)
+## 7. Min-Max Phase Trajectory (`plot_phase_trajectory` / `animate_phase_trajectory`)
 
 For 2D saddle-point problems, enable `record_iterates=True` on
 `px.HistoryTracker` and pass the `(x_k, y_k)` trajectories to
-`px.plotting.plot_phase_trajectory` to visualize cycling vs. convergence around
-the saddle point:
+`px.plotting.plot_phase_trajectory` (static) or
+`px.plotting.animate_phase_trajectory` (animated) to visualize cycling vs.
+convergence around the saddle point:
 
 ```python
-fig, ax = px.plotting.plot_phase_trajectory(
+fig, ax, anim = px.plotting.animate_phase_trajectory(
     trajectories,
     optimum=(0.0, 0.0),
     title="Bilinear Min-Max Phase Portrait",
+    save_path="minmax_phase.gif",
 )
 ```
 
-![Bilinear Min-Max Phase Portrait](../_static/plots/minmax_phase.svg)
+![Bilinear Min-Max Phase Portrait](../_static/plots/minmax_phase.gif)
 
 ## 8. Sparse Signal Recovery (`plot_sparse_recovery`)
 

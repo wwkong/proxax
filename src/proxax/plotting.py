@@ -619,6 +619,134 @@ def plot_phase_trajectory(
   return fig, axis
 
 
+def animate_phase_trajectory(
+    trajectories: abc.Mapping[
+        str, tuple[abc.Sequence[float], abc.Sequence[float]]
+    ],
+    *,
+    optimum: tuple[float, float] | None = (0.0, 0.0),
+    title: str | None = None,
+    alpha: float = 0.75,
+    tail: int | None = None,
+    interval_ms: int = 80,
+    stride: int = 1,
+    save_path: str | None = None,
+    dpi: int = 150,
+    style: str | None = "mocha",
+    ax: typing.Any = None,
+) -> tuple[typing.Any, typing.Any, typing.Any]:
+  """Animates 2D `(x_k, y_k)` phase trajectories as a Matplotlib animation.
+
+  Args:
+    trajectories: Mapping from solver name to `(xs, ys)` coordinate sequences.
+    optimum: Optional `(x*, y*)` reference point to mark with a star.
+    title: Optional axis title.
+    alpha: Line opacity in `[0, 1]`.
+    tail: Optional trailing window length in steps (`None` keeps full path).
+    interval_ms: Delay between frames in milliseconds.
+    stride: Step stride between animation frames (`>= 1`).
+    save_path: Optional output path (e.g. `.gif`) saved via `PillowWriter`.
+    dpi: Output resolution when `save_path` is provided.
+    style: Matplotlib style name (defaults to Catppuccin `'mocha'`).
+    ax: Optional pre-existing Matplotlib `Axes`.
+
+  Returns:
+    `(fig, ax, anim)` tuple with the `FuncAnimation` instance.
+  """
+  if not trajectories:
+    raise ValueError("`trajectories` must be non-empty.")
+  if stride < 1:
+    raise ValueError("`stride` must be >= 1.")
+  plt = _import_pyplot()
+  try:
+    from matplotlib import animation as mpl_anim  # noqa: PLC0415
+  except ImportError as exc:
+    raise ImportError(
+        "Animation requires `matplotlib.animation`. "
+        "Install with `pip install proxax[plot]`."
+    ) from exc
+
+  series = {
+      name: ([float(v) for v in xs], [float(v) for v in ys])
+      for name, (xs, ys) in trajectories.items()
+  }
+  max_len = max(len(xs) for xs, _ in series.values())
+  all_x = [x for xs, _ in series.values() for x in xs]
+  all_y = [y for _, ys in series.values() for y in ys]
+  if optimum is not None:
+    all_x.append(float(optimum[0]))
+    all_y.append(float(optimum[1]))
+  x_span = max(max(all_x) - min(all_x), 1e-6)
+  y_span = max(max(all_y) - min(all_y), 1e-6)
+  frames = list(range(0, max_len, stride))
+  if frames[-1] != max_len - 1:
+    frames.append(max_len - 1)
+
+  with _style_context(plt, style):
+    if ax is None:
+      fig, axis = plt.subplots(figsize=(5.5, 4.8), constrained_layout=True)
+    else:
+      axis = ax
+      fig = axis.figure
+
+    lines: dict[str, typing.Any] = {}
+    heads: dict[str, typing.Any] = {}
+    for name in series:
+      (line,) = axis.plot([], [], label=name, alpha=alpha, linewidth=1.2)
+      color = line.get_color()
+      (head,) = axis.plot([], [], marker="o", markersize=5.0, color=color)
+      lines[name] = line
+      heads[name] = head
+    if optimum is not None:
+      axis.scatter(
+          [optimum[0]],
+          [optimum[1]],
+          marker="*",
+          s=90,
+          zorder=5,
+          label="Optimum",
+      )
+    axis.set_xlim(min(all_x) - 0.1 * x_span, max(all_x) + 0.1 * x_span)
+    axis.set_ylim(min(all_y) - 0.1 * y_span, max(all_y) + 0.1 * y_span)
+    axis.set_xlabel(r"$x$")
+    axis.set_ylabel(r"$y$")
+    axis.grid(True, alpha=0.3)
+    axis.legend(loc="upper right")
+    if title is not None:
+      axis.set_title(title)
+    step_text = axis.text(
+        0.03, 0.96, "", transform=axis.transAxes, va="top", fontsize=9
+    )
+
+    def _update(step_idx: int) -> list[typing.Any]:
+      artists: list[typing.Any] = [step_text]
+      for name, (xs, ys) in series.items():
+        end = min(step_idx + 1, len(xs))
+        start = 0 if tail is None else max(0, end - tail)
+        lines[name].set_data(xs[start:end], ys[start:end])
+        heads[name].set_data([xs[end - 1]], [ys[end - 1]])
+        artists.extend([lines[name], heads[name]])
+      step_text.set_text(f"step {step_idx}")
+      return artists
+
+    anim = mpl_anim.FuncAnimation(
+        fig,
+        _update,
+        frames=frames,
+        interval=interval_ms,
+        blit=False,
+    )
+    if save_path is not None:
+      fps = max(1, round(1000 / max(interval_ms, 1)))
+      anim.save(
+          save_path,
+          writer=mpl_anim.PillowWriter(fps=fps),
+          dpi=dpi,
+          savefig_kwargs={"facecolor": fig.get_facecolor()},
+      )
+  return fig, axis, anim
+
+
 def plot_sparse_recovery(
     estimates: abc.Mapping[str, typing.Any],
     *,
