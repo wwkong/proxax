@@ -61,6 +61,17 @@ def _spectral_solvers(
   ]
 
 
+def _block_solvers(
+    opt_tol: float,
+    feas_tol: float,
+) -> list[tuple[str, solvers.ADMM | solvers.DPADMM | solvers.PAdaptADMM]]:
+  return [
+      ("ADMM", solvers.ADMM(opt_tol=opt_tol, feas_tol=feas_tol)),
+      ("DPADMM", solvers.DPADMM(opt_tol=opt_tol, feas_tol=feas_tol)),
+      ("PAdaptADMM", solvers.PAdaptADMM(opt_tol=opt_tol, feas_tol=feas_tol)),
+  ]
+
+
 def main(argv: list[str] | None = None) -> int:
   """Runs selected benchmark suites and prints formatted summaries."""
   parser = argparse.ArgumentParser(description="Run Proxax benchmarks.")
@@ -70,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
           "all",
           "unconstrained",
           "constrained",
+          "block",
           "minmax",
           "spectral",
           "vmap",
@@ -132,6 +144,25 @@ def main(argv: list[str] | None = None) -> int:
                 prob=bp.prob,
                 x0=bp.x0,
                 solver=solver,
+                opt_tol=args.opt_tol,
+                feas_tol=args.feas_tol,
+            )
+        )
+
+  if args.suite in ("all", "block"):
+    blk_probs = [
+        suites.block_nonconvex_qp(dim=12, n_blocks=3, seed=31),
+    ]
+    for bp in blk_probs:
+      for s_name, blk_solver in _block_solvers(args.opt_tol, args.feas_tol):
+        results.append(
+            harness.time_proxax_solve(
+                suite=bp.suite,
+                problem_name=bp.name,
+                solver_name=s_name,
+                prob=bp.prob,
+                x0=bp.x0,
+                solver=blk_solver,
                 opt_tol=args.opt_tol,
                 feas_tol=args.feas_tol,
             )

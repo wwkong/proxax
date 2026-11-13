@@ -204,12 +204,19 @@ $\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$.
 
 ## Block-Constrained Splitting Solvers (`px.solvers`)
 
-Certified proximal ADMM for separable multi-block and consensus
+Certified proximal ADMM variants for separable multi-block and consensus
 `BlockProblem` objectives $\sum_i (f_i(x_i) + h_i(x_i))$ subject to
-$\sum_i \mathcal{A}_i(x_i) = b$.
+$\sum_i \mathcal{A}_i(x_i) = b$: cyclic `ADMM`, dampened `DPADMM`, and
+parallel adaptive `PAdaptADMM`.
 
 ```{eval-rst}
 .. automodule:: proxax.solvers.block.admm
+   :members:
+
+.. automodule:: proxax.solvers.block.dp_admm
+   :members:
+
+.. automodule:: proxax.solvers.block.p_adapt_admm
    :members:
 ```
 

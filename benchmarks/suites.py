@@ -25,7 +25,12 @@ class BenchmarkProblem:
 
   suite: str
   name: str
-  prob: px.CompositeProblem | px.MinMaxProblem | px.SpectralProblem
+  prob: (
+      px.CompositeProblem
+      | px.BlockProblem
+      | px.MinMaxProblem
+      | px.SpectralProblem
+  )
   x0: typing.Any
 
 
@@ -450,3 +455,39 @@ def run_vmap_throughput(
     })
 
   return rows
+
+
+def block_nonconvex_qp(
+    *,
+    dim: int = 12,
+    n_blocks: int = 3,
+    seed: int = 31,
+) -> BenchmarkProblem:
+  """Separable multi-block nonconvex QP with linear coupling."""
+  key = jax.random.key(seed)
+  blocks: list[px.BlockTerm] = []
+  x0_list: list[jax.Array] = []
+  rhs = jnp.zeros(dim)
+  for idx in range(n_blocks):
+    k_q, k_c, k_a = jax.random.split(jax.random.fold_in(key, idx), 3)
+    raw = jax.random.normal(k_q, (dim, dim)) / jnp.sqrt(dim)
+    q_mat = 0.5 * (raw + raw.T) - 0.3 * jnp.eye(dim)
+    c_vec = jax.random.normal(k_c, (dim,))
+    a_mat = jax.random.normal(k_a, (dim, dim)) / jnp.sqrt(dim)
+    blocks.append(
+        px.BlockTerm(
+            smooth=lambda x, q=q_mat, c=c_vec: (
+                0.5 * jnp.dot(x, q @ x) + jnp.dot(c, x)
+            ),
+            proximal=prox.Box(lower=-1.0, upper=1.0),
+            linear_op=a_mat,
+        )
+    )
+    x0_list.append(jnp.zeros(dim))
+  prob = px.BlockProblem(blocks=tuple(blocks), rhs=rhs)
+  return BenchmarkProblem(
+      name=f"block_nc_qp_{n_blocks}x{dim}",
+      suite="block",
+      prob=prob,
+      x0=tuple(x0_list),
+  )

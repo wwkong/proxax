@@ -120,7 +120,8 @@ print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
     `AdapFISTA`, `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`
 *   **Set / Cone-Constrained (`px.CompositeProblem` with `constraints`):**
     `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`, `SProxALM`
-*   **Block-Constrained Splitting (`px.BlockProblem`):** `ADMM`
+*   **Block-Constrained Splitting (`px.BlockProblem`):** `ADMM`, `DPADMM`,
+    `PAdaptADMM`
 *   **Min-Max & Saddle-Point (`px.MinMaxProblem`):** `ExtraGradient`, `PDHG`,
     `ProxPointMinMax`
 *   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,

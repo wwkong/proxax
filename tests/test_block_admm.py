@@ -91,3 +91,38 @@ def test_admm_general_linear_operators_and_vmap() -> None:
   assert sol.status == px.SolveStatus.CONVERGED
   assert jnp.all(sol.x[1] >= -1e-6)
   assert jnp.allclose(a1 @ sol.x[0] + a2 @ sol.x[1], rhs, atol=1e-4)
+
+
+def test_p_adapt_admm_nonconvex_block_splitting() -> None:
+  key = jax.random.key(7)
+  k1, k2 = jax.random.split(key)
+  q1 = jax.random.normal(k1, (3, 3))
+  q1 = 0.5 * (q1 + q1.T) - 0.5 * jnp.eye(3)  # Indefinite (weakly convex)
+  c1 = jax.random.normal(k2, (3,))
+
+  b1 = px.BlockTerm(
+      smooth=lambda x: 0.5 * jnp.dot(x, q1 @ x) + jnp.dot(c1, x),
+      proximal=px.prox.Box(lower=-2.0, upper=2.0),
+      linear_op=px.constraints.identity,
+  )
+  b2 = px.BlockTerm(
+      proximal=px.prox.L1(weight=0.2),
+      linear_op=-jnp.eye(3),
+  )
+  prob = px.BlockProblem(blocks=(b1, b2), rhs=0.0)
+  x0 = (jnp.zeros(3), jnp.zeros(3))
+  sol = px.solve(
+      prob, x0, method="p_adapt_admm", opt_tol=1e-3, feas_tol=1e-3
+  )
+  assert sol.status == px.SolveStatus.CONVERGED
+  assert sol.stats.opt_residual <= 1e-3
+  assert sol.stats.feas_residual <= 1e-3
+  assert jnp.allclose(sol.x[0], sol.x[1], atol=1e-3)
+
+  dp_sol = px.solve(
+      prob, x0, method="dp_admm", opt_tol=1e-3, feas_tol=1e-3
+  )
+  assert dp_sol.status == px.SolveStatus.CONVERGED
+  assert dp_sol.stats.opt_residual <= 1e-3
+  assert dp_sol.stats.feas_residual <= 1e-3
+  assert jnp.allclose(dp_sol.x[0], dp_sol.x[1], atol=1e-3)

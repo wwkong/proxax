@@ -11,6 +11,8 @@ from proxax.oracle import minmax
 from proxax.oracle import spectral
 from proxax.solvers import base
 from proxax.solvers.block import admm
+from proxax.solvers.block import dp_admm
+from proxax.solvers.block import p_adapt_admm
 from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
@@ -91,7 +93,10 @@ def solve(
               time_limit=time_limit,
           ),
       )
-    if method is None or method.strip().lower().replace("-", "_") == "admm":
+    blk_method = (
+        "admm" if method is None else method.strip().lower().replace("-", "_")
+    )
+    if blk_method == "admm":
       return admm.ADMM(opt_tol=opt_tol, feas_tol=feas_tol).solve(
           problem,
           blk_x0,
@@ -99,8 +104,27 @@ def solve(
           callback=callback,
           time_limit=time_limit,
       )
+    if blk_method == "dp_admm":
+      return dp_admm.DPADMM(opt_tol=opt_tol, feas_tol=feas_tol).solve(
+          problem,
+          blk_x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
+    if blk_method == "p_adapt_admm":
+      return p_adapt_admm.PAdaptADMM(
+          opt_tol=opt_tol, feas_tol=feas_tol
+      ).solve(
+          problem,
+          blk_x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
     raise ValueError(
-        f"Unknown BlockProblem solver method {method!r}. Expected 'admm'."
+        f"Unknown BlockProblem solver method {method!r}. "
+        "Expected 'admm', 'dp_admm', or 'p_adapt_admm'."
     )
 
   if isinstance(problem, minmax.MinMaxProblem):

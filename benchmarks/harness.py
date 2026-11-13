@@ -40,7 +40,12 @@ def time_proxax_solve(
     suite: str,
     problem_name: str,
     solver_name: str,
-    prob: px.CompositeProblem | px.MinMaxProblem | px.SpectralProblem,
+    prob: (
+        px.CompositeProblem
+        | px.BlockProblem
+        | px.MinMaxProblem
+        | px.SpectralProblem
+    ),
     x0: typing.Any,
     solver: typing.Any,
     opt_tol: float,

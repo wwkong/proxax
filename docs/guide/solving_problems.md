@@ -210,7 +210,7 @@ these three defaults:
 | **Constrained** (`constraints=...`) | `px.solvers.IALM` or `px.solvers.QPAPD` | `"ialm"` / `"qp_apd"` | Both are parameter-free out of the box; `IALM` updates dual multipliers for moderate penalties, while `QPAPD` uses pure quadratic penalties. |
 | **Matrix Spectral** (`SpectralProblem` or `NuclearNorm`) | `px.solvers.DAICG` | `"da_icg"` | Doubly accelerated; requires only one thin SVD per outer iteration. |
 | **Min-Max / Saddle-Point** (`MinMaxProblem`) | `px.solvers.ExtraGradient` or `px.solvers.ProxPointMinMax` | `"extra_gradient"` / `"prox_point"` | Adaptive Mirror-Prox (`ExtraGradient`) for convex-concave games, `PDHG` for bilinear/alternating steps, and `ProxPointMinMax` for weakly monotone/nonconvex saddle points. |
-| **Block-Constrained** (`BlockProblem`) | `px.solvers.ADMM` | `"admm"` | Certified proximal ADMM for separable multi-block and consensus splitting. |
+| **Block-Constrained** (`BlockProblem`) | `px.solvers.DPADMM`, `px.solvers.PAdaptADMM`, or `px.solvers.ADMM` | `"dp_admm"` / `"p_adapt_admm"` / `"admm"` | `DPADMM` (cyclic dampened) and `PAdaptADMM` (parallel Jacobi adaptive) provide certified $\mathcal{O}(\varepsilon^{-3})$ convergence on nonconvex problems; `ADMM` is fast for fixed-penalty convex splitting. |
 
 ### Full Solver Catalog at a Glance (`px.solvers`)
 
@@ -235,7 +235,10 @@ these three defaults:
 - **Matrix spectral solvers:** `DAICG` (`"da_icg"`) and `IAICG` (`"ia_icg"`).
 - **Min-max & saddle-point solvers:** `ExtraGradient` (`"extra_gradient"`),
   `PDHG` (`"pdhg"`), and `ProxPointMinMax` (`"prox_point"`).
-- **Block-constrained splitting solvers:** `ADMM` (`"admm"`).
+- **Block-constrained splitting solvers:** `ADMM` (`"admm"`),
+  `DPADMM` (`"dp_admm"`, Kong–Monteiro 2024 cyclic dampened proximal ADMM), and
+  `PAdaptADMM` (`"p_adapt_admm"`, Maia–Monteiro–Silva 2026 parallel adaptive
+  Jacobi proximal ADMM).
 
 For theoretical complexity bounds and literature references behind each method,
 see {doc}`../appendices/literature_and_theory`.

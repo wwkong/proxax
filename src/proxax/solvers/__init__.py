@@ -28,6 +28,7 @@ AdapFISTAState = unconstrained.AdapFISTAState
 ConstrainedTracker = base.ConstrainedTracker
 DAICG = unconstrained.DAICG
 DAICGState = unconstrained.DAICGState
+DPADMM = block.DPADMM
 ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
 ExtraGradient = minmax.ExtraGradient
@@ -41,6 +42,7 @@ IAIPALState = constrained.IAIPALState
 NCFISTA = unconstrained.NCFISTA
 NCFISTAState = unconstrained.NCFISTAState
 OracleCounts = base.OracleCounts
+PAdaptADMM = block.PAdaptADMM
 PDHG = minmax.PDHG
 PDHGState = minmax.PDHGState
 PFACGConfig = inner.PFACGConfig
@@ -83,6 +85,7 @@ __all__ = [
     "ConstrainedTracker",
     "DAICG",
     "DAICGState",
+    "DPADMM",
     "ECG",
     "ECGState",
     "ExtraGradient",
@@ -96,6 +99,7 @@ __all__ = [
     "NCFISTA",
     "NCFISTAState",
     "OracleCounts",
+    "PAdaptADMM",
     "PDHG",
     "PDHGState",
     "PFACGConfig",
