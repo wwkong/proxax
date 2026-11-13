@@ -30,3 +30,8 @@ site/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Experiment outputs & local data
+experiments/**/results/
+experiments/**/outputs/
+experiments/**/data/
