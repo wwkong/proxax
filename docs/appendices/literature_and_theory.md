@@ -1,7 +1,7 @@
 # Appendix A: Literature Review & Algorithm Deep Dives
 
 This appendix summarizes the first-order optimization literature, worst-case
-oracle complexity bounds, and algorithmic mechanics behind the 16 solvers in
+oracle complexity bounds, and algorithmic mechanics behind the 22 solvers in
 Proxax.
 
 ---
@@ -38,6 +38,22 @@ constants of $f$.
 | `IALM` | `NL-IAPIAL` ($\theta=0$) / `AIDAL` ($\theta \in (0,1)$) | **None** (with `APD` inner) | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ ($\tilde{\mathcal{O}}(\varepsilon^{-2.5})$ under regularity) | Kong, Melo & Monteiro (2023a) |
 | `IAIPAL` | `IAIPAL` (1 `ACG` step / outer iter) | Optional $(m, M)$ | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ | Kong, Melo & Monteiro (2023b) |
 | `SProxALM` | `s-Prox-ALM` | Optional $(L, \|\mathcal{A}\|)$ | $\mathcal{O}(\varepsilon^{-2})$ on polyhedral/box constraints | Zhang & Luo (2020) |
+
+### Block-Constrained Splitting Solvers ($\min_{x_1, \dots, x_K} \sum_i (f_i(x_i) + h_i(x_i))$ s.t. $\sum_i \mathcal{A}_i(x_i) = b$)
+
+| Proxax Class | Algorithm Name | Curvature Input | Complexity ($\rho = \eta = \varepsilon$) | Primary Reference |
+| :--- | :--- | :--- | :--- | :--- |
+| `ADMM` | Linearized Proximal ADMM | Optional $\rho$ | Cyclic Gauss–Seidel splitting | Boyd et al. (2011) |
+| `DPADMM` | Dampened Proximal ADMM (`DP1`) | Optional $(m, M)$ | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ nonconvex | Kong & Monteiro (2021) |
+| `PAdaptADMM` | Parallel Adaptive Proximal ADMM | Optional $(m, M)$ | $\tilde{\mathcal{O}}(\varepsilon^{-3})$ nonconvex (parallel Jacobi blocks) | Maia, Monteiro & Silva (2026) |
+
+### Min-Max & Saddle-Point Solvers ($\min_x \max_y \Phi(x, y) + h(x) - g(y)$)
+
+| Proxax Class | Algorithm Name | Curvature Input | Complexity / Regime | Primary Reference |
+| :--- | :--- | :--- | :--- | :--- |
+| `ExtraGradient` | Adaptive Mirror-Prox / Extragradient | Optional $L$ | $\mathcal{O}(1/\varepsilon)$ convex-concave | Nemirovski (2004) |
+| `PDHG` | Over-relaxed Chambolle–Pock | Optional $(L_{xy}, \theta)$ | $\mathcal{O}(1/\varepsilon)$ convex-concave | Chambolle & Pock (2011) |
+| `ProxPointMinMax` | Inexact Proximal-Point Minimax | Weak convexity $m_x$ | $\tilde{\mathcal{O}}(\varepsilon^{-2})$ weakly nonconvex–concave | Kong & Monteiro (2021) / `ExtraGradient` inner |
 
 ### Matrix Spectral Solvers ($\min_X f_1(X) + (f_2^{\mathcal{V}} + h^{\mathcal{V}})(\sigma(X))$)
 
@@ -152,7 +168,14 @@ where $w(x) = \mathcal{A}(x) + \bar{p}/c$:
 
 1. **Beck, A.** (2017). *First-Order Methods in Optimization*. MOS-SIAM Series
    on Optimization.
-2. **Ghadimi, S., & Lan, G.** (2016). Accelerated gradient methods for
+2. **Boyd, S., Parikh, N., Chu, E., Peleato, B., & Eckstein, J.** (2011).
+   Distributed optimization and statistical learning via the alternating
+   direction method of multipliers. *Foundations and Trends in Machine
+   Learning*, 3(1), 1–122.
+3. **Chambolle, A., & Pock, T.** (2011). A first-order primal-dual algorithm
+   for convex problems with applications to imaging. *Journal of Mathematical
+   Imaging and Vision*, 40(1), 120–145.
+4. **Ghadimi, S., & Lan, G.** (2016). Accelerated gradient methods for
    nonconvex nonlinear and stochastic programming. *Mathematical Programming*,
    156(1–2), 59–99.
 3. **Kong, W., Melo, J. G., & Monteiro, R. D. C.** (2019). Complexity of a
@@ -166,7 +189,10 @@ where $w(x) = \mathcal{A}(x) + \bar{p}/c$:
 5. **Kong, W., & Monteiro, R. D. C.** (2020). Accelerated inexact composite
    gradient methods for nonconvex spectral optimization problems.
    *arXiv:2007.11772* (*Computational Optimization and Applications*, 2023).
-6. **Kong, W., Melo, J. G., & Monteiro, R. D. C.** (2023a). Iteration-complexity
+6. **Kong, W., & Monteiro, R. D. C.** (2021). Global complexity bound of a
+   proximal ADMM for linearly-constrained nonseparable nonconvex composite
+   programming. *arXiv:2110.12502*.
+7. **Kong, W., Melo, J. G., & Monteiro, R. D. C.** (2023a). Iteration-complexity
    of a proximal augmented Lagrangian method for solving nonconvex composite
    optimization problems with nonlinear convex constraints. *Mathematics of
    Operations Research*, 48(2), 1066–1094.
@@ -189,7 +215,14 @@ where $w(x) = \mathcal{A}(x) + \bar{p}/c$:
 12. **Lin, Q., & Xiao, L.** (2014). An adaptive accelerated proximal gradient
     method and its homotopy continuation for sparse optimization. *Computational
     Optimization and Applications*, 60(3), 633–674.
-13. **Zhang, J., & Luo, Z.-Q.** (2020). A proximal alternating direction method
+13. **Maia, L., Monteiro, R. D. C., & Silva, G.** (2026). A parallel adaptive
+    proximal ADMM for linearly constrained separable composite optimization
+    problems. *arXiv:2611.00570*.
+14. **Nemirovski, A.** (2004). Prox-method with rate of convergence $O(1/t)$ for
+    variational inequalities with Lipschitz continuous monotone operators and
+    smooth convex-concave saddle point problems. *SIAM Journal on
+    Optimization*, 15(1), 229–251.
+15. **Zhang, J., & Luo, Z.-Q.** (2020). A proximal alternating direction method
     of multipliers for linearly constrained nonconvex minimization / A global
     dual error bound and its application to the analysis of linearly constrained
     nonconvex optimization. *SIAM Journal on Optimization*, 30(3), 2272–2302.
