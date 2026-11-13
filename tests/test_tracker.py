@@ -154,6 +154,11 @@ def test_solution_and_stats_repr() -> None:
       lambda x0: px.solve(prob, x0, method="apd", opt_tol=1e-5)
   )(jnp.zeros(4))
   assert jitted_sol.runtime_ms is None
+
+  exec_sol = px.solve(
+      prob, jnp.zeros(4), method="apd", opt_tol=1e-5, exclude_compile=True
+  )
+  assert isinstance(exec_sol.runtime_ms, float) and exec_sol.runtime_ms > 0.0
   assert "x=float" in s_repr
   assert "[4]" in s_repr
   assert "dual=None" in s_repr

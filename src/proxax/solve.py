@@ -208,6 +208,7 @@ def solve(
     callback: typing.Any = None,
     time_limit: float | None = None,
     track_history: bool = False,
+    exclude_compile: bool = False,
 ) -> base.Solution:
   """Solves a composite, block, minmax, or spectral optimization problem.
 
@@ -233,6 +234,10 @@ def solve(
     time_limit: Optional wall-clock limit in seconds (`jit=False` only).
     track_history: If True, records per-iteration objective and residual history
       into `solution.history` for `solution.plot()` (works with `jit=True`).
+    exclude_compile: If True (requires `jit=True` and no Python callback),
+      pre-compiles the solve via `jax.jit(...).lower(x0).compile()` before
+      starting the `runtime_ms` timer so `sol.runtime_ms` excludes XLA
+      compilation overhead.
 
   Returns:
     A `Solution` PyTree with certified primal `x`, optional `dual`, exact
@@ -261,17 +266,41 @@ def solve(
 
       effective_cb = _combined_cb
 
-  t0 = time.perf_counter()
-  sol = typing.cast(
-      base.Solution,
-      chosen.solve(
-          target,
-          x0,
-          jit=jit,
-          callback=effective_cb,
-          time_limit=time_limit,
-      ),
-  )
+  if exclude_compile and (not jit or effective_cb is not None):
+    raise ValueError(
+        "`exclude_compile=True` requires `jit=True` and no Python callback."
+    )
+
+  def _is_traced(tree: _typing.PyTree) -> bool:
+    return any(
+        isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves(tree)
+    )
+
+  if exclude_compile and not _is_traced(x0):
+    solve_jit: typing.Any = jax.jit(
+        lambda init: chosen.solve(
+            target,
+            init,
+            jit=True,
+            callback=None,
+            time_limit=time_limit,
+        )
+    )
+    compiled = solve_jit.lower(x0).compile()
+    t0 = time.perf_counter()
+    sol = typing.cast(base.Solution, compiled(x0))
+  else:
+    t0 = time.perf_counter()
+    sol = typing.cast(
+        base.Solution,
+        chosen.solve(
+            target,
+            x0,
+            jit=jit,
+            callback=effective_cb,
+            time_limit=time_limit,
+        ),
+    )
   runtime_ms: float | None = None
   if not isinstance(sol.status, jax.core.Tracer):
     sol.status.block_until_ready()
