@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/wwkong/proxax/actions/workflows/ci.yml/badge.svg)](https://github.com/wwkong/proxax/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/proxax.svg)](https://pypi.org/project/proxax/)
-[![Documentation Status](https://readthedocs.org/projects/proxax/badge/?version=latest)](https://proxax.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://img.shields.io/readthedocs/proxax)](https://proxax.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 **Proxax** is a Python library of **certified first-order proximal, spectral,
@@ -73,8 +73,19 @@ sol = px.solve(
     jnp.ones(3) / 3.0,
     solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
 )
-print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
-# CONVERGED [0.06000053 0.9399997  0.        ] 6.80e-06
+print(sol)
+print("x =", sol.x)
+# Solution(
+#   status=CONVERGED,
+#   obj=-8.090005e-01,
+#   opt_res=7.039e-06,
+#   feas_res=2.384e-07,
+#   iters=8 (inner=423),
+#   evals=(smooth=991, grad=892, prox=449),
+#   x=float32[3],
+#   dual=float32[],
+# )
+# x = [0.06000054 0.9399997  0.        ]
 ```
 
 ## Problem Classes
