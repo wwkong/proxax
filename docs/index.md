@@ -128,6 +128,22 @@ sol = px.solve(
 print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
 ```
 
+---
+
+## Citing `proxax`
+
+If `proxax` was helpful for a publication, please cite this repository:
+
+```bibtex
+@software{proxax2026github,
+  author = {Weiwei Kong},
+  title = {{proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
+  url = {https://github.com/wwkong/proxax},
+  version = {0.0.2},
+  year = {2026},
+}
+```
+
 ```{toctree}
 :maxdepth: 2
 :hidden:
