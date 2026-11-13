@@ -144,6 +144,7 @@ Self-contained benchmark scripts live in
 *   [`examples/block.py`](https://github.com/wwkong/proxax/blob/main/examples/block.py) — two-block Lasso consensus splitting and three-block nonconvex quadratic splitting (`ADMM`, `DPADMM`, `PAdaptADMM`).
 *   [`examples/spectral_matrix_completion.py`](https://github.com/wwkong/proxax/blob/main/examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`DAICG`, `IAICG`, `APD`) vs convex `NuclearNorm`.
 *   [`examples/optax_and_vmap.py`](https://github.com/wwkong/proxax/blob/main/examples/optax_and_vmap.py) — single-step trajectory tracking with `px.optax_compat` and parallel solving via `jax.jit(jax.vmap(...))`.
+*   [`examples/implicit_solve.py`](https://github.com/wwkong/proxax/blob/main/examples/implicit_solve.py) — bilevel $\ell_1$ hyperparameter tuning with `optax.adam` and primal-dual KKT sensitivity via `px.implicit_solve`.
 
 ## Citing Proxax
 

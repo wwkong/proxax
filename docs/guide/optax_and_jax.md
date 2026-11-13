@@ -231,4 +231,9 @@ grad_theta = jax.grad(outer_loss)(theta0)
 
 For constrained `CompositeProblem` instances solved with `IALM` or `QPAPD`, pass
 `return_dual=True` if you also need the optimal dual multiplier $p^*(\theta)$ in
-downstream losses.
+downstream losses. See `examples/implicit_solve.py` for a runnable bilevel
+hyperparameter-tuning and KKT-sensitivity script:
+
+```bash
+uv run python examples/implicit_solve.py
+```
