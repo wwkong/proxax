@@ -9,12 +9,12 @@ import jax
 import jax.numpy as jnp
 
 from proxax import _typing
-from proxax import certificates
 from proxax import problem as problem_mod
 from proxax import tree
 from proxax.oracle import spectral
 from proxax.solvers import base
 from proxax.solvers.inner import acg
+from proxax.solvers.unconstrained import _icg_common
 
 
 @jax.tree_util.register_dataclass
@@ -96,86 +96,32 @@ class IAICG:
       time_limit: float | None = None,
   ) -> IAICGState:
     """Runs `IAICG` on a `SpectralOracle` starting from 2D matrix `x0`."""
-    z0_proj = typing.cast(
-        jax.Array,
-        oracle.domain_project(tree.as_float_tree(x0)),
-    )
-    if z0_proj.ndim != 2:
-      raise ValueError(
-          f"`IAICG` expects a 2D matrix `x0`; got shape {z0_proj.shape}."
-      )
-    dtype = z0_proj.dtype
-
-    ref0 = certificates.refine(
+    setup = _icg_common.init_icg_setup(
         oracle,
-        z0_proj,
-        jnp.asarray(self.lipschitz_init, dtype=dtype),
-        jit=jit,
-    )
-    z0_hat = typing.cast(jax.Array, ref0.x_hat)
-    v0_hat = typing.cast(jax.Array, ref0.v_hat)
-    res0 = tree.norm(v0_hat, kind=self.norm_kind)
-    tracker0 = base.SolverTracker.from_init(
-        z0_hat,
-        v0_hat,
-        res0,
-        ref0.obj_val,
+        x0,
+        solver_name="IAICG",
         opt_tol=self.opt_tol,
         rel_opt_tol=self.rel_opt_tol,
         opt_tol_override=opt_tol_override,
-        smooth_evals=ref0.smooth_evals,
-        grad_evals=ref0.grad_evals,
-        prox_evals=ref0.prox_evals,
+        norm_kind=self.norm_kind,
+        lipschitz_init=self.lipschitz_init,
+        xi_init=self.xi_init,
+        lam_init=self.lam_init,
+        sigma=self.sigma,
+        max_inner_iters=self.max_inner_iters,
+        jit=jit,
     )
-
-    known_m1 = oracle.f1_obj.curvature_upper
-    known_m2 = oracle.f2_vec_obj.curvature_upper
-    known_m2_low = oracle.f2_vec_obj.curvature_lower
-
-    m1_base = (
-        jnp.asarray(known_m1, dtype=dtype)
-        if known_m1 is not None
-        else ref0.lipschitz_used
-    )
-    m1_base = jnp.maximum(m1_base, jnp.asarray(1e-4, dtype=dtype))
-    m2_low = (
-        jnp.asarray(known_m2_low, dtype=dtype)
-        if known_m2_low is not None
-        else jnp.asarray(0.0, dtype=dtype)
-    )
-    m2_est0 = (
-        jnp.asarray(known_m2, dtype=dtype)
-        if known_m2 is not None
-        else jnp.asarray(1.0, dtype=dtype)
-    )
-
-    xi0 = (
-        jnp.asarray(self.xi_init, dtype=dtype)
-        if self.xi_init is not None
-        else m1_base
-    )
-    xi0 = jnp.maximum(xi0, jnp.asarray(1e-4, dtype=dtype))
-
-    if self.lam_init is not None:
-      lam0 = jnp.asarray(self.lam_init, dtype=dtype)
-    elif known_m1 is not None:
-      lam0 = jnp.where(m1_base <= xi0, 5.0 / m1_base, 0.25 / m1_base)
-    else:
-      lam0 = 1.0 / m1_base
-
-    sigma_val = self.sigma if self.sigma is not None else 0.3
-    acg_cfg = acg.ACGConfig(
-        sigma=sigma_val,
-        max_iters=self.max_inner_iters,
-    )
+    dtype = setup.dtype
+    m2_low = setup.m2_low
+    acg_cfg = setup.acg_cfg
 
     init_state = IAICGState(
-        z0=z0_hat,
-        z0_svals=jnp.linalg.svdvals(z0_hat),
-        lam=lam0,
-        xi=xi0,
-        m2_est=m2_est0 + xi0,
-        tracker=tracker0,
+        z0=setup.z0_hat,
+        z0_svals=setup.z0_svals,
+        lam=setup.lam0,
+        xi=setup.xi0,
+        m2_est=setup.m2_est0 + setup.xi0,
+        tracker=setup.tracker0,
     )
 
     def _body(st: IAICGState) -> IAICGState:
@@ -219,7 +165,7 @@ class IAICG:
           acg_st.status == ls_fail_code,
       )
 
-      if known_m1 is None:
+      if oracle.f1_obj.curvature_upper is None:
         f1_z = oracle.f1_redistributed_val(z_mat, st.xi)
         dz_mat = z_mat - st.z0
         f1_slack = 100.0 * eps_val * (1.0 + jnp.abs(f1_z0))

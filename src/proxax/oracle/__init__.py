@@ -6,6 +6,7 @@ from proxax.oracle import block
 from proxax.oracle import composite
 from proxax.oracle import minmax
 from proxax.oracle import spectral
+from proxax.oracle import spectral_problem
 from proxax.oracle import terms
 
 BlockProblem = block.BlockProblem
@@ -20,12 +21,12 @@ RescaledProxOracle = composite.RescaledProxOracle
 SmoothObjective = terms.SmoothObjective
 SmoothTerm = terms.SmoothTerm
 SpectralOracle = spectral.SpectralOracle
-SpectralProblem = spectral.SpectralProblem
+SpectralProblem = spectral_problem.SpectralProblem
 SpectralRefinementResult = spectral.SpectralRefinementResult
 VectorSpectralSubOracle = spectral.VectorSpectralSubOracle
 ZeroSmooth = terms.ZeroSmooth
 as_smooth_term = terms.as_smooth_term
-as_spectral_oracle = spectral.as_spectral_oracle
+as_spectral_oracle = spectral_problem.as_spectral_oracle
 
 __all__ = [
     "BlockProblem",

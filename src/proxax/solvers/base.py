@@ -135,6 +135,30 @@ class OracleCountsMixin:
     return self.counts.prox_evals
 
 
+def _init_status(finite: jax.Array, converged: jax.Array) -> jax.Array:
+  """Computes initial `SolveStatus` code from finiteness and convergence."""
+  return jnp.where(
+      jnp.logical_not(finite),
+      status_code(SolveStatus.NON_FINITE),
+      jnp.where(
+          converged,
+          status_code(SolveStatus.CONVERGED),
+          status_code(SolveStatus.RUNNING),
+      ),
+  )
+
+
+def _build_init_counts(
+    smooth: jax.Array | int,
+    grad: jax.Array | int,
+    prox: jax.Array | int,
+    counts: OracleCounts | None,
+) -> OracleCounts:
+  """Builds initial `OracleCounts` from scalar counts plus optional bundle."""
+  init_counts = OracleCounts.create(smooth=smooth, grad=grad, prox=prox)
+  return init_counts.add(counts=counts) if counts is not None else init_counts
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SolveStats:
@@ -179,7 +203,7 @@ class Solution:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class SolverTracker:
+class SolverTracker(OracleCountsMixin):
   """Composable incumbent certificate and counter tracker for solvers.
 
   Attributes:
@@ -203,21 +227,6 @@ class SolverTracker:
   inner_iters: jax.Array
   counts: OracleCounts
   status: jax.Array
-
-  @property
-  def smooth_evals(self) -> jax.Array:
-    """Cumulative smooth function value evaluations."""
-    return self.counts.smooth_evals
-
-  @property
-  def grad_evals(self) -> jax.Array:
-    """Cumulative smooth gradient evaluations."""
-    return self.counts.grad_evals
-
-  @property
-  def prox_evals(self) -> jax.Array:
-    """Cumulative proximal operator evaluations."""
-    return self.counts.prox_evals
 
   @property
   def status_enum(self) -> SolveStatus:
@@ -249,22 +258,10 @@ class SolverTracker:
           jnp.asarray(rel_opt_tol, dtype=dtype) * opt_res
       )
     finite0 = jnp.logical_and(tree.all_finite(x), jnp.isfinite(opt_res))
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        status_code(SolveStatus.NON_FINITE),
-        jnp.where(
-            opt_res <= target_tol,
-            status_code(SolveStatus.CONVERGED),
-            status_code(SolveStatus.RUNNING),
-        ),
+    status0 = _init_status(finite0, opt_res <= target_tol)
+    init_counts = _build_init_counts(
+        smooth_evals, grad_evals, prox_evals, counts
     )
-    init_counts = OracleCounts.create(
-        smooth=smooth_evals,
-        grad=grad_evals,
-        prox=prox_evals,
-    )
-    if counts is not None:
-      init_counts = init_counts.add(counts=counts)
     zero_i32 = jnp.asarray(0, dtype=jnp.int32)
     return cls(
         best_x=x,
@@ -407,7 +404,7 @@ class SolverTracker:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ConstrainedTracker:
+class ConstrainedTracker(OracleCountsMixin):
   """Composable KKT certificate and counter tracker for constrained solvers.
 
   Attributes:
@@ -439,21 +436,6 @@ class ConstrainedTracker:
   inner_iters: jax.Array
   counts: OracleCounts
   status: jax.Array
-
-  @property
-  def smooth_evals(self) -> jax.Array:
-    """Cumulative smooth function value evaluations."""
-    return self.counts.smooth_evals
-
-  @property
-  def grad_evals(self) -> jax.Array:
-    """Cumulative smooth gradient evaluations."""
-    return self.counts.grad_evals
-
-  @property
-  def prox_evals(self) -> jax.Array:
-    """Cumulative proximal operator evaluations."""
-    return self.counts.prox_evals
 
   @property
   def status_enum(self) -> SolveStatus:
@@ -497,22 +479,10 @@ class ConstrainedTracker:
         jnp.logical_and(jnp.isfinite(opt_res), jnp.isfinite(feas_res)),
     )
     conv0 = jnp.logical_and(opt_res <= target_opt, feas_res <= target_feas)
-    status0 = jnp.where(
-        jnp.logical_not(finite0),
-        status_code(SolveStatus.NON_FINITE),
-        jnp.where(
-            conv0,
-            status_code(SolveStatus.CONVERGED),
-            status_code(SolveStatus.RUNNING),
-        ),
+    status0 = _init_status(finite0, conv0)
+    init_counts = _build_init_counts(
+        smooth_evals, grad_evals, prox_evals, counts
     )
-    init_counts = OracleCounts.create(
-        smooth=smooth_evals,
-        grad=grad_evals,
-        prox=prox_evals,
-    )
-    if counts is not None:
-      init_counts = init_counts.add(counts=counts)
     zero_i32 = jnp.asarray(0, dtype=jnp.int32)
     return cls(
         best_x=x,

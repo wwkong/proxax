@@ -9,11 +9,10 @@ import jax
 import jax.numpy as jnp
 
 from proxax import _typing
-from proxax import certificates
 from proxax import problem as problem_mod
-from proxax import tree
 from proxax.oracle import composite
 from proxax.solvers import base
+from proxax.solvers.constrained import _penalty_common
 from proxax.solvers.unconstrained import apd as apd_mod
 
 
@@ -108,49 +107,24 @@ class QPAPD:
       time_limit: float | None = None,
   ) -> QPAPDState:
     """Runs `QPAPD` and returns the full `QPAPDState`."""
-    if not problem.is_constrained:
-      raise ValueError(
-          "QPAPD requires a constrained `CompositeProblem` (`constraints` "
-          "must not be None); use `APD` or `proxax.solve` instead."
-      )
-    if not jit and time_limit is not None and time_limit < 0:
-      raise ValueError("`time_limit` must be non-negative.")
-
-    base_oracle = problem.oracle
-    x_proj = base_oracle.domain_project(tree.as_float_tree(x0))
-    dtype = tree.infer_dtype(x_proj)
-    bound_c = problem.bind_constraints(x_proj)
-    assert bound_c is not None
-
-    c0 = jnp.asarray(self.penalty_init, dtype=dtype)
-    pen0 = composite.PenalizedOracle(
-        base=base_oracle,
-        constraint=bound_c,
-        multiplier=None,
-        penalty=c0,
-        dampen=0.0,
+    base_oracle, x_proj, dtype, bound_c = (
+        _penalty_common.validate_constrained_problem(
+            problem, x0, "QPAPD", jit=jit, time_limit=time_limit
+        )
     )
-    L0_seed = jnp.asarray(self.lipschitz_init, dtype=dtype)
-    ref0 = certificates.refine(pen0, x_proj, L0_seed, jit=jit)
-    p0 = pen0.effective_dual(ref0.x_hat)
-    opt_res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
-    feas_res0 = tree.norm(bound_c.residual(ref0.x_hat), kind=self.norm_kind)
-    obj0 = base_oracle.value(ref0.x_hat)
-
-    tracker0 = base.ConstrainedTracker.from_init(
-        ref0.x_hat,
-        p0,
-        ref0.v_hat,
-        opt_res0,
-        feas_res0,
-        obj0,
+    c0, ref0, tracker0 = _penalty_common.init_penalty_tracker(
+        base_oracle,
+        bound_c,
+        x_proj,
+        dtype=dtype,
+        penalty_init=self.penalty_init,
+        lipschitz_init=self.lipschitz_init,
+        norm_kind=self.norm_kind,
         opt_tol=self.opt_tol,
         feas_tol=self.feas_tol,
         rel_opt_tol=self.rel_opt_tol,
         rel_feas_tol=self.rel_feas_tol,
-        smooth_evals=ref0.smooth_evals + 1,
-        grad_evals=ref0.grad_evals,
-        prox_evals=ref0.prox_evals,
+        jit=jit,
     )
 
     # Calibrate initial lower curvature `m0` from the unpenalized smooth term
@@ -215,10 +189,7 @@ class QPAPD:
           penalty=st.penalty,
           dampen=0.0,
       )
-      rem_time: float | None = None
-      if not jit and time_limit is not None:
-        rem_time = max(0.0, time_limit - (time.perf_counter() - start_wall))
-
+      rem_time = _penalty_common.remaining_time(jit, time_limit, start_wall)
       apd_st = apd_solver.solve_oracle(
           pen_oracle,
           st.primal,
@@ -228,34 +199,26 @@ class QPAPD:
           jit=jit,
           time_limit=rem_time,
       )
-
       cand_x = apd_st.best_x
-      cand_v = apd_st.best_subgrad
-      cand_p = pen_oracle.effective_dual(cand_x)
-      cand_opt = apd_st.best_opt_res
-      cand_feas = tree.norm(bound_c.residual(cand_x), kind=self.norm_kind)
-      cand_obj = base_oracle.value(cand_x)
-
-      c_next = jnp.minimum(
-          st.penalty * self.penalty_factor,
-          jnp.asarray(self.penalty_max, dtype=dtype),
+      c_next, tracker = _penalty_common.advance_penalty_stage(
+          st.tracker,
+          pen_oracle,
+          bound_c,
+          base_oracle,
+          cand_x=cand_x,
+          cand_v=apd_st.best_subgrad,
+          cand_opt=apd_st.best_opt_res,
+          inner_iters=apd_st.inner_iters,
+          counts=apd_st.counts,
+          sub_status=apd_st.status,
+          penalty=st.penalty,
+          penalty_factor=self.penalty_factor,
+          penalty_max=self.penalty_max,
+          max_penalty_iters=self.max_penalty_iters,
+          norm_kind=self.norm_kind,
+          dtype=dtype,
       )
       M_next = apd_st.upper_curvature * (c_next / st.penalty)
-
-      tracker = st.tracker.update_incumbent(
-          cand_x,
-          cand_p,
-          cand_v,
-          cand_opt,
-          cand_feas,
-          cand_obj,
-      ).advance(
-          inner_inc=apd_st.inner_iters,
-          smooth_inc=1,
-          counts_inc=apd_st.counts,
-          max_iters=self.max_penalty_iters,
-          sub_status=apd_st.status,
-      )
 
       return QPAPDState(
           primal=cand_x,

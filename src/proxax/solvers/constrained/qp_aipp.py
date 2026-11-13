@@ -11,9 +11,9 @@ import jax.numpy as jnp
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
-from proxax import tree
 from proxax.oracle import composite
 from proxax.solvers import base
+from proxax.solvers.constrained import _penalty_common
 from proxax.solvers.unconstrained import aipp as aipp_mod
 
 
@@ -93,19 +93,11 @@ class QPAIPP:
       time_limit: float | None = None,
   ) -> QPAIPPState:
     """Runs `QPAIPP` and returns the full `QPAIPPState`."""
-    if not problem.is_constrained:
-      raise ValueError(
-          "QPAIPP requires a constrained `CompositeProblem` (`constraints` "
-          "must not be None); use `AIPP` or `proxax.solve` instead."
-      )
-    if not jit and time_limit is not None and time_limit < 0:
-      raise ValueError("`time_limit` must be non-negative.")
-
-    base_oracle = problem.oracle
-    x_proj = base_oracle.domain_project(tree.as_float_tree(x0))
-    dtype = tree.infer_dtype(x_proj)
-    bound_c = problem.bind_constraints(x_proj)
-    assert bound_c is not None
+    base_oracle, x_proj, dtype, bound_c = (
+        _penalty_common.validate_constrained_problem(
+            problem, x0, "QPAIPP", jit=jit, time_limit=time_limit
+        )
+    )
 
     L0_base = jnp.asarray(self.lipschitz_init, dtype=dtype)
     has_known_m = base_oracle.curvature_lower is not None
@@ -137,34 +129,22 @@ class QPAIPP:
       extra_g_evals = ref_base.grad_evals
       extra_p_evals = ref_base.prox_evals
 
-    c0 = jnp.asarray(self.penalty_init, dtype=dtype)
-    pen0 = composite.PenalizedOracle(
-        base=base_oracle,
-        constraint=bound_c,
-        multiplier=None,
-        penalty=c0,
-        dampen=0.0,
-    )
-    ref0 = certificates.refine(pen0, x_proj, L0_base, jit=jit)
-    p0 = pen0.effective_dual(ref0.x_hat)
-    opt_res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
-    feas_res0 = tree.norm(bound_c.residual(ref0.x_hat), kind=self.norm_kind)
-    obj0 = base_oracle.value(ref0.x_hat)
-
-    tracker0 = base.ConstrainedTracker.from_init(
-        ref0.x_hat,
-        p0,
-        ref0.v_hat,
-        opt_res0,
-        feas_res0,
-        obj0,
+    c0, ref0, tracker0 = _penalty_common.init_penalty_tracker(
+        base_oracle,
+        bound_c,
+        x_proj,
+        dtype=dtype,
+        penalty_init=self.penalty_init,
+        lipschitz_init=L0_base,
+        norm_kind=self.norm_kind,
         opt_tol=self.opt_tol,
         feas_tol=self.feas_tol,
         rel_opt_tol=self.rel_opt_tol,
         rel_feas_tol=self.rel_feas_tol,
-        smooth_evals=extra_s_evals + ref0.smooth_evals + 1,
-        grad_evals=extra_g_evals + ref0.grad_evals,
-        prox_evals=extra_p_evals + ref0.prox_evals,
+        jit=jit,
+        extra_smooth_evals=extra_s_evals,
+        extra_grad_evals=extra_g_evals,
+        extra_prox_evals=extra_p_evals,
     )
 
     init_state = QPAIPPState(
@@ -199,10 +179,7 @@ class QPAIPP:
           penalty=st.penalty,
           dampen=0.0,
       )
-      rem_time: float | None = None
-      if not jit and time_limit is not None:
-        rem_time = max(0.0, time_limit - (time.perf_counter() - start_wall))
-
+      rem_time = _penalty_common.remaining_time(jit, time_limit, start_wall)
       aipp_st = aipp_solver.solve_oracle(
           pen_oracle,
           st.primal,
@@ -212,34 +189,26 @@ class QPAIPP:
           jit=jit,
           time_limit=rem_time,
       )
-
       cand_x = aipp_st.best_x
-      cand_v = aipp_st.best_subgrad
-      cand_p = pen_oracle.effective_dual(cand_x)
-      cand_opt = aipp_st.best_opt_res
-      cand_feas = tree.norm(bound_c.residual(cand_x), kind=self.norm_kind)
-      cand_obj = base_oracle.value(cand_x)
-
-      c_next = jnp.minimum(
-          st.penalty * self.penalty_factor,
-          jnp.asarray(self.penalty_max, dtype=dtype),
+      c_next, tracker = _penalty_common.advance_penalty_stage(
+          st.tracker,
+          pen_oracle,
+          bound_c,
+          base_oracle,
+          cand_x=cand_x,
+          cand_v=aipp_st.best_subgrad,
+          cand_opt=aipp_st.best_opt_res,
+          inner_iters=aipp_st.inner_iters,
+          counts=aipp_st.counts,
+          sub_status=aipp_st.status,
+          penalty=st.penalty,
+          penalty_factor=self.penalty_factor,
+          penalty_max=self.penalty_max,
+          max_penalty_iters=self.max_penalty_iters,
+          norm_kind=self.norm_kind,
+          dtype=dtype,
       )
       L_next = aipp_st.lipschitz * (c_next / st.penalty)
-
-      tracker = st.tracker.update_incumbent(
-          cand_x,
-          cand_p,
-          cand_v,
-          cand_opt,
-          cand_feas,
-          cand_obj,
-      ).advance(
-          inner_inc=aipp_st.inner_iters,
-          smooth_inc=1,
-          counts_inc=aipp_st.counts,
-          max_iters=self.max_penalty_iters,
-          sub_status=aipp_st.status,
-      )
 
       return QPAIPPState(
           primal=cand_x,

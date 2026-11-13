@@ -101,6 +101,357 @@ class _ScaledProx:
     return self.base_prox.domain_project(x)
 
 
+def _aug_lagrangian(
+    problem: block_mod.BlockProblem,
+    bound_ops: tuple[typing.Any, ...],
+    u_blocks: tuple[_typing.PyTree, ...],
+    q_vec: _typing.PyTree,
+    c_val: jax.Array,
+) -> jax.Array:
+  """Evaluates the augmented Lagrangian ``L_c(u; q)``."""
+  res = problem.coupling_residual(u_blocks, bound_ops)
+  return (
+      problem.objective_value(u_blocks)
+      + tree.vdot(q_vec, res)
+      + 0.5 * c_val * tree.norm_sq(res)
+  )
+
+
+def _solve_block_with_halving(
+    problem: block_mod.BlockProblem,
+    bound_ops: tuple[typing.Any, ...],
+    t_idx: int,
+    blk: block_mod.BlockTerm,
+    op: typing.Any,
+    y_blocks: tuple[_typing.PyTree, ...],
+    y_t: _typing.PyTree,
+    shift_vec: _typing.PyTree,
+    q_vec: _typing.PyTree,
+    lam_t: jax.Array,
+    c_val: jax.Array,
+    lc_y: jax.Array,
+    tau_bar: jax.Array,
+    pf_cfg: pf_acg.PFACGConfig,
+    good_code: jax.Array,
+    opt_code: jax.Array,
+    max_lam_halvings: int,
+    jit: bool,
+    dtype: typing.Any,
+) -> tuple[
+    jax.Array,
+    _typing.PyTree,
+    _typing.PyTree,
+    base.OracleCounts,
+    jax.Array,
+]:
+  """Solves one block subproblem with backtracking on proximal step size."""
+  smooth_t = typing.cast(terms.SmoothObjective, blk.smooth)
+  num_blocks = len(y_blocks)
+  zero_int = jnp.asarray(0, dtype=jnp.int32)
+
+  def _halve_cond(
+      st: tuple[
+          jax.Array,
+          _typing.PyTree,
+          _typing.PyTree,
+          jax.Array,
+          jax.Array,
+          base.OracleCounts,
+          jax.Array,
+      ],
+  ) -> jax.Array:
+    _, _, _, ok, it_h, _, _ = st
+    return (~ok) & (it_h < max_lam_halvings)
+
+  def _halve_body(
+      st: tuple[
+          jax.Array,
+          _typing.PyTree,
+          _typing.PyTree,
+          jax.Array,
+          jax.Array,
+          base.OracleCounts,
+          jax.Array,
+      ],
+  ) -> tuple[
+      jax.Array,
+      _typing.PyTree,
+      _typing.PyTree,
+      jax.Array,
+      jax.Array,
+      base.OracleCounts,
+      jax.Array,
+  ]:
+    lam_cur, _, _, _, it_h, cnt_cur, in_cur = st
+    sub_smooth = _BlockSubSmooth(
+        base_smooth=smooth_t,
+        linear_op=op,
+        shift_vec=shift_vec,
+        q_vec=q_vec,
+        y_t=y_t,
+        lam_t=lam_cur,
+        c_val=c_val,
+    )
+    sub_prox = _ScaledProx(base_prox=blk.proximal, lam_t=lam_cur)
+    sub_oracle = composite.CompositeOracle(
+        smooth=sub_smooth,
+        proximal=sub_prox,
+    )
+    pf_st = pf_acg.run_pf_acg(
+        sub_oracle,
+        y_t,
+        lipschitz_init=1.0 + lam_cur * c_val,
+        config=pf_cfg,
+        jit=jit,
+    )
+    z_cand = pf_st.y
+    w_cand = pf_st.r
+    pf_ok = (pf_st.status == good_code) | (pf_st.status == opt_code)
+
+    # Check block sufficient-decrease condition (eq. 14).
+    dz = tree.sub(z_cand, y_t)
+    y_trial = tree.add(y_t, tree.scale(tau_bar, dz))
+    trial_blocks = tuple(
+        y_trial if j == t_idx else y_blocks[j] for j in range(num_blocks)
+    )
+    lc_trial = _aug_lagrangian(problem, bound_ops, trial_blocks, q_vec, c_val)
+    d_az = op.matvec(dz)
+    req_dec = ((tau_bar**2) / (2.0 * lam_cur)) * tree.norm_sq(dz) + (
+        0.25 * c_val * tau_bar
+    ) * tree.norm_sq(d_az)
+    dec_ok = (lc_y - lc_trial) >= req_dec - 1e-10 * (1.0 + jnp.abs(lc_y))
+    ok = pf_ok & dec_ok
+    lam_min = jnp.asarray(1e-8, dtype=dtype)
+    lam_next = jnp.where(ok, lam_cur, jnp.maximum(0.5 * lam_cur, lam_min))
+    cnt_next = base.OracleCounts(
+        smooth_evals=cnt_cur.smooth_evals + pf_st.counts.smooth_evals,
+        grad_evals=cnt_cur.grad_evals + pf_st.counts.grad_evals,
+        prox_evals=cnt_cur.prox_evals + pf_st.counts.prox_evals,
+    )
+    return (
+        lam_next,
+        z_cand,
+        w_cand,
+        ok,
+        it_h + 1,
+        cnt_next,
+        in_cur + pf_st.iteration,
+    )
+
+  init_h = (
+      lam_t,
+      y_t,
+      tree.zeros_like(y_t),
+      jnp.asarray(False),
+      zero_int,
+      base.OracleCounts.zeros(),
+      zero_int,
+  )
+  lam_fin, z_t, w_t, _, _, cnt_t, in_t = jax.lax.while_loop(
+      _halve_cond, _halve_body, init_h
+  )
+  return lam_fin, z_t, w_t, cnt_t, in_t
+
+
+def _bisect_tau(
+    problem: block_mod.BlockProblem,
+    bound_ops: tuple[typing.Any, ...],
+    y_blocks: tuple[_typing.PyTree, ...],
+    z_blocks: tuple[_typing.PyTree, ...],
+    lam_next: tuple[jax.Array, ...],
+    q_vec: _typing.PyTree,
+    c_val: jax.Array,
+    lc_y: jax.Array,
+    tau_bar: jax.Array,
+    dtype: typing.Any,
+) -> jax.Array:
+  """Runs Appendix B's 8-step bisection search for relaxation ``tau``."""
+  dz_blocks = tuple(
+      tree.sub(z_t, y_t) for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
+  )
+  dz_lam_sum = sum(
+      (
+          tree.norm_sq(dz_t) / lam_t
+          for dz_t, lam_t in zip(dz_blocks, lam_next, strict=True)
+      ),
+      jnp.asarray(0.0, dtype=dtype),
+  )
+  daz_sum = sum(
+      (
+          tree.norm_sq(op.matvec(dz_t))
+          for op, dz_t in zip(bound_ops, dz_blocks, strict=True)
+      ),
+      jnp.asarray(0.0, dtype=dtype),
+  )
+
+  def _bisect_body(
+      _: int,
+      bounds: tuple[jax.Array, jax.Array],
+  ) -> tuple[jax.Array, jax.Array]:
+    tau_lo, tau_hi = bounds
+    tau_mid = 0.5 * (tau_lo + tau_hi)
+    y_mid = tuple(
+        tree.add(y_t, tree.scale(tau_mid, dz_t))
+        for y_t, dz_t in zip(y_blocks, dz_blocks, strict=True)
+    )
+    lc_mid = _aug_lagrangian(problem, bound_ops, y_mid, q_vec, c_val)
+    req = (
+        0.5 * (tau_mid**2) * dz_lam_sum
+        + (0.125 * c_val * tau_mid) * daz_sum
+    )
+    admissible = (lc_y - lc_mid) >= req - 1e-10 * (1.0 + jnp.abs(lc_y))
+    return (
+        jnp.where(admissible, tau_mid, tau_lo),
+        jnp.where(admissible, tau_hi, tau_mid),
+    )
+
+  tau_used, _ = jax.lax.fori_loop(
+      0,
+      8,
+      _bisect_body,
+      (tau_bar, jnp.asarray(1.0, dtype=dtype)),
+  )
+  return typing.cast(jax.Array, tau_used)
+
+
+def _p_abipp_step(
+    problem: block_mod.BlockProblem,
+    bound_ops: tuple[typing.Any, ...],
+    y_blocks: tuple[_typing.PyTree, ...],
+    q_vec: _typing.PyTree,
+    lam_blocks: tuple[jax.Array, ...],
+    c_val: jax.Array,
+    *,
+    tau_bar: jax.Array,
+    pf_cfg: pf_acg.PFACGConfig,
+    good_code: jax.Array,
+    opt_code: jax.Array,
+    max_lam_halvings: int,
+    adaptive_tau: bool,
+    jit: bool,
+    dtype: typing.Any,
+) -> tuple[
+    tuple[_typing.PyTree, ...],
+    tuple[jax.Array, ...],
+    tuple[_typing.PyTree, ...],
+    tuple[_typing.PyTree, ...],
+    jax.Array,
+    jax.Array,
+    base.OracleCounts,
+]:
+  """Executes one parallel `P-ABIPP` block step and returns KKT residual."""
+  zero_int = jnp.asarray(0, dtype=jnp.int32)
+  zero_val = jnp.asarray(0.0, dtype=dtype)
+  ay_list = [
+      op.matvec(y_t) for op, y_t in zip(bound_ops, y_blocks, strict=True)
+  ]
+  ay_res = problem.coupling_residual(y_blocks, bound_ops)
+  lc_y = _aug_lagrangian(problem, bound_ops, y_blocks, q_vec, c_val)
+
+  z_next_list: list[_typing.PyTree] = []
+  w_next_list: list[_typing.PyTree] = []
+  lam_next_list: list[jax.Array] = []
+  total_smooth = zero_int
+  total_grad = zero_int
+  total_prox = zero_int
+  total_inner = zero_int
+
+  for t_idx, (blk, op, y_t, ay_t, lam_t) in enumerate(
+      zip(
+          problem.blocks,
+          bound_ops,
+          y_blocks,
+          ay_list,
+          lam_blocks,
+          strict=True,
+      )
+  ):
+    shift_vec = tree.sub(ay_res, ay_t)
+    lam_fin, z_t, w_t, cnt_t, in_t = _solve_block_with_halving(
+        problem,
+        bound_ops,
+        t_idx,
+        blk,
+        op,
+        y_blocks,
+        y_t,
+        shift_vec,
+        q_vec,
+        lam_t,
+        c_val,
+        lc_y,
+        tau_bar,
+        pf_cfg,
+        good_code,
+        opt_code,
+        max_lam_halvings,
+        jit,
+        dtype,
+    )
+    z_next_list.append(z_t)
+    w_next_list.append(w_t)
+    lam_next_list.append(lam_fin)
+    total_smooth = total_smooth + cnt_t.smooth_evals
+    total_grad = total_grad + cnt_t.grad_evals
+    total_prox = total_prox + cnt_t.prox_evals
+    total_inner = total_inner + in_t
+
+  z_blocks = tuple(z_next_list)
+  lam_next = tuple(lam_next_list)
+  if adaptive_tau:
+    tau_used = _bisect_tau(
+        problem,
+        bound_ops,
+        y_blocks,
+        z_blocks,
+        lam_next,
+        q_vec,
+        c_val,
+        lc_y,
+        tau_bar,
+        dtype,
+    )
+  else:
+    tau_used = tau_bar
+
+  y_next = tuple(
+      tree.add(y_t, tree.scale(tau_used, tree.sub(z_t, y_t)))
+      for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
+  )
+
+  # Step 2: Compute exact coupled KKT residual r^+.
+  az_diff_total = tree.sub(
+      problem.coupling_residual(z_blocks, bound_ops),
+      ay_res,
+  )
+  r_list: list[_typing.PyTree] = []
+  for op, y_t, z_t, w_t, lam_t in zip(
+      bound_ops, y_blocks, z_blocks, w_next_list, lam_next, strict=True
+  ):
+    dz_t = tree.sub(z_t, y_t)
+    daz_other = tree.sub(az_diff_total, op.matvec(dz_t))
+    inv_lam = 1.0 / lam_t
+    r_t = tree.add(
+        tree.sub(tree.scale(inv_lam, w_t), tree.scale(inv_lam, dz_t)),
+        tree.scale(c_val, op.rmatvec(daz_other)),
+    )
+    r_list.append(r_t)
+
+  return (
+      y_next,
+      lam_next,
+      z_blocks,
+      tuple(r_list),
+      total_inner,
+      zero_val,
+      base.OracleCounts(
+          smooth_evals=total_smooth,
+          grad_evals=total_grad,
+          prox_evals=total_prox,
+      ),
+  )
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class PAdaptADMM:
   """Parallel Adaptive Proximal ADMM (`P-Adapt-ADMM`, arXiv:2611.00570).
@@ -194,269 +545,6 @@ class PAdaptADMM:
         int(pf_acg.PFACGStatus.OPT_TOL_SATISFIED), dtype=jnp.int32
     )
 
-    def _aug_lagrangian(
-        u_blocks: tuple[_typing.PyTree, ...],
-        q_vec: _typing.PyTree,
-        c_val: jax.Array,
-    ) -> jax.Array:
-      res = problem.coupling_residual(u_blocks, bound_ops)
-      return (
-          problem.objective_value(u_blocks)
-          + tree.vdot(q_vec, res)
-          + 0.5 * c_val * tree.norm_sq(res)
-      )
-
-    def _p_abipp(
-        y_blocks: tuple[_typing.PyTree, ...],
-        q_vec: _typing.PyTree,
-        lam_blocks: tuple[jax.Array, ...],
-        c_val: jax.Array,
-    ) -> tuple[
-        tuple[_typing.PyTree, ...],
-        tuple[jax.Array, ...],
-        tuple[_typing.PyTree, ...],
-        tuple[_typing.PyTree, ...],
-        jax.Array,
-        jax.Array,
-        base.OracleCounts,
-    ]:
-      ay_list = [
-          op.matvec(y_t)
-          for op, y_t in zip(bound_ops, y_blocks, strict=True)
-      ]
-      ay_res = problem.coupling_residual(y_blocks, bound_ops)
-      lc_y = _aug_lagrangian(y_blocks, q_vec, c_val)
-
-      z_next_list: list[_typing.PyTree] = []
-      w_next_list: list[_typing.PyTree] = []
-      lam_next_list: list[jax.Array] = []
-      total_smooth = zero_int
-      total_grad = zero_int
-      total_prox = zero_int
-      total_inner = zero_int
-
-      for t_idx, (blk, op, y_t, ay_t, lam_t) in enumerate(
-          zip(
-              problem.blocks,
-              bound_ops,
-              y_blocks,
-              ay_list,
-              lam_blocks,
-              strict=True,
-          )
-      ):
-        shift_vec = tree.sub(ay_res, ay_t)
-        smooth_t = typing.cast(terms.SmoothObjective, blk.smooth)
-
-        def _halve_cond(
-            st: tuple[
-                jax.Array,
-                _typing.PyTree,
-                _typing.PyTree,
-                jax.Array,
-                jax.Array,
-                base.OracleCounts,
-                jax.Array,
-            ],
-        ) -> jax.Array:
-          _, _, _, ok, it_h, _, _ = st
-          return (~ok) & (it_h < self.max_lam_halvings)
-
-        def _halve_body(
-            st: tuple[
-                jax.Array,
-                _typing.PyTree,
-                _typing.PyTree,
-                jax.Array,
-                jax.Array,
-                base.OracleCounts,
-                jax.Array,
-            ],
-            _t_idx: int = t_idx,
-            _blk: block_mod.BlockTerm = blk,
-            _op: typing.Any = op,
-            _y_t: _typing.PyTree = y_t,
-            _shift_vec: _typing.PyTree = shift_vec,
-            _smooth_t: terms.SmoothObjective = smooth_t,
-        ) -> tuple[
-            jax.Array,
-            _typing.PyTree,
-            _typing.PyTree,
-            jax.Array,
-            jax.Array,
-            base.OracleCounts,
-            jax.Array,
-        ]:
-          lam_cur, _, _, _, it_h, cnt_cur, in_cur = st
-          sub_smooth = _BlockSubSmooth(
-              base_smooth=_smooth_t,
-              linear_op=_op,
-              shift_vec=_shift_vec,
-              q_vec=q_vec,
-              y_t=_y_t,
-              lam_t=lam_cur,
-              c_val=c_val,
-          )
-          sub_prox = _ScaledProx(base_prox=_blk.proximal, lam_t=lam_cur)
-          sub_oracle = composite.CompositeOracle(
-              smooth=sub_smooth,
-              proximal=sub_prox,
-          )
-          pf_st = pf_acg.run_pf_acg(
-              sub_oracle,
-              _y_t,
-              lipschitz_init=1.0 + lam_cur * c_val,
-              config=pf_cfg,
-              jit=jit,
-          )
-          z_cand = pf_st.y
-          w_cand = pf_st.r
-          pf_ok = (pf_st.status == good_code) | (pf_st.status == opt_code)
-
-          # Check block sufficient-decrease condition (eq. 14).
-          dz = tree.sub(z_cand, _y_t)
-          y_trial = tree.add(_y_t, tree.scale(tau_bar, dz))
-          trial_blocks = tuple(
-              y_trial if j == _t_idx else y_blocks[j]
-              for j in range(num_blocks)
-          )
-          lc_trial = _aug_lagrangian(trial_blocks, q_vec, c_val)
-          d_az = _op.matvec(dz)
-          req_dec = ((tau_bar**2) / (2.0 * lam_cur)) * tree.norm_sq(dz) + (
-              0.25 * c_val * tau_bar
-          ) * tree.norm_sq(d_az)
-          dec_ok = (lc_y - lc_trial) >= req_dec - 1e-10 * (1.0 + jnp.abs(lc_y))
-          ok = pf_ok & dec_ok
-          lam_min = jnp.asarray(1e-8, dtype=dtype)
-          lam_next = jnp.where(
-              ok, lam_cur, jnp.maximum(0.5 * lam_cur, lam_min)
-          )
-          cnt_next = base.OracleCounts(
-              smooth_evals=cnt_cur.smooth_evals + pf_st.counts.smooth_evals,
-              grad_evals=cnt_cur.grad_evals + pf_st.counts.grad_evals,
-              prox_evals=cnt_cur.prox_evals + pf_st.counts.prox_evals,
-          )
-          return (
-              lam_next,
-              z_cand,
-              w_cand,
-              ok,
-              it_h + 1,
-              cnt_next,
-              in_cur + pf_st.iteration,
-          )
-
-        init_h = (
-            lam_t,
-            y_t,
-            tree.zeros_like(y_t),
-            jnp.asarray(False),
-            zero_int,
-            base.OracleCounts.zeros(),
-            zero_int,
-        )
-        lam_fin, z_t, w_t, _, _, cnt_t, in_t = jax.lax.while_loop(
-            _halve_cond, _halve_body, init_h
-        )
-        z_next_list.append(z_t)
-        w_next_list.append(w_t)
-        lam_next_list.append(lam_fin)
-        total_smooth = total_smooth + cnt_t.smooth_evals
-        total_grad = total_grad + cnt_t.grad_evals
-        total_prox = total_prox + cnt_t.prox_evals
-        total_inner = total_inner + in_t
-
-      z_blocks = tuple(z_next_list)
-      lam_next = tuple(lam_next_list)
-
-      if self.adaptive_tau:
-        dz_blocks = tuple(
-            tree.sub(z_t, y_t)
-            for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
-        )
-        dz_lam_sum = sum(
-            (
-                tree.norm_sq(dz_t) / lam_t
-                for dz_t, lam_t in zip(dz_blocks, lam_next, strict=True)
-            ),
-            jnp.asarray(0.0, dtype=dtype),
-        )
-        daz_sum = sum(
-            (
-                tree.norm_sq(op.matvec(dz_t))
-                for op, dz_t in zip(bound_ops, dz_blocks, strict=True)
-            ),
-            jnp.asarray(0.0, dtype=dtype),
-        )
-
-        def _bisect_body(
-            _: int,
-            bounds: tuple[jax.Array, jax.Array],
-        ) -> tuple[jax.Array, jax.Array]:
-          tau_lo, tau_hi = bounds
-          tau_mid = 0.5 * (tau_lo + tau_hi)
-          y_mid = tuple(
-              tree.add(y_t, tree.scale(tau_mid, dz_t))
-              for y_t, dz_t in zip(y_blocks, dz_blocks, strict=True)
-          )
-          lc_mid = _aug_lagrangian(y_mid, q_vec, c_val)
-          req = (
-              0.5 * (tau_mid**2) * dz_lam_sum
-              + (0.125 * c_val * tau_mid) * daz_sum
-          )
-          admissible = (lc_y - lc_mid) >= req - 1e-10 * (1.0 + jnp.abs(lc_y))
-          return (
-              jnp.where(admissible, tau_mid, tau_lo),
-              jnp.where(admissible, tau_hi, tau_mid),
-          )
-
-        tau_used, _ = jax.lax.fori_loop(
-            0,
-            8,
-            _bisect_body,
-            (tau_bar, jnp.asarray(1.0, dtype=dtype)),
-        )
-      else:
-        tau_used = tau_bar
-
-      y_next = tuple(
-          tree.add(y_t, tree.scale(tau_used, tree.sub(z_t, y_t)))
-          for y_t, z_t in zip(y_blocks, z_blocks, strict=True)
-      )
-
-      # Step 2: Compute exact coupled KKT residual r^+.
-      az_diff_total = tree.sub(
-          problem.coupling_residual(z_blocks, bound_ops),
-          ay_res,
-      )
-      r_list: list[_typing.PyTree] = []
-      for op, y_t, z_t, w_t, lam_t in zip(
-          bound_ops, y_blocks, z_blocks, w_next_list, lam_next, strict=True
-      ):
-        dz_t = tree.sub(z_t, y_t)
-        daz_other = tree.sub(az_diff_total, op.matvec(dz_t))
-        inv_lam = 1.0 / lam_t
-        r_t = tree.add(
-            tree.sub(tree.scale(inv_lam, w_t), tree.scale(inv_lam, dz_t)),
-            tree.scale(c_val, op.rmatvec(daz_other)),
-        )
-        r_list.append(r_t)
-
-      r_blocks = tuple(r_list)
-      return (
-          y_next,
-          lam_next,
-          z_blocks,
-          r_blocks,
-          total_inner,
-          zero_val,
-          base.OracleCounts(
-              smooth_evals=total_smooth,
-              grad_evals=total_grad,
-              prox_evals=total_prox,
-          ),
-      )
-
     # Outer stage loop state:
     # (x_s, p_s, v_s, gamma_s, c_s, feas_s, stat_s, stage_it, outer_it,
     #  inner_it, counts)
@@ -520,8 +608,21 @@ class PAdaptADMM:
             in_prev,
             cnt_prev,
         ) = ist
-        y_i, lam_i, z_i, r_i, inner_delta, _, cnt_delta = _p_abipp(
-            y_prev, q_prev, lam_prev, c_cur
+        y_i, lam_i, z_i, r_i, inner_delta, _, cnt_delta = _p_abipp_step(
+            problem,
+            bound_ops,
+            y_prev,
+            q_prev,
+            lam_prev,
+            c_cur,
+            tau_bar=tau_bar,
+            pf_cfg=pf_cfg,
+            good_code=good_code,
+            opt_code=opt_code,
+            max_lam_halvings=self.max_lam_halvings,
+            adaptive_tau=self.adaptive_tau,
+            jit=jit,
+            dtype=dtype,
         )
         az_res = problem.coupling_residual(z_i, bound_ops)
         q_cand = tree.add(q_prev, tree.scale(c_cur, az_res))
@@ -529,8 +630,8 @@ class PAdaptADMM:
         stat_ok = r_sq <= rho_sq
 
         t_i = t_prev + (
-            _aug_lagrangian(y_prev, q_prev, c_cur)
-            - _aug_lagrangian(y_i, q_prev, c_cur)
+            _aug_lagrangian(problem, bound_ops, y_prev, q_prev, c_cur)
+            - _aug_lagrangian(problem, bound_ops, y_i, q_prev, c_cur)
         )
         dq_sq = tree.norm_sq(tree.sub(q_cand, q_prev))
         max_dq_cand = jnp.maximum(max_dq_prev, dq_sq)
