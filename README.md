@@ -90,7 +90,15 @@ print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
    PyTree linear map and $\mathcal{C} \subseteq \mathbb{R}^m$ is a closed convex
    set with Euclidean projection $\Pi_{\mathcal{C}}$.
 
-3. **Matrix Spectral Composite Optimization (`px.SpectralProblem`):**
+3. **Min-Max & Saddle-Point Optimization (`px.MinMaxProblem`):**
+
+   $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h(x) - g(y)$$
+
+   where $\Phi(x, y)$ (`coupling`) is differentiable and $(h, g)$ (`prox_x`,
+   `prox_y`) are proper, closed, convex, and proximable over arbitrary JAX
+   PyTrees $(x, y)$.
+
+4. **Matrix Spectral Composite Optimization (`px.SpectralProblem`):**
 
    $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
 
@@ -104,6 +112,8 @@ print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
     `AdapFISTA`, `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`
 *   **Set / Cone-Constrained (`px.CompositeProblem` with `constraints`):**
     `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`, `SProxALM`
+*   **Min-Max & Saddle-Point (`px.MinMaxProblem`):** `ExtraGradient`, `PDHG`,
+    `ProxPointMinMax`
 *   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,
     `IAICG`
 *   **Optax Single-Step Transforms (`px.optax_compat`):** `proximal`, `apd`,
