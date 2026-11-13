@@ -49,7 +49,7 @@ Learn how to assemble problems, pick solvers, combine `prox` operators and
 :::
 
 :::{grid-item-card} Worked Examples
-:link: examples/unconstrained
+:link: examples/index
 :link-type: doc
 
 Walk through complete runnable benchmarks: simplex QPs, nonconvex SVMs,
@@ -205,11 +205,7 @@ guide/solving_problems
 guide/prox_and_constraints
 guide/optax_and_jax
 guide/plotting
-examples/unconstrained
-examples/constrained
-examples/minmax
-examples/block
-examples/spectral
+examples/index
 ```
 
 ```{toctree}
