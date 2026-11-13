@@ -82,3 +82,28 @@ def test_panoc_vmap_batching() -> None:
   batched = jax.jit(jax.vmap(_solve_one))(targets)
   assert batched.status.shape == (2,)
   assert jnp.all(batched.status == 0)
+
+
+def test_ialm_with_panoc_subproblem_solver() -> None:
+  """`IALM(subproblem_solver='panoc')` / `method='panoc_alm'` converges."""
+  scales = jnp.array([25.0, 4.0, 0.2])
+  target = jnp.array([1.2, -0.8, 0.5])
+
+  def _loss(x: jax.Array) -> jax.Array:
+    return 0.5 * jnp.sum(scales * (x - target) ** 2)
+
+  prob = px.CompositeProblem(
+      smooth=px.oracle.as_smooth_term(_loss),
+      proximal=px.prox.Box(lower=-1.0, upper=1.0),
+      constraints=px.constraints.equality(jnp.sum, rhs=0.5),
+  )
+  sol = px.solve(
+      prob,
+      jnp.zeros(3),
+      method="panoc_alm",
+      opt_tol=1e-4,
+      feas_tol=1e-4,
+  )
+  assert sol.status_enum == px.SolveStatus.CONVERGED
+  assert float(sol.stats.opt_residual) <= 1e-4
+  assert float(sol.stats.feas_residual) <= 1e-4

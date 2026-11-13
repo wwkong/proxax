@@ -85,6 +85,9 @@ _COMPOSITE_METHODS: dict[str, _SolverFactory] = {
     "qp_aipp": lambda ot, ft: qp_aipp.QPAIPP(opt_tol=ot, feas_tol=ft),
     "qp_apd": lambda ot, ft: qp_apd.QPAPD(opt_tol=ot, feas_tol=ft),
     "ialm": lambda ot, ft: ialm.IALM(opt_tol=ot, feas_tol=ft),
+    "panoc_alm": lambda ot, ft: ialm.IALM(
+        opt_tol=ot, feas_tol=ft, subproblem_solver="panoc"
+    ),
     "nl_iapial": lambda ot, ft: ialm.IALM(
         opt_tol=ot,
         feas_tol=ft,

@@ -185,9 +185,11 @@ class PANOC:
 
   def solve_oracle(
       self,
-      oracle: composite.CompositeOracle,
+      oracle: composite.CompositeOracleProtocol,
       x0: _typing.PyTree,
       *,
+      lipschitz_init: jax.Array | float | None = None,
+      opt_tol_override: jax.Array | float | None = None,
       jit: bool = True,
       callback: typing.Any = None,
       time_limit: float | None = None,
@@ -195,13 +197,16 @@ class PANOC:
     """Solves a `CompositeOracle` directly using `PANOC`."""
     dtype = tree.infer_dtype(x0)
     x_dom0 = oracle.domain_project(x0)
-    lip_guess = (
-        float(oracle.curvature_upper)
-        if oracle.curvature_upper is not None
-        and float(oracle.curvature_upper) > 0.0
-        else float(self.lipschitz_init)
-    )
-    L_seed = jnp.asarray(lip_guess, dtype=dtype)
+    if lipschitz_init is not None:
+      L_seed = jnp.asarray(lipschitz_init, dtype=dtype)
+    else:
+      lip_guess = (
+          float(oracle.curvature_upper)
+          if oracle.curvature_upper is not None
+          and float(oracle.curvature_upper) > 0.0
+          else float(self.lipschitz_init)
+      )
+      L_seed = jnp.asarray(lip_guess, dtype=dtype)
     ref0 = certificates.refine(oracle, x_dom0, L_seed, jit=jit)
     L0 = ref0.lipschitz_used
     res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
@@ -212,6 +217,7 @@ class PANOC:
         obj=ref0.obj_val,
         opt_tol=self.opt_tol,
         rel_opt_tol=self.rel_opt_tol,
+        opt_tol_override=opt_tol_override,
         smooth_evals=ref0.smooth_evals,
         grad_evals=ref0.grad_evals,
         prox_evals=ref0.prox_evals,

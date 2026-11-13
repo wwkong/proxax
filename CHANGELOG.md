@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-13
+
+### Added
+- Wired `PANOC` as an inner subproblem solver in `IALM` (`subproblem_solver="panoc"` and `px.solve(..., method="panoc_alm")`), with optional `lipschitz_init` and `opt_tol_override` overrides on `PANOC.solve_oracle`.
+- Added ill-conditioned & exotic-prox benchmark suite in `experiments/panoc_benchmarks/run.py`, report in `docs/experiments/panoc_benchmarks.md`, and performance profile plot in `docs/_static/plots/panoc_benchmark_profile.svg`.
+- Added differentiable optimization layer example `examples/diff_capped_simplex.py` combining `px.implicit_solve(..., method="panoc")`, `CappedSimplex`, and `optax.adam`.
+
 ## [0.2.2] - 2026-11-13
 
 ### Added

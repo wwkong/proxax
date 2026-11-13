@@ -16,6 +16,7 @@ from proxax.oracle import composite
 from proxax.solvers import base
 from proxax.solvers.unconstrained import aipp as aipp_mod
 from proxax.solvers.unconstrained import apd as apd_mod
+from proxax.solvers.unconstrained import panoc as panoc_mod
 
 
 @jax.tree_util.register_dataclass
@@ -127,10 +128,10 @@ class IALM:
   def __post_init__(self) -> None:
     """Validates `IALM` hyperparameters."""
     key = self.subproblem_solver.strip().lower().replace("-", "_")
-    if key not in ("apd", "pf_apd", "aipp"):
+    if key not in ("apd", "pf_apd", "aipp", "panoc"):
       raise ValueError(
           f"Unsupported `subproblem_solver` {self.subproblem_solver!r}; "
-          "expected 'apd' or 'aipp'."
+          "expected 'apd', 'aipp', or 'panoc'."
       )
     if not (0.0 <= self.dampen < 1.0):
       raise ValueError("`dampen` must lie in `[0, 1)`.")
@@ -147,6 +148,11 @@ class IALM:
   def _uses_apd(self) -> bool:
     key = self.subproblem_solver.strip().lower().replace("-", "_")
     return key in ("apd", "pf_apd")
+
+  @property
+  def _uses_panoc(self) -> bool:
+    key = self.subproblem_solver.strip().lower().replace("-", "_")
+    return key == "panoc"
 
   def solve_state(
       self,
@@ -179,12 +185,13 @@ class IALM:
         else tree.as_float_tree(dual0)
     )
     use_apd = self._uses_apd
+    use_panoc = self._uses_panoc
     L0_base = jnp.asarray(self.lipschitz_init, dtype=dtype)
     extra_s_evals = jnp.asarray(0, dtype=jnp.int32)
     extra_g_evals = jnp.asarray(0, dtype=jnp.int32)
     extra_p_evals = jnp.asarray(0, dtype=jnp.int32)
 
-    if use_apd:
+    if use_apd or use_panoc:
       lam0 = jnp.asarray(1.0, dtype=dtype)
     elif self.lam_init is not None:
       lam0 = jnp.asarray(self.lam_init, dtype=dtype)
@@ -293,6 +300,13 @@ class IALM:
         max_outer_iters=self.max_subproblem_iters,
         max_inner_iters=self.max_inner_iters,
     )
+    panoc_solver = panoc_mod.PANOC(
+        opt_tol=self.opt_tol,
+        rel_opt_tol=0.0,
+        norm_kind=self.norm_kind,
+        lipschitz_init=self.lipschitz_init,
+        max_iters=self.max_subproblem_iters,
+    )
     aipp_solver = aipp_mod.AIPP(
         opt_tol=self.opt_tol,
         rel_opt_tol=0.0,
@@ -304,6 +318,13 @@ class IALM:
         lipschitz_init=self.lipschitz_init,
         max_outer_iters=self.max_subproblem_iters,
         max_inner_iters=self.max_inner_iters,
+    )
+    panoc_solver = panoc_mod.PANOC(
+        opt_tol=self.opt_tol,
+        rel_opt_tol=0.0,
+        norm_kind=self.norm_kind,
+        lipschitz_init=self.lipschitz_init,
+        max_iters=self.max_subproblem_iters,
     )
     start_wall = (
         time.perf_counter() if (not jit and time_limit is not None) else 0.0
@@ -340,6 +361,24 @@ class IALM:
         sub_in_iters = apd_st.inner_iters
         sub_counts = apd_st.counts
         sub_status = apd_st.status
+      elif use_panoc:
+        panoc_st = panoc_solver.solve_oracle(
+            pen_oracle,
+            st.primal,
+            lipschitz_init=st.upper_curvature,
+            opt_tol_override=st.target_opt_tol,
+            jit=jit,
+            time_limit=rem_time,
+        )
+        cand_x = panoc_st.best_x
+        cand_v = panoc_st.best_subgrad
+        cand_opt = panoc_st.best_opt_res
+        lam_next = st.lam
+        m_next = st.lower_curvature
+        upper_used = panoc_st.lipschitz
+        sub_in_iters = panoc_st.outer_iters
+        sub_counts = panoc_st.counts
+        sub_status = panoc_st.status
       else:
         aipp_st = aipp_solver.solve_oracle(
             pen_oracle,
