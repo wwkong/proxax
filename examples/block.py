@@ -8,7 +8,6 @@ Covers two benchmark families using `px.BlockProblem`:
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 
 from proxax import px
@@ -17,10 +16,9 @@ from proxax import px
 def run_two_block_lasso_splitting() -> None:
   """Solves `min 0.5 ||A x - b||_2^2 + lam ||z||_1 s.t. x - z = 0`."""
   print("=== 1. Two-Block Lasso Splitting ===")
-  key = jax.random.key(0)
-  a_mat = jax.random.normal(key, (6, 4))
-  b_vec = jnp.array([1.0, -0.5, 0.2, 0.8, -1.2, 0.3])
-  lam = 0.25
+  a_mat = jnp.array([[2.0, 0.5, -0.3], [0.0, 1.5, 0.4], [-0.2, 0.3, 1.8]])
+  b_vec = jnp.array([1.0, -0.5, 0.8])
+  lam = 0.2
 
   block1 = px.BlockTerm(
       smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2),
@@ -28,21 +26,21 @@ def run_two_block_lasso_splitting() -> None:
   )
   block2 = px.BlockTerm(
       proximal=px.prox.L1(weight=lam),
-      linear_op=-jnp.eye(4),
+      linear_op=-jnp.eye(3),
   )
   problem = px.BlockProblem(blocks=(block1, block2), rhs=0.0)
-  x0 = (jnp.zeros(4), jnp.zeros(4))
+  x0 = (jnp.zeros(3), jnp.zeros(3))
 
   solvers = [
-      ("ADMM", px.solvers.ADMM(opt_tol=1e-4, feas_tol=1e-4, rho=2.0)),
-      ("DPADMM", px.solvers.DPADMM(opt_tol=1e-4, feas_tol=1e-4, c_init=1.0)),
+      ("ADMM", px.solvers.ADMM(opt_tol=1e-3, feas_tol=1e-3, rho=2.0)),
+      ("DPADMM", px.solvers.DPADMM(opt_tol=1e-3, feas_tol=1e-3, c_init=1.0)),
       (
           "PAdaptADMM",
           px.solvers.PAdaptADMM(
-              opt_tol=1e-4,
-              feas_tol=1e-4,
+              opt_tol=1e-3,
+              feas_tol=1e-3,
               gamma_init=10.0,
-              lmt_bound=1e-1,
+              lmt_bound=1.0,
               adaptive_tau=True,
           ),
       ),
@@ -86,18 +84,18 @@ def run_three_block_nonconvex_splitting() -> None:
   x0 = (jnp.zeros(3), jnp.zeros(3), jnp.zeros(3))
 
   solvers = [
-      ("DPADMM", px.solvers.DPADMM(opt_tol=1e-4, feas_tol=1e-4, c_init=1.0)),
+      ("DPADMM", px.solvers.DPADMM(opt_tol=1e-3, feas_tol=1e-3, c_init=1.0)),
       (
           "PAdaptADMM",
           px.solvers.PAdaptADMM(
-              opt_tol=1e-4,
-              feas_tol=1e-4,
+              opt_tol=1e-3,
+              feas_tol=1e-3,
               gamma_init=10.0,
-              lmt_bound=1e-1,
+              lmt_bound=1.0,
               adaptive_tau=True,
           ),
       ),
-      ("ADMM", px.solvers.ADMM(opt_tol=1e-4, feas_tol=1e-4, rho=2.0)),
+      ("ADMM", px.solvers.ADMM(opt_tol=1e-3, feas_tol=1e-3, rho=2.0)),
   ]
   for name, solver in solvers:
     sol = px.solve(problem, x0, solver=solver)
