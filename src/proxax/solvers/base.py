@@ -981,6 +981,8 @@ class HistoryTracker:
     grad_evals: Recorded cumulative gradient evaluations.
     prox_evals: Recorded cumulative proximal evaluations.
     elapsed_times: Wall-clock seconds since tracker creation.
+    record_iterates: If `True`, also stores `state.best_x` in `self.iterates`.
+    iterates: Recorded primal iterates when `record_iterates=True`.
   """
 
   _supports_jit_callback: typing.ClassVar[bool] = True
@@ -990,12 +992,14 @@ class HistoryTracker:
       *,
       verbose: bool = False,
       print_every: int = 1,
+      record_iterates: bool = False,
   ) -> None:
     """Initializes an empty history tracker."""
     if print_every < 1:
       raise ValueError("`print_every` must be >= 1.")
     self.verbose = verbose
     self.print_every = print_every
+    self.record_iterates = record_iterates
     self.outer_iters: list[int] = []
     self.inner_iters: list[int] = []
     self.obj_vals: list[float] = []
@@ -1007,6 +1011,7 @@ class HistoryTracker:
     self.grad_evals: list[int] = []
     self.prox_evals: list[int] = []
     self.elapsed_times: list[float] = []
+    self.iterates: list[_typing.PyTree] = []
     self._t0 = time.perf_counter()
     self._printed_header = False
 
@@ -1040,6 +1045,8 @@ class HistoryTracker:
     self.grad_evals.append(int(counts.grad_evals))
     self.prox_evals.append(int(counts.prox_evals))
     self.elapsed_times.append(elapsed)
+    if self.record_iterates:
+      self.iterates.append(state.best_x)
 
     should_print = (
         not self._printed_header

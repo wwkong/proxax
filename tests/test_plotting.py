@@ -22,8 +22,15 @@ class _FakeAxis:
     self.figure = figure
     self.lines: list[tuple[list[typing.Any], list[typing.Any], str | None]] = []
     self.steps: list[tuple[list[typing.Any], list[typing.Any], str | None]] = []
+    self.bars: list[tuple[list[typing.Any], list[float], str | None]] = []
+    self.stems: list[tuple[list[typing.Any], list[float], str | None]] = []
+    self.scatters: list[tuple[list[float], list[float], str | None]] = []
     self.hlines: list[float] = []
+    self.xscale: str | None = None
     self.yscale: str | None = None
+    self.inverted_xaxis = False
+    self.xticks: list[typing.Any] = []
+    self.xticklabels: list[str] = []
     self.xlabel: str | None = None
     self.ylabel: str | None = None
     self.title: str | None = None
@@ -52,8 +59,52 @@ class _FakeAxis:
   def axhline(self, y: float, **_: typing.Any) -> None:
     self.hlines.append(float(y))
 
+  def bar(
+      self,
+      xs: typing.Sequence[typing.Any],
+      heights: typing.Sequence[float],
+      *,
+      label: str | None = None,
+      **_: typing.Any,
+  ) -> None:
+    self.bars.append((list(xs), [float(h) for h in heights], label))
+
+  def stem(
+      self,
+      xs: typing.Sequence[typing.Any],
+      ys: typing.Sequence[float],
+      *,
+      label: str | None = None,
+      **_: typing.Any,
+  ) -> None:
+    self.stems.append((list(xs), [float(y) for y in ys], label))
+
+  def scatter(
+      self,
+      xs: typing.Sequence[float],
+      ys: typing.Sequence[float],
+      *,
+      label: str | None = None,
+      **_: typing.Any,
+  ) -> None:
+    self.scatters.append(
+        ([float(x) for x in xs], [float(y) for y in ys], label)
+    )
+
+  def set_xticks(self, ticks: typing.Sequence[typing.Any]) -> None:
+    self.xticks = list(ticks)
+
+  def set_xticklabels(self, labels: typing.Sequence[str]) -> None:
+    self.xticklabels = list(labels)
+
+  def set_xscale(self, value: str) -> None:
+    self.xscale = value
+
   def set_yscale(self, value: str) -> None:
     self.yscale = value
+
+  def invert_xaxis(self) -> None:
+    self.inverted_xaxis = True
 
   def set_xlabel(self, label: str) -> None:
     self.xlabel = label
@@ -233,3 +284,74 @@ def test_missing_matplotlib_error_and_jit_compat(
 
   sol = _roundtrip(jnp.zeros(2))
   assert sol.history is None
+
+
+def test_new_diagnostic_plots_and_record_iterates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """Eval breakdown, tolerance scaling, phase portrait, and sparse recovery."""
+  _install_fake_pyplot(monkeypatch)
+
+  sol = px.solvers.SolverTracker.from_init(
+      x=jnp.zeros(2),
+      subgrad=jnp.zeros(2),
+      opt_res=jnp.asarray(0.0),
+      obj=jnp.asarray(0.0),
+      opt_tol=1e-5,
+  ).to_solution()
+  fig, axes = px.plotting.plot_eval_breakdown(
+      {"A": sol, "B": sol},
+      runtimes={"A": 0.01, "B": 0.02},
+      title="Breakdown",
+  )
+  assert len(axes) == 2
+  assert fig.title == "Breakdown"
+  assert len(axes[0].bars) == 3
+  assert len(axes[1].bars) == 1
+
+  _, tol_ax = px.plotting.plot_tolerance_scaling(
+      [1e-2, 1e-3, 1e-4],
+      {"A": [10.0, 20.0, 40.0]},
+      title="Scaling",
+  )
+  assert tol_ax.xscale == "log"
+  assert tol_ax.yscale == "log"
+  assert tol_ax.inverted_xaxis
+
+  _, phase_ax = px.plotting.plot_phase_trajectory(
+      {"EG": ([1.0, 0.5, 0.0], [1.0, -0.2, 0.0])},
+      optimum=(0.0, 0.0),
+      title="Phase",
+  )
+  assert len(phase_ax.lines) == 1
+  assert len(phase_ax.scatters) == 1
+
+  _, sparse_ax = px.plotting.plot_sparse_recovery(
+      {"L1": jnp.array([1.0, 0.0, -0.5])},
+      truth=jnp.array([1.2, 0.0, -0.6]),
+      title="Sparse",
+  )
+  assert len(sparse_ax.stems) == 1
+  assert len(sparse_ax.lines) == 1
+
+  def _quad_loss(x: jax.Array) -> jax.Array:
+    target = jnp.array([1.0, -2.0])
+    weights = jnp.array([5.0, 0.2])
+    return 0.5 * jnp.sum(weights * (x - target) ** 2)
+
+  tracker = px.HistoryTracker(record_iterates=True)
+  x0 = jnp.array([-3.0, 4.0])
+  problem = px.CompositeProblem(
+      smooth=px.oracle.as_smooth_term(_quad_loss),
+      proximal=px.prox.L1(0.1),
+  )
+  sol_apd = px.solve(
+      problem,
+      x0,
+      method="apd",
+      opt_tol=1e-8,
+      callback=tracker,
+  )
+  assert len(tracker.iterates) >= 2
+  assert len(tracker.iterates) == len(tracker.opt_residuals)
+  assert jnp.allclose(jnp.asarray(tracker.iterates[-1]), sol_apd.x)

@@ -111,3 +111,69 @@ fig, ax = px.plotting.plot_performance_profile(
 ```
 
 ![Lasso Benchmark Performance Profile](../_static/plots/performance_profile.svg)
+
+## 5. Oracle Evaluation Breakdown (`plot_eval_breakdown`)
+
+To see where each solver spends its computational budget — smooth function
+evaluations, gradient evaluations, proximal evaluations, and optionally
+warm-started steady-state runtime — pass a mapping of `Solution` objects (and
+optional `runtimes`) to `px.plotting.plot_eval_breakdown`:
+
+```python
+fig, axes = px.plotting.plot_eval_breakdown(
+    solutions,
+    runtimes=runtimes,
+    title="Lasso Solver Oracle Breakdown & Steady-State Runtime",
+)
+```
+
+![Lasso Solver Oracle Breakdown & Steady-State Runtime](../_static/plots/eval_breakdown.svg)
+
+## 6. Tolerance Scaling (`plot_tolerance_scaling`)
+
+To inspect empirical complexity (how oracle evaluations grow as the optimality
+tolerance `opt_tol` is tightened), pass the tolerance sequence and a mapping of
+per-solver evaluation counts to `px.plotting.plot_tolerance_scaling`:
+
+```python
+fig, ax = px.plotting.plot_tolerance_scaling(
+    tols,
+    evals_by_solver,
+    title="Lasso Oracle Complexity vs. Tolerance",
+)
+```
+
+![Lasso Oracle Complexity vs. Tolerance](../_static/plots/tolerance_scaling.svg)
+
+## 7. Min-Max Phase Trajectory (`plot_phase_trajectory`)
+
+For 2D saddle-point problems, enable `record_iterates=True` on
+`px.HistoryTracker` and pass the `(x_k, y_k)` trajectories to
+`px.plotting.plot_phase_trajectory` to visualize cycling vs. convergence around
+the saddle point:
+
+```python
+fig, ax = px.plotting.plot_phase_trajectory(
+    trajectories,
+    optimum=(0.0, 0.0),
+    title="Bilinear Min-Max Phase Portrait",
+)
+```
+
+![Bilinear Min-Max Phase Portrait](../_static/plots/minmax_phase.svg)
+
+## 8. Sparse Signal Recovery (`plot_sparse_recovery`)
+
+To compare sparse solutions recovered by convex (`L1`) and folded-concave
+(`SCAD`, `MCP`) regularizers against a ground-truth vector, pass the estimate
+mapping and `truth` to `px.plotting.plot_sparse_recovery`:
+
+```python
+fig, ax = px.plotting.plot_sparse_recovery(
+    estimates,
+    truth=x_true,
+    title="Sparse Signal Recovery: L1 vs. SCAD vs. MCP",
+)
+```
+
+![Sparse Signal Recovery: L1 vs. SCAD vs. MCP](../_static/plots/sparse_recovery.svg)
