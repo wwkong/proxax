@@ -34,6 +34,11 @@ Accelerator (`vmap` / `jit` / GPU) throughput and batch-scaling studies:
 Reproductions of published benchmark tables using `proxax`:
 
 * [`PAdaptADMM` CPU Benchmarks (Maia et al., 2026 — Table 1 DQP)](maia2026_table1_dqp.md)
+* [Curvature-Free Nonconvex QPs (Kong, SIOPT 2024)](kong2024_spectrahedron.md)
+* [ALM vs. Quadratic Penalty on Constrained NCO (Kong et al., 2023)](kong2023_alm_vs_qp.md)
+* [Multi-Block Nonconvex Splitting: `DPADMM` vs. `PAdaptADMM` (Kong & Monteiro, SIOPT 2024)](kong2024_dpadmm.md)
+* [Nonconvex Spectral Composite Optimization (Kong & Monteiro, COAP 2022)](kong2022_spectral.md)
+* [Nonconvex-Concave Min-Max Optimization (Kong & Monteiro, SIOPT 2021)](kong2021_minmax.md)
 
 ```{toctree}
 :maxdepth: 1
@@ -60,4 +65,9 @@ vmap_implicit_benchmarks
 :caption: Literature Replications
 
 maia2026_table1_dqp
+kong2024_spectrahedron
+kong2023_alm_vs_qp
+kong2024_dpadmm
+kong2022_spectral
+kong2021_minmax
 ```
