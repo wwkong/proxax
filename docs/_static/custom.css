@@ -63,3 +63,11 @@ table.grouped-4-table tbody tr:nth-child(4n):not(:last-child) td,
 .grouped-4-table table tbody tr:nth-child(4n):not(:last-child) td {
   border-bottom: 2px solid var(--pst-color-text-muted);
 }
+
+/* Make SVG plots fill the horizontal article width cleanly */
+.bd-article img[src*="_static/plots/"][src$=".svg"] {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0.375rem;
+}
