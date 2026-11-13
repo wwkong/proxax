@@ -9,7 +9,7 @@ os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 project = "Proxax"
 author = "Weiwei Kong"
 copyright = "2026, Weiwei Kong"
-release = "0.0.4"
+release = "0.0.5"
 
 extensions = [
     "myst_parser",
