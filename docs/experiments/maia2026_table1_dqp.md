@@ -61,7 +61,7 @@ in Maia–Monteiro–Silva (2026).
 ## Reproduction
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python experiments/maia2026_table1_dqp/run.py
+uv run python experiments/maia2026_table1_dqp/run.py
 ```
 
 Script: `experiments/maia2026_table1_dqp/run.py`

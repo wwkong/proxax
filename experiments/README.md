@@ -37,5 +37,5 @@ appears in the **Experiments** section of the documentation.
 ## Running
 
 ```bash
-XLA_PYTHON_CLIENT_PREALLOCATE=false uv run python experiments/<study>/run.py
+uv run python experiments/<study>/run.py
 ```
