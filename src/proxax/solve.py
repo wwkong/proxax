@@ -6,6 +6,7 @@ import typing
 
 from proxax import _typing
 from proxax import problem as problem_mod
+from proxax.oracle import minmax
 from proxax.oracle import spectral
 from proxax.solvers import base
 from proxax.solvers.constrained import iaipal
@@ -13,6 +14,9 @@ from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
 from proxax.solvers.constrained import s_prox_alm
+from proxax.solvers.minmax import extra_gradient
+from proxax.solvers.minmax import pdhg
+from proxax.solvers.minmax import prox_point
 from proxax.solvers.unconstrained import ac_acg
 from proxax.solvers.unconstrained import adap_apg
 from proxax.solvers.unconstrained import adap_fista
@@ -27,10 +31,14 @@ from proxax.solvers.unconstrained import upfag
 
 
 def solve(
-    problem: problem_mod.CompositeProblem | spectral.SpectralProblem,
+    problem: (
+        problem_mod.CompositeProblem
+        | minmax.MinMaxProblem
+        | spectral.SpectralProblem
+    ),
     x0: _typing.PyTree,
     *,
-    solver: base.Solver | None = None,
+    solver: typing.Any = None,
     method: str | None = None,
     opt_tol: float = 1e-5,
     feas_tol: float = 1e-5,
@@ -66,6 +74,53 @@ def solve(
   """
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
+
+  if isinstance(problem, minmax.MinMaxProblem):
+    mm_x0 = typing.cast(tuple[_typing.PyTree, _typing.PyTree], x0)
+    if solver is not None:
+      return typing.cast(
+          base.Solution,
+          solver.solve(
+              problem,
+              mm_x0,
+              jit=jit,
+              callback=callback,
+              time_limit=time_limit,
+          ),
+      )
+    if method is None:
+      if problem.m_x is not None or problem.m_y is not None:
+        return prox_point.ProxPointMinMax(opt_tol=opt_tol).solve(
+            problem,
+            mm_x0,
+            jit=jit,
+            callback=callback,
+            time_limit=time_limit,
+        )
+      return extra_gradient.ExtraGradient(opt_tol=opt_tol).solve(
+          problem,
+          mm_x0,
+          jit=jit,
+          callback=callback,
+          time_limit=time_limit,
+      )
+    mm_key = method.strip().lower().replace("-", "_")
+    if mm_key == "pdhg":
+      return pdhg.PDHG(opt_tol=opt_tol).solve(
+          problem, mm_x0, jit=jit, callback=callback, time_limit=time_limit
+      )
+    if mm_key in ("extra_gradient", "extragradient", "eg", "mirror_prox"):
+      return extra_gradient.ExtraGradient(opt_tol=opt_tol).solve(
+          problem, mm_x0, jit=jit, callback=callback, time_limit=time_limit
+      )
+    if mm_key in ("prox_point_minmax", "prox_point", "ppm"):
+      return prox_point.ProxPointMinMax(opt_tol=opt_tol).solve(
+          problem, mm_x0, jit=jit, callback=callback, time_limit=time_limit
+      )
+    raise ValueError(
+        f"Unknown min-max solver `method` {method!r}; expected 'pdhg', "
+        "'extra_gradient', or 'prox_point_minmax'."
+    )
 
   if isinstance(solver, ia_icg.IAICG | da_icg.DAICG):
     return solver.solve(

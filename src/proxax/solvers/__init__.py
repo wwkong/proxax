@@ -5,6 +5,7 @@ from __future__ import annotations
 from proxax.solvers import base
 from proxax.solvers import constrained
 from proxax.solvers import inner
+from proxax.solvers import minmax
 from proxax.solvers import unconstrained
 
 ACACG = unconstrained.ACACG
@@ -27,6 +28,8 @@ DAICG = unconstrained.DAICG
 DAICGState = unconstrained.DAICGState
 ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
+ExtraGradient = minmax.ExtraGradient
+ExtraGradientState = minmax.ExtraGradientState
 IALM = constrained.IALM
 IALMState = constrained.IALMState
 IAICG = unconstrained.IAICG
@@ -36,9 +39,13 @@ IAIPALState = constrained.IAIPALState
 NCFISTA = unconstrained.NCFISTA
 NCFISTAState = unconstrained.NCFISTAState
 OracleCounts = base.OracleCounts
+PDHG = minmax.PDHG
+PDHGState = minmax.PDHGState
 PFACGConfig = inner.PFACGConfig
 PFACGState = inner.PFACGState
 PFACGStatus = inner.PFACGStatus
+ProxPointMinMax = minmax.ProxPointMinMax
+ProxPointMinMaxState = minmax.ProxPointMinMaxState
 QPAIPP = constrained.QPAIPP
 QPAIPPState = constrained.QPAIPPState
 QPAPD = constrained.QPAPD
@@ -75,6 +82,8 @@ __all__ = [
     "DAICGState",
     "ECG",
     "ECGState",
+    "ExtraGradient",
+    "ExtraGradientState",
     "IALM",
     "IALMState",
     "IAICG",
@@ -84,9 +93,13 @@ __all__ = [
     "NCFISTA",
     "NCFISTAState",
     "OracleCounts",
+    "PDHG",
+    "PDHGState",
     "PFACGConfig",
     "PFACGState",
     "PFACGStatus",
+    "ProxPointMinMax",
+    "ProxPointMinMaxState",
     "QPAIPP",
     "QPAIPPState",
     "QPAPD",
@@ -103,5 +116,6 @@ __all__ = [
     "UPFAGState",
     "constrained",
     "inner",
+    "minmax",
     "unconstrained",
 ]

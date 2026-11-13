@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from proxax.oracle import composite
+from proxax.oracle import minmax
 from proxax.oracle import spectral
 from proxax.oracle import terms
 
 CompositeOracle = composite.CompositeOracle
 CompositeOracleProtocol = composite.CompositeOracleProtocol
+MinMaxOracle = minmax.MinMaxOracle
+MinMaxProblem = minmax.MinMaxProblem
 PenalizedOracle = composite.PenalizedOracle
 ProxRegularizedOracle = composite.ProxRegularizedOracle
 RescaledProxOracle = composite.RescaledProxOracle
@@ -24,6 +27,8 @@ as_spectral_oracle = spectral.as_spectral_oracle
 __all__ = [
     "CompositeOracle",
     "CompositeOracleProtocol",
+    "MinMaxOracle",
+    "MinMaxProblem",
     "PenalizedOracle",
     "ProxRegularizedOracle",
     "RescaledProxOracle",
