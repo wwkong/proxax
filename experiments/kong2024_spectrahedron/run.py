@@ -1,9 +1,8 @@
 """Small-scale replication of Kong (SIOPT 2024): curvature-free nonconvex QPs.
 
-Compares parameter-free `APD` and `AdapAPG` against `AIPP`, `AG`, `UPFAG`, and
-`PANOC` on small-scale nonconvex quadratic programs over:
-1. Spectrahedron (`10 x 10`, `{X >= 0 : tr(X) = 1}`)
-2. Probability simplex (`n = 30`)
+Sweeps condition number kappa in {10, 40, 100, 250} on:
+1. Nonconvex Spectrahedron QP (10x10)
+2. Nonconvex Simplex QP (n=30)
 """
 
 from __future__ import annotations
@@ -21,17 +20,19 @@ import jax.numpy as jnp
 from proxax import px
 
 
-def _make_spectrahedron_qp(n: int = 10, seed: int = 7) -> tuple[px.CompositeProblem, jax.Array]:
+def _make_spectrahedron_qp(
+    kappa: float, n: int = 10, seed: int = 7
+) -> tuple[px.CompositeProblem, jax.Array]:
   key = jax.random.PRNGKey(seed)
   k1, k2, k3 = jax.random.split(key, 3)
-  # Construct an indefinite linear operator Q(X) = A X A^T - B X B^T + diag-scale
   A = jax.random.normal(k1, (n, n)) / jnp.sqrt(n)
   B = jax.random.normal(k2, (n, n)) / jnp.sqrt(n)
   C_raw = jax.random.normal(k3, (n, n))
   C = 0.5 * (C_raw + C_raw.T)
+  scale_pos = float(kappa) / 10.0
 
   def _obj(X: jax.Array) -> jax.Array:
-    QX = 2.5 * (A @ X @ A.T) - 1.5 * (B @ X @ B.T)
+    QX = scale_pos * (A @ X @ A.T) - 1.5 * (B @ X @ B.T)
     return 0.5 * jnp.sum(X * QX) + jnp.sum(C * X)
 
   prob = px.CompositeProblem(
@@ -41,13 +42,15 @@ def _make_spectrahedron_qp(n: int = 10, seed: int = 7) -> tuple[px.CompositeProb
   return prob, jnp.eye(n) / n
 
 
-def _make_simplex_qp(n: int = 30, seed: int = 19) -> tuple[px.CompositeProblem, jax.Array]:
+def _make_simplex_qp(
+    kappa: float, n: int = 30, seed: int = 19
+) -> tuple[px.CompositeProblem, jax.Array]:
   key = jax.random.PRNGKey(seed)
   k1, k2, k3 = jax.random.split(key, 3)
   U, _ = jnp.linalg.qr(jax.random.normal(k1, (n, n)))
   eigs = jnp.concatenate([
       -jnp.geomspace(0.5, 4.0, n // 3),
-      jnp.geomspace(1.0, 40.0, n - n // 3),
+      jnp.geomspace(1.0, float(kappa), n - n // 3),
   ])
   Q = U @ jnp.diag(eigs) @ U.T
   c = jax.random.normal(k2, (n,)) * 0.5
@@ -66,37 +69,44 @@ def _make_simplex_qp(n: int = 30, seed: int = 19) -> tuple[px.CompositeProblem, 
 
 def main() -> None:
   tol = 1e-4
-  problems = [
-      ("Spectrahedron QP (10x10)", *_make_spectrahedron_qp()),
-      ("Simplex QP (n=30, cond=40)", *_make_simplex_qp()),
-  ]
+  kappas = [10, 40, 100, 250]
   solvers = [
-      ("APD", px.solvers.APD(opt_tol=tol, max_outer_iters=200)),
-      ("AdapAPG", px.solvers.AdapAPG(opt_tol=tol, max_iters=1500)),
-      ("AIPP", px.solvers.AIPP(opt_tol=tol, max_outer_iters=200)),
-      ("AG", px.solvers.AG(opt_tol=tol, max_iters=1500)),
-      ("UPFAG", px.solvers.UPFAG(opt_tol=tol, max_iters=1500)),
-      ("PANOC", px.solvers.PANOC(opt_tol=tol, max_iters=1500)),
+      ("APD", px.solvers.APD(opt_tol=tol, max_outer_iters=250)),
+      ("AdapAPG", px.solvers.AdapAPG(opt_tol=tol, max_iters=2000)),
+      ("AIPP", px.solvers.AIPP(opt_tol=tol, max_outer_iters=250)),
+      ("AG", px.solvers.AG(opt_tol=tol, max_iters=2000)),
+      ("UPFAG", px.solvers.UPFAG(opt_tol=tol, max_iters=2000)),
+      ("PANOC", px.solvers.PANOC(opt_tol=tol, max_iters=2000)),
   ]
 
   rows = []
-  for prob_name, prob, x0 in problems:
-    for name, solver in solvers:
-      t0 = time.perf_counter()
-      sol = px.solve(prob, x0, solver=solver)
-      jax.block_until_ready(sol.x)
-      wall_s = time.perf_counter() - t0
-      oracle_evals = int(sol.stats.smooth_evals) + int(sol.stats.grad_evals) + int(sol.stats.prox_evals)
-      rows.append({
-          "problem": prob_name,
-          "solver": name,
-          "status": sol.status_enum.name,
-          "outer_iters": int(sol.stats.outer_iters),
-          "oracle_evals": oracle_evals,
-          "obj_val": float(sol.stats.obj_val),
-          "opt_residual": float(sol.stats.opt_residual),
-          "wall_s": round(wall_s, 3),
-      })
+  for family, builder in [
+      ("Spectrahedron QP (10x10)", _make_spectrahedron_qp),
+      ("Simplex QP (n=30)", _make_simplex_qp),
+  ]:
+    for kappa in kappas:
+      prob, x0 = builder(kappa)
+      for name, solver in solvers:
+        t0 = time.perf_counter()
+        sol = px.solve(prob, x0, solver=solver)
+        jax.block_until_ready(sol.x)
+        wall_s = time.perf_counter() - t0
+        oracle_evals = (
+            int(sol.stats.smooth_evals)
+            + int(sol.stats.grad_evals)
+            + int(sol.stats.prox_evals)
+        )
+        rows.append({
+            "family": family,
+            "kappa": kappa,
+            "solver": name,
+            "status": sol.status_enum.name,
+            "outer_iters": int(sol.stats.outer_iters),
+            "oracle_evals": oracle_evals,
+            "obj_val": float(sol.stats.obj_val),
+            "opt_residual": float(sol.stats.opt_residual),
+            "wall_s": round(wall_s, 3),
+        })
   print(json.dumps(rows, indent=2))
 
 

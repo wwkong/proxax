@@ -1,9 +1,8 @@
 """Small-scale replication of Kong, Monteiro, Melo (SIOPT 2023) & Kong, Monteiro (COAP 2023).
 
-Compares ALM methods (`IAIPAL`, `IALM`, `SProxALM`) against quadratic-penalty
-methods (`QP-AIPP`, `QP-APD`) on small linearly constrained nonconvex problems:
+Sweeps tolerance eps in {1e-2, 3e-3, 1e-3, 3e-4} on:
 1. Linearly constrained nonconvex box QP (`n=24, m=4`)
-2. Linearly constrained k-Fantope sparse PCA (`n=10, k=3`)
+2. Linearly constrained k-Fantope sparse PCA (`8x8, k=2`)
 """
 
 from __future__ import annotations
@@ -51,7 +50,6 @@ def _make_fantope_spca(n: int = 8, k: int = 2, seed: int = 77) -> tuple[px.Compo
   k1, k2 = jax.random.split(key)
   Z = jax.random.normal(k1, (30, n))
   Sigma = (Z.T @ Z) / 30.0
-  # Sparse penalty proxy + linear equality constraint on trace of off-diagonal block
   A_mat = jax.random.normal(k2, (2, n * n)) / n
   X_feas = (k / n) * jnp.eye(n)
   b_vec = A_mat @ X_feas.reshape(-1)
@@ -71,39 +69,43 @@ def _make_fantope_spca(n: int = 8, k: int = 2, seed: int = 77) -> tuple[px.Compo
 
 
 def main() -> None:
-  opt_tol = 1e-3
-  feas_tol = 1e-3
+  tols = [1e-2, 3e-3, 1e-3, 3e-4]
   problems = [
       ("Linearly Constrained QP (n=24, m=4)", *_make_lin_constr_qp()),
       ("Constrained k-Fantope SPCA (8x8, k=2)", *_make_fantope_spca()),
   ]
-  solvers = [
-      ("IAIPAL", px.solvers.IAIPAL(opt_tol=opt_tol, feas_tol=feas_tol, max_outer_iters=40, max_inner_iters=500)),
-      ("IALM (APD)", px.solvers.IALM(opt_tol=opt_tol, feas_tol=feas_tol, subproblem_solver="apd", max_alm_iters=40, max_inner_iters=500)),
-      ("IALM (PANOC)", px.solvers.IALM(opt_tol=opt_tol, feas_tol=feas_tol, subproblem_solver="panoc", max_alm_iters=40, max_inner_iters=500)),
-      ("SProxALM", px.solvers.SProxALM(opt_tol=opt_tol, feas_tol=feas_tol, max_iters=1500)),
-      ("QP-APD", px.solvers.QPAPD(opt_tol=opt_tol, feas_tol=feas_tol, max_penalty_iters=20, max_inner_iters=500)),
-      ("QP-AIPP", px.solvers.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol, max_penalty_iters=20, max_inner_iters=500)),
-  ]
 
   rows = []
   for prob_name, prob, x0 in problems:
-    for name, solver in solvers:
-      t0 = time.perf_counter()
-      sol = px.solve(prob, x0, solver=solver)
-      jax.block_until_ready(sol.x)
-      wall_s = time.perf_counter() - t0
-      oracle_evals = int(sol.stats.smooth_evals) + int(sol.stats.grad_evals) + int(sol.stats.prox_evals)
-      rows.append({
-          "problem": prob_name,
-          "solver": name,
-          "status": sol.status_enum.name,
-          "outer_iters": int(sol.stats.outer_iters),
-          "oracle_evals": oracle_evals,
-          "opt_residual": float(sol.stats.opt_residual),
-          "feas_residual": float(sol.stats.feas_residual),
-          "wall_s": round(wall_s, 3),
-      })
+    for tol in tols:
+      solvers = [
+          ("IALM (APD)", px.solvers.IALM(opt_tol=tol, feas_tol=tol, subproblem_solver="apd", max_alm_iters=50, max_inner_iters=500)),
+          ("IALM (PANOC)", px.solvers.IALM(opt_tol=tol, feas_tol=tol, subproblem_solver="panoc", max_alm_iters=50, max_inner_iters=500)),
+          ("SProxALM", px.solvers.SProxALM(opt_tol=tol, feas_tol=tol, max_iters=2500)),
+          ("QP-APD", px.solvers.QPAPD(opt_tol=tol, feas_tol=tol, max_penalty_iters=25, max_inner_iters=500)),
+          ("QP-AIPP", px.solvers.QPAIPP(opt_tol=tol, feas_tol=tol, max_penalty_iters=25, max_inner_iters=500)),
+      ]
+      for name, solver in solvers:
+        t0 = time.perf_counter()
+        sol = px.solve(prob, x0, solver=solver)
+        jax.block_until_ready(sol.x)
+        wall_s = time.perf_counter() - t0
+        oracle_evals = (
+            int(sol.stats.smooth_evals)
+            + int(sol.stats.grad_evals)
+            + int(sol.stats.prox_evals)
+        )
+        rows.append({
+            "problem": prob_name,
+            "tol": tol,
+            "solver": name,
+            "status": sol.status_enum.name,
+            "outer_iters": int(sol.stats.outer_iters),
+            "oracle_evals": oracle_evals,
+            "opt_residual": float(sol.stats.opt_residual),
+            "feas_residual": float(sol.stats.feas_residual),
+            "wall_s": round(wall_s, 3),
+        })
   print(json.dumps(rows, indent=2))
 
 

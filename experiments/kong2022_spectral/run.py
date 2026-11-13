@@ -1,8 +1,7 @@
 """Small-scale replication of Kong & Monteiro (COAP 2022): spectral NCO.
 
-Compares doubly-accelerated (`DAICG`) vs inner-accelerated (`IAICG`) inexact
-composite gradient methods on small (`20 x 20`) noisy matrix completion with
-nonconvex log-sum singular-value regularization.
+Sweeps observation density p in {0.30, 0.45, 0.60, 0.75} on 20x20 rank-3
+noisy matrix completion with nonconvex log-sum singular-value regularization.
 """
 
 from __future__ import annotations
@@ -44,13 +43,15 @@ class _BallL1VectorProx:
     return optax.projections.projection_l2_ball(jnp.asarray(x), self.radius)
 
 
-def _make_spectral_mc(m: int = 20, n: int = 20, rank: int = 3, seed: int = 55) -> tuple[px.SpectralProblem, jax.Array]:
+def _make_spectral_mc(
+    obs_prob: float, m: int = 20, n: int = 20, rank: int = 3, seed: int = 55
+) -> tuple[px.SpectralProblem, jax.Array]:
   key = jax.random.PRNGKey(seed)
   k1, k2, k3, k4 = jax.random.split(key, 4)
   U = jax.random.normal(k1, (m, rank))
   V = jax.random.normal(k2, (n, rank))
   M_true = U @ V.T
-  mask = (jax.random.uniform(k3, (m, n)) < 0.45).astype(jnp.float32)
+  mask = (jax.random.uniform(k3, (m, n)) < obs_prob).astype(jnp.float32)
   M_obs = mask * (M_true + 0.05 * jax.random.normal(k4, (m, n)))
 
   alpha = 0.05
@@ -79,7 +80,7 @@ def _make_spectral_mc(m: int = 20, n: int = 20, rank: int = 3, seed: int = 55) -
 
 def main() -> None:
   tol = 1e-3
-  prob, x0 = _make_spectral_mc()
+  obs_probs = [0.30, 0.45, 0.60, 0.75]
   solvers = [
       ("DAICG (monotone)", px.solvers.DAICG(opt_tol=tol, monotone=True, max_outer_iters=600)),
       ("DAICG (nonmonotone)", px.solvers.DAICG(opt_tol=tol, monotone=False, max_outer_iters=600)),
@@ -87,22 +88,28 @@ def main() -> None:
   ]
 
   rows = []
-  for name, solver in solvers:
-    t0 = time.perf_counter()
-    sol = px.solve(prob, x0, solver=solver)
-    jax.block_until_ready(sol.x)
-    wall_s = time.perf_counter() - t0
-    oracle_evals = int(sol.stats.smooth_evals) + int(sol.stats.grad_evals) + int(sol.stats.prox_evals)
-    rows.append({
-        "problem": "Spectral Matrix Completion (20x20, rank=3)",
-        "solver": name,
-        "status": sol.status_enum.name,
-        "outer_iters": int(sol.stats.outer_iters),
-        "oracle_evals": oracle_evals,
-        "obj_val": float(sol.stats.obj_val),
-        "opt_residual": float(sol.stats.opt_residual),
-        "wall_s": round(wall_s, 3),
-    })
+  for p in obs_probs:
+    prob, x0 = _make_spectral_mc(p)
+    for name, solver in solvers:
+      t0 = time.perf_counter()
+      sol = px.solve(prob, x0, solver=solver)
+      jax.block_until_ready(sol.x)
+      wall_s = time.perf_counter() - t0
+      oracle_evals = (
+          int(sol.stats.smooth_evals)
+          + int(sol.stats.grad_evals)
+          + int(sol.stats.prox_evals)
+      )
+      rows.append({
+          "obs_prob": p,
+          "solver": name,
+          "status": sol.status_enum.name,
+          "outer_iters": int(sol.stats.outer_iters),
+          "oracle_evals": oracle_evals,
+          "obj_val": float(sol.stats.obj_val),
+          "opt_residual": float(sol.stats.opt_residual),
+          "wall_s": round(wall_s, 3),
+      })
   print(json.dumps(rows, indent=2))
 
 

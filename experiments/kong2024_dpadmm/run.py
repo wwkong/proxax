@@ -1,9 +1,7 @@
 """Small-scale replication of Kong & Monteiro (SIOPT 2024): DP.ADMM vs PAdaptADMM.
 
-Compares `DPADMM` (Kong & Monteiro, 2024) against `PAdaptADMM` (Maia et al.,
-2026) and standard `ADMM` on small multi-block nonconvex quadratic splitting
-problems (`3` blocks of size `8`, `6` coupling constraints), including a
-rank-deficient constraint matrix regime.
+Sweeps third-block coupling rank r in {1, 2, 4, 6} (where m=6, so r < 6 is
+rank-deficient) on a 3-block nonconvex QP (n=24 total).
 """
 
 from __future__ import annotations
@@ -21,7 +19,7 @@ import jax.numpy as jnp
 from proxax import px
 
 
-def _make_multiblock_qp(rank_deficient: bool = False, seed: int = 101) -> tuple[px.BlockProblem, tuple[jax.Array, ...]]:
+def _make_multiblock_qp(rank_a3: int, seed: int = 101) -> tuple[px.BlockProblem, tuple[jax.Array, ...]]:
   key = jax.random.PRNGKey(seed)
   n_b = 8
   m = 6
@@ -36,10 +34,9 @@ def _make_multiblock_qp(rank_deficient: bool = False, seed: int = 101) -> tuple[
     Q_i = U @ jnp.diag(eigs) @ U.T
     c_i = jax.random.normal(keys[i + 3], (n_b,)) * 0.4
     A_i = jax.random.normal(keys[6], (m, n_b)) / jnp.sqrt(n_b)
-    if rank_deficient and i == 2:
-      # Make A_2 strictly rank-deficient (rank 2 out of 6)
-      u_r = jax.random.normal(keys[i], (m, 2))
-      v_r = jax.random.normal(keys[i + 3], (2, n_b))
+    if i == 2 and rank_a3 < m:
+      u_r = jax.random.normal(keys[i], (m, rank_a3))
+      v_r = jax.random.normal(keys[i + 3], (rank_a3, n_b))
       A_i = (u_r @ v_r) / jnp.sqrt(n_b)
     x_i = jnp.full((n_b,), 0.25)
     rhs = rhs + A_i @ x_i
@@ -61,26 +58,28 @@ def _make_multiblock_qp(rank_deficient: bool = False, seed: int = 101) -> tuple[
 
 def main() -> None:
   tol = 1e-3
-  problems = [
-      ("3-Block Nonconvex QP (full rank, n=24)", *_make_multiblock_qp(rank_deficient=False)),
-      ("3-Block Nonconvex QP (rank-deficient, n=24)", *_make_multiblock_qp(rank_deficient=True)),
-  ]
+  ranks = [1, 2, 4, 6]
   solvers = [
       ("DPADMM", px.solvers.DPADMM(opt_tol=tol, feas_tol=tol, c_init=2.0, max_stages=80)),
-      ("PAdaptADMM", px.solvers.PAdaptADMM(opt_tol=tol, feas_tol=tol, gamma_init=10.0, lmt_bound=1.0, adaptive_tau=True, max_stages=80)),
+      ("PAdaptADMM", px.solvers.PAdaptADMM(opt_tol=tol, feas_tol=tol, gamma_init=10.0, lmt_bound=10.0, adaptive_tau=True, max_stages=80)),
       ("ADMM (rho=5)", px.solvers.ADMM(opt_tol=tol, feas_tol=tol, rho=5.0, max_iters=1500)),
   ]
 
   rows = []
-  for prob_name, prob, x0 in problems:
+  for r in ranks:
+    prob, x0 = _make_multiblock_qp(rank_a3=r)
     for name, solver in solvers:
       t0 = time.perf_counter()
       sol = px.solve(prob, x0, solver=solver)
       jax.block_until_ready(sol.x)
       wall_s = time.perf_counter() - t0
-      oracle_evals = int(sol.stats.smooth_evals) + int(sol.stats.grad_evals) + int(sol.stats.prox_evals)
+      oracle_evals = (
+          int(sol.stats.smooth_evals)
+          + int(sol.stats.grad_evals)
+          + int(sol.stats.prox_evals)
+      )
       rows.append({
-          "problem": prob_name,
+          "rank": r,
           "solver": name,
           "status": sol.status_enum.name,
           "outer_iters": int(sol.stats.outer_iters),

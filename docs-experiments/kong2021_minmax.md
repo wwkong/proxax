@@ -4,23 +4,34 @@ Small-scale sequential-CPU replication of **Kong & Monteiro (SIOPT 2021)**, *An 
 
 ## Setup & Reproduction
 
-All runs execute sequentially on CPU via [`experiments/kong2021_minmax/run.py`](https://github.com/wwkong/proxax/blob/main/experiments/kong2021_minmax/run.py) (`opt_tol = 1e-4`):
+All runs execute sequentially on CPU via [`experiments/kong2021_minmax/run.py`](https://github.com/wwkong/proxax/blob/main/experiments/kong2021_minmax/run.py) (`opt_tol = 1e-4`), sweeping dual strong-concavity regularization $m_y \in \{0.05, 0.2, 0.5, 1.0\}$ on a `16x16` box/simplex-constrained nonconvex-concave QP:
 
 ```bash
 JAX_PLATFORMS=cpu uv run python experiments/kong2021_minmax/run.py
 ```
 
-- **Nonconvex-Concave Min-Max QP (`16x16`):** $\min_{x \in [-1, 1]^{16}} \max_{y \in \Delta_{16}} \frac{1}{2}x^\top Q_x x + x^\top K y - \frac{1}{2}y^\top Q_y y + c_x^\top x - c_y^\top y$ with indefinite $Q_x$ (negative eigenvalues in $[-2.0, -0.5]$) and $Q_y \succ 0$.
+## Dual-Curvature Sweep Plot
+
+![Nonconvex-Concave Min-Max QP](_static/plots/kong2021_minmax.svg)
 
 ## Results
 
-| Problem | Solver | Status | Outer Iters | Oracle Evals | Objective | Opt Residual | Wall (s) |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| Nonconvex-Concave Min-Max QP (`16x16`) | `ProxPointMinMax` | CONVERGED | 15 | 5258 | -8.988911 | 9.56e-05 | 0.910 |
-| Nonconvex-Concave Min-Max QP (`16x16`) | `ExtraGradient` | CONVERGED | 77 | 662 | -8.388439 | 9.07e-05 | 0.124 |
-| Nonconvex-Concave Min-Max QP (`16x16`) | `PDHG` | CONVERGED | 60 | 462 | -8.388439 | 5.38e-05 | 0.166 |
+| Dual Curvature $m_y$ | Solver | Status | Outer Iters | Oracle Evals | Objective | Opt Residual | Wall (s) |
+| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 0.05 | `ProxPointMinMax` | CONVERGED | 15 | 5742 | -8.973287 | 8.10e-05 | 0.887 |
+| 0.05 | `ExtraGradient` | CONVERGED | 80 | 686 | -8.358033 | 9.12e-05 | 0.124 |
+| 0.05 | `PDHG` | CONVERGED | 60 | 462 | -8.358033 | 9.63e-05 | 0.149 |
+| 0.20 | `ProxPointMinMax` | CONVERGED | 15 | 5258 | -8.988911 | 9.56e-05 | 0.265 |
+| 0.20 | `ExtraGradient` | CONVERGED | 77 | 662 | -8.388439 | 9.07e-05 | 0.120 |
+| 0.20 | `PDHG` | CONVERGED | 60 | 462 | -8.388439 | 5.38e-05 | 0.156 |
+| 0.50 | `ProxPointMinMax` | CONVERGED | 16 | 4886 | -9.019752 | 7.37e-05 | 0.232 |
+| 0.50 | `ExtraGradient` | CONVERGED | 77 | 662 | -8.442648 | 9.31e-05 | 0.121 |
+| 0.50 | `PDHG` | CONVERGED | 60 | 462 | -8.442649 | 5.47e-05 | 0.158 |
+| 1.00 | `ProxPointMinMax` | CONVERGED | 16 | 4934 | -9.070572 | 9.49e-05 | 0.222 |
+| 1.00 | `ExtraGradient` | CONVERGED | 76 | 650 | -8.521862 | 9.24e-05 | 0.126 |
+| 1.00 | `PDHG` | CONVERGED | 60 | 462 | -8.521861 | 6.27e-05 | 0.156 |
 
 ## Observations
 
-- All three solvers converge cleanly in under 1 second on CPU.
-- Direct primal-dual methods (`PDHG` and `ExtraGradient`) use ~8–11x fewer oracle evaluations (462 and 662 vs. 5,258), while `ProxPointMinMax` settles at a **lower stationary objective** (`-8.989` vs. `-8.388`) on this nonconvex-concave landscape.
+- All three solvers converge in under 1 second on CPU across the full $m_y$ sweep.
+- Direct primal-dual methods (`PDHG` and `ExtraGradient`) use ~8–12x fewer oracle evaluations (`462` and `650–686` vs. `4,886–5,742`), while `ProxPointMinMax` consistently settles at a **lower stationary objective** (`-8.973` to `-9.071` vs. `-8.358` to `-8.522`) on this nonconvex-concave landscape.
