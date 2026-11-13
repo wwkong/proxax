@@ -50,3 +50,12 @@ jobs:
           XLA_PYTHON_CLIENT_PREALLOCATE: "false"
           JAX_ENABLE_X64: "1"
         run: uv run pytest -v
+      - name: Run example smoke checks
+        if: matrix.python-version == '3.12'
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+        run: |
+          for f in examples/*.py; do
+            echo "Running $f"
+            uv run python "$f"
+          done

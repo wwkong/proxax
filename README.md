@@ -15,7 +15,8 @@ constrained optimization in **JAX** and **Optax**.
     checks.
 *   **JAX-native & scalable:** Operates directly on arbitrary JAX PyTrees
     (`jax.Array`, nested `dict`/`tuple`, or registered dataclasses), compiles
-    end-to-end under `jax.jit`, and vectorizes across batches via `jax.vmap`.
+    end-to-end under `jax.jit`, vectorizes across batches via `jax.vmap`, and
+    differentiates through solutions via `px.implicit_solve`.
 *   **Modular & lightweight:** Clean single-facade API (`from proxax import px`),
     single-step `optax.GradientTransformation` wrappers in `px.optax_compat`,
     and only `jax` and `optax` as runtime dependencies.
@@ -106,12 +107,20 @@ print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
    h^{\mathcal{V}})$ are absolutely symmetric functions on
    $\mathbb{R}^{\min(p, q)}$.
 
+5. **Block-Constrained Composite Optimization (`px.BlockProblem`):**
+
+   $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
+
+   where each block is a `px.BlockTerm` over arbitrary JAX PyTrees coupled
+   through linear maps $\mathcal{A}_i$.
+
 ## Available Solvers (`px.solvers`)
 
 *   **Unconstrained Composite (`px.CompositeProblem`):** `APD`, `AIPP`, `ACACG`,
     `AdapFISTA`, `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`
 *   **Set / Cone-Constrained (`px.CompositeProblem` with `constraints`):**
     `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`, `SProxALM`
+*   **Block-Constrained Splitting (`px.BlockProblem`):** `ADMM`
 *   **Min-Max & Saddle-Point (`px.MinMaxProblem`):** `ExtraGradient`, `PDHG`,
     `ProxPointMinMax`
 *   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,

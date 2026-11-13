@@ -1,11 +1,11 @@
 # Proxax Roadmap
 
 This document tracks planned features, algorithmic extensions, and engineering
-milestones for **Proxax** beyond the current `v0.0.5` baseline.
+milestones for **Proxax** (`v0.1.0` release).
 
 ---
 
-## Current Baseline (`v0.0.5`)
+## Current Baseline (`v0.1.0`)
 
 - **Problem classes (least to most specialized):**
   1. Unconstrained composite optimization: $\min_{x \in \mathbb{R}^n} f(x) + h(x)$
