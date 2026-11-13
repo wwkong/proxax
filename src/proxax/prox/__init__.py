@@ -14,7 +14,11 @@ BoxL1 = indicators.BoxL1
 CappedSimplex = exotic.CappedSimplex
 CardinalityBall = exotic.CardinalityBall
 ElasticNet = norms.ElasticNet
+Ellipsoid = indicators.Ellipsoid
 Fantope = indicators.Fantope
+Halfspace = indicators.Halfspace
+Huber = norms.Huber
+Hyperplane = indicators.Hyperplane
 Isotonic = exotic.Isotonic
 L0 = exotic.L0
 L1 = norms.L1
@@ -51,7 +55,11 @@ __all__ = [
     "CappedSimplex",
     "CardinalityBall",
     "ElasticNet",
+    "Ellipsoid",
     "Fantope",
+    "Halfspace",
+    "Huber",
+    "Hyperplane",
     "Isotonic",
     "L0",
     "L1",

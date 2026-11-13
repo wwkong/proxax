@@ -382,3 +382,52 @@ class TV1D:
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Identity projection."""
     return x
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class Huber:
+  """Weighted Huber penalty `weight * sum_i H_delta(x_i)`."""
+
+  weight: _typing.Scalar = 1.0
+  delta: _typing.Scalar = 1.0
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Evaluates the Huber loss across all leaves."""
+    leaves = jax.tree.leaves(x)
+    if not leaves:
+      return jnp.asarray(0.0)
+    d = self.delta
+
+    def _leaf_val(u: jax.Array) -> jax.Array:
+      abs_u = jnp.abs(u)
+      quad = 0.5 * u * u
+      lin = d * (abs_u - 0.5 * d)
+      return jnp.sum(jnp.where(abs_u <= d, quad, lin))
+
+    return self.weight * tree.functools_sum([_leaf_val(u) for u in leaves])
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Applies the exact elementwise Huber proximal operator."""
+    gw = step_size * self.weight
+    thresh = self.delta * (1.0 + gw)
+
+    def _prox_leaf(u: jax.Array) -> jax.Array:
+      quad_branch = u / (1.0 + gw)
+      lin_branch = u - gw * self.delta * jnp.sign(u)
+      return jnp.where(jnp.abs(u) <= thresh, quad_branch, lin_branch)
+
+    return jax.tree.map(_prox_leaf, x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Identity projection (`dom(Huber)` is the full space)."""
+    return x

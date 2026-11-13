@@ -295,3 +295,148 @@ class Fantope:
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Projects `x` onto the k-Fantope."""
     return self._project(x)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class Hyperplane:
+  """Indicator of the hyperplane `{x : <normal, x> = offset}`."""
+
+  normal: _typing.PyTree
+  offset: _typing.Scalar = 0.0
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Returns `0.0` at feasible points."""
+    return jnp.asarray(0.0, dtype=tree.infer_dtype(x))
+
+  def _project(self, x: _typing.PyTree) -> _typing.PyTree:
+    norm_sq = jnp.maximum(tree.norm_sq(self.normal), 1e-30)
+    alpha = (tree.vdot(self.normal, x) - self.offset) / norm_sq
+    return tree.sub(x, tree.scale(alpha, self.normal))
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Projects `x` onto `<normal, x> = offset`."""
+    del step_size
+    return self._project(x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Projects `x` onto `<normal, x> = offset`."""
+    return self._project(x)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class Halfspace:
+  """Indicator of the halfspace `{x : <normal, x> <= offset}`."""
+
+  normal: _typing.PyTree
+  offset: _typing.Scalar = 0.0
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Returns `0.0` at feasible points."""
+    return jnp.asarray(0.0, dtype=tree.infer_dtype(x))
+
+  def _project(self, x: _typing.PyTree) -> _typing.PyTree:
+    norm_sq = jnp.maximum(tree.norm_sq(self.normal), 1e-30)
+    viol = jnp.maximum(tree.vdot(self.normal, x) - self.offset, 0.0)
+    return tree.sub(x, tree.scale(viol / norm_sq, self.normal))
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Projects `x` onto `<normal, x> <= offset`."""
+    del step_size
+    return self._project(x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Projects `x` onto `<normal, x> <= offset`."""
+    return self._project(x)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
+class Ellipsoid:
+  """Indicator of `{x : sum(((x - center) / radii)^2) <= 1}`."""
+
+  radii: _typing.PyTree
+  center: _typing.PyTree | None = None
+
+  @property
+  def strong_convexity(self) -> float:
+    """Strong convexity constant (`0.0`)."""
+    return 0.0
+
+  def value(self, x: _typing.PyTree) -> jax.Array:
+    """Returns `0.0` at feasible points."""
+    return jnp.asarray(0.0, dtype=tree.infer_dtype(x))
+
+  def _project(self, x: _typing.PyTree) -> _typing.PyTree:
+    diff = x if self.center is None else tree.sub(x, self.center)
+    scaled_sq = tree.norm_sq(
+        jax.tree.map(lambda d, r: d / r, diff, self.radii)
+    )
+    r_max_sq = jnp.asarray(
+        max(
+            [jnp.max(r * r) for r in jax.tree.leaves(self.radii)],
+            default=1.0,
+        ),
+        dtype=tree.infer_dtype(x),
+    )
+    lam_hi = r_max_sq * jnp.maximum(jnp.sqrt(scaled_sq) - 1.0, 0.0) + 1e-8
+    lam_lo = jnp.asarray(0.0, dtype=tree.infer_dtype(x))
+
+    def _phi(lam: jax.Array) -> jax.Array:
+      terms = jax.tree.map(
+          lambda d, r: jnp.sum((d / (r * (1.0 + lam / (r * r)))) ** 2),
+          diff,
+          self.radii,
+      )
+      return tree.functools_sum(jax.tree.leaves(terms)) - 1.0
+
+    def _bisect_step(_: int, bounds: tuple[jax.Array, jax.Array]) -> tuple[
+        jax.Array, jax.Array
+    ]:
+      lo, hi = bounds
+      mid = 0.5 * (lo + hi)
+      go_right = _phi(mid) > 0.0
+      return (jnp.where(go_right, mid, lo), jnp.where(go_right, hi, mid))
+
+    lo_f, hi_f = jax.lax.fori_loop(0, 50, _bisect_step, (lam_lo, lam_hi))
+    lam = jnp.where(scaled_sq <= 1.0, 0.0, 0.5 * (lo_f + hi_f))
+    proj_diff = jax.tree.map(
+        lambda d, r: d / (1.0 + lam / (r * r)), diff, self.radii
+    )
+    return (
+        proj_diff
+        if self.center is None
+        else tree.add(self.center, proj_diff)
+    )
+
+  def prox(
+      self,
+      x: _typing.PyTree,
+      step_size: _typing.Scalar,
+  ) -> _typing.PyTree:
+    """Projects `x` onto the axis-aligned ellipsoid."""
+    del step_size
+    return self._project(x)
+
+  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+    """Projects `x` onto the axis-aligned ellipsoid."""
+    return self._project(x)

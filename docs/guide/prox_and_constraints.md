@@ -30,11 +30,14 @@ For example, $\{x \in [0, 1]^n : A x = b\}$ runs much faster with
 | Operator | Mathematical Formula $h(x)$ | Basic Usage |
 | :--- | :--- | :--- |
 | `px.prox.Zero()` | $0$ | `px.prox.Zero()` (default when `proximal` is omitted) |
-| `px.prox.L1(weight=1.0)` | $w \|x\|_1$ | `px.prox.L1(weight=0.1)` (elementwise soft-thresholding) |
-| `px.prox.L2(weight=1.0)` | $w \|x\|_2$ | `px.prox.L2(weight=0.5)` (group / block soft-thresholding) |
-| `px.prox.L2Squared(weight=1.0)` | $\frac{w}{2}\|x\|_2^2$ | `px.prox.L2Squared(weight=1.0)` ($w$-strongly convex shrinkage) |
-| `px.prox.ElasticNet(l1_weight=1.0, l2_weight=1.0)` | $w_1 \|x\|_1 + \frac{w_2}{2}\|x\|_2^2$ | `px.prox.ElasticNet(l1_weight=0.1, l2_weight=0.5)` |
-| `px.prox.NuclearNorm(weight=1.0)` | $w \|\sigma(X)\|_1$ | `px.prox.NuclearNorm(weight=0.2)` (matrix singular-value thresholding) |
+| `px.prox.L1(weight=1.0)` | $w \lVert x \rVert_1$ | `px.prox.L1(weight=0.1)` (elementwise soft-thresholding) |
+| `px.prox.L2(weight=1.0)` | $w \lVert x \rVert_2$ | `px.prox.L2(weight=0.5)` (group / block soft-thresholding) |
+| `px.prox.L2Squared(weight=1.0)` | $\frac{w}{2}\lVert x \rVert_2^2$ | `px.prox.L2Squared(weight=1.0)` ($w$-strongly convex shrinkage) |
+| `px.prox.L21(weight=1.0)` | $w \sum_g \lVert x_g \rVert_2$ | `px.prox.L21(weight=0.2)` (group-lasso $\ell_{2,1}$ shrinkage) |
+| `px.prox.ElasticNet(l1_weight=1.0, l2_weight=1.0)` | $w_1 \lVert x \rVert_1 + \frac{w_2}{2}\lVert x \rVert_2^2$ | `px.prox.ElasticNet(l1_weight=0.1, l2_weight=0.5)` |
+| `px.prox.Huber(weight=1.0, delta=1.0)` | $w \sum_i H_\delta(x_i)$ | `px.prox.Huber(weight=1.0, delta=0.5)` (robust Huber shrinkage) |
+| `px.prox.TV1D(weight=1.0)` | $w \sum_i \lvert x_{i+1} - x_i \rvert$ | `px.prox.TV1D(weight=0.5)` (1D total variation via dual FISTA) |
+| `px.prox.NuclearNorm(weight=1.0)` | $w \lVert \sigma(X) \rVert_1$ | `px.prox.NuclearNorm(weight=0.2)` (matrix singular-value thresholding) |
 
 ```python
 import jax.numpy as jnp
@@ -53,10 +56,14 @@ Indicator operators enforce $x \in K$ strictly at every step:
 | :--- | :--- | :--- |
 | `px.prox.NonNegative()` | $\{x : x \ge 0\}$ | `px.prox.NonNegative()` |
 | `px.prox.Box(lower=..., upper=...)` | $\{x : l \le x \le u\}$ | `px.prox.Box(lower=0.0, upper=1.0)` (accepts scalars or matching PyTrees) |
-| `px.prox.BoxL1(l1_weight=..., lower=..., upper=...)` | $w \|x\|_1$ on $\{x : l \le x \le u\}$ | `px.prox.BoxL1(l1_weight=0.1, lower=-1.0, upper=1.0)` |
+| `px.prox.BoxL1(l1_weight=..., lower=..., upper=...)` | $w \lVert x \rVert_1$ on $\{x : l \le x \le u\}$ | `px.prox.BoxL1(l1_weight=0.1, lower=-1.0, upper=1.0)` |
 | `px.prox.Simplex(scale=1.0)` | $\{x \ge 0 : \sum_i x_i = s\}$ | `px.prox.Simplex(scale=1.0)` (probability simplex) |
-| `px.prox.L2Ball(radius=1.0)` | $\{x : \|x\|_2 \le r\}$ | `px.prox.L2Ball(radius=2.5)` |
-| `px.prox.L1Ball(radius=1.0)` | $\{x : \|x\|_1 \le r\}$ | `px.prox.L1Ball(radius=1.0)` |
+| `px.prox.L2Ball(radius=1.0)` | $\{x : \lVert x \rVert_2 \le r\}$ | `px.prox.L2Ball(radius=2.5)` |
+| `px.prox.L1Ball(radius=1.0)` | $\{x : \lVert x \rVert_1 \le r\}$ | `px.prox.L1Ball(radius=1.0)` |
+| `px.prox.LInfBall(radius=1.0)` | $\{x : \lVert x \rVert_\infty \le r\}$ | `px.prox.LInfBall(radius=1.0)` |
+| `px.prox.Hyperplane(normal, offset=0.0)` | $\{x : \langle a, x \rangle = b\}$ | `px.prox.Hyperplane(normal=a, offset=b)` |
+| `px.prox.Halfspace(normal, offset=0.0)` | $\{x : \langle a, x \rangle \le b\}$ | `px.prox.Halfspace(normal=a, offset=b)` |
+| `px.prox.Ellipsoid(radii, center=None)` | $\{x : \sum_i ((x_i - c_i)/r_i)^2 \le 1\}$ | `px.prox.Ellipsoid(radii=r, center=c)` |
 
 ### PyTree & Shifted Combinators
 
@@ -210,12 +217,13 @@ for conic/matrix, ordered-regularization, barrier, and sparse problems:
 | :--- | :--- | :--- |
 | **Conic / Matrix** | `px.prox.PSDCone()` | Indicator of $\{X \succeq 0\}$ via symmetric `eigh`. |
 | **Conic / Matrix** | `px.prox.Spectrahedron(scale=1.0)` | Indicator of $\{X \succeq 0 : \operatorname{tr}(X) = s\}$. |
-| **Conic / Matrix** | `px.prox.SOC()` | Second-order cone $\{\|x_{1:}\|_2 \le x_0\}$. |
+| **Conic / Matrix** | `px.prox.Fantope(k=1)` | Indicator of $\{0 \preceq X \preceq I,\ \operatorname{tr}(X) = k\}$. |
+| **Conic / Matrix** | `px.prox.SOC()` | Second-order cone $\{\lVert x_{1:} \rVert_2 \le x_0\}$. |
 | **Sorting / PAVA** | `px.prox.Isotonic(increasing=True)` | Monotone cone $\{x_1 \le \dots \le x_n\}$ via PAVA. |
-| **Sorting / PAVA** | `px.prox.OWL(weights)` | Ordered weighted $\ell_1$ norm $\sum_i w_i |x|_{(i)}$. |
-| **Sorting / PAVA** | `px.prox.OSCAR(alpha, beta)` | $\alpha \|x\|_1 + \beta \sum_{i<j} \max(|x_i|, |x_j|)$. |
+| **Sorting / PAVA** | `px.prox.OWL(weights)` | Ordered weighted $\ell_1$ norm $\sum_i w_i \lvert x \rvert_{(i)}$. |
+| **Sorting / PAVA** | `px.prox.OSCAR(alpha, beta)` | $\alpha \lVert x \rVert_1 + \beta \sum_{i<j} \max(\lvert x_i \rvert, \lvert x_j \rvert)$. |
 | **Sorting / PAVA** | `px.prox.CappedSimplex(scale, upper)` | $\{0 \le x \le u,\ \sum_i x_i = s\}$. |
 | **Barriers** | `px.prox.LogBarrier(weight)` | $-\mu \sum_i \log x_i$ on $x > 0$ (closed-form). |
 | **Barriers** | `px.prox.NegEntropy(weight)` | $\mu \sum_i x_i \log x_i$ on $x \ge 0$ (log-space Newton). |
-| **Sparse** | `px.prox.L0(weight)` | Nonconvex $\lambda \|x\|_0$ hard thresholding. |
-| **Sparse** | `px.prox.CardinalityBall(k)` | Indicator of $\{x : \|x\|_0 \le k\}$. |
+| **Sparse** | `px.prox.L0(weight)` | Nonconvex $\lambda \lVert x \rVert_0$ hard thresholding. |
+| **Sparse** | `px.prox.CardinalityBall(k)` | Indicator of $\{x : \lVert x \rVert_0 \le k\}$. |

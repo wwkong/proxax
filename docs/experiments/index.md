@@ -14,6 +14,8 @@ Each report documents:
 * [`PAdaptADMM` CPU Benchmarks](maia2026_table1_dqp.md)
 * [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
 * [`PANOC` Ill-Conditioned & Exotic-Prox Benchmarks](panoc_benchmarks.md)
+* [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md)
+* [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md)
 
 ```{toctree}
 :maxdepth: 1
@@ -22,4 +24,6 @@ Each report documents:
 maia2026_table1_dqp
 padapt_vmap_gpu
 panoc_benchmarks
+panoc_alm_benchmarks
+vmap_implicit_benchmarks
 ```

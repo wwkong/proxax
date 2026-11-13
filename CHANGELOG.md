@@ -4,6 +4,14 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-11-13
+
+### Added
+- Added `Hyperplane`, `Halfspace`, `Ellipsoid` (axis-aligned exact bisection projection), and `Huber` proximal operators in `proxax.prox`, with unit tests in `tests/test_prox_extra.py`.
+- Added constrained `px.implicit_solve(..., method="panoc_alm")` verification test in `tests/test_prox_extra.py`.
+- Added `PANOC-ALM` constrained benchmark suite (`experiments/panoc_alm_benchmarks/run.py`, `docs/experiments/panoc_alm_benchmarks.md`, `docs/_static/plots/panoc_alm_profile.svg`).
+- Added batched `jax.vmap` + `px.implicit_solve` throughput benchmark (`experiments/vmap_implicit_benchmarks/run.py`, `docs/experiments/vmap_implicit_benchmarks.md`, `docs/_static/plots/vmap_implicit_scaling.svg`).
+
 ## [0.2.3] - 2026-11-13
 
 ### Added
