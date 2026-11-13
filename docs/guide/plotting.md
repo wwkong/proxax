@@ -67,6 +67,7 @@ for label, method in [
 fig, axes = px.plotting.plot_histories(
     histories,
     x_axis="evals",
+    log_x=True,
     title="Constrained Lasso: IALM vs IAIPAL vs QP-APD vs QP-AIPP",
 )
 ```

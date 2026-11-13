@@ -151,6 +151,7 @@ def plot_histories(
     x_axis: XAxis = "iter",
     title: str | None = None,
     show_tol: bool = True,
+    log_x: bool = False,
     alpha: float = 0.75,
     style: str | None = "mocha",
     ax: typing.Any = None,
@@ -162,6 +163,7 @@ def plot_histories(
     x_axis: Horizontal axis (`'iter'`, `'time'`, or `'evals'`).
     title: Optional figure title.
     show_tol: Whether to draw dashed target tolerance lines.
+    log_x: Whether to use a logarithmic x-axis (helpful for wide eval ranges).
     alpha: Line opacity in `[0, 1]`.
     style: Matplotlib style name (defaults to Catppuccin `'mocha'`).
     ax: Optional pre-existing sequence of 2 (or 3) Matplotlib `Axes`.
@@ -213,6 +215,8 @@ def plot_histories(
     axes[0].grid(True, which="both", alpha=0.3)
     if len(histories) > 1:
       axes[0].legend()
+    if log_x:
+      axes[-1].set_xscale("log")
     axes[-1].set_xlabel(x_label)
     if title is not None:
       fig.suptitle(title)
@@ -225,6 +229,7 @@ def plot_history(
     x_axis: XAxis = "iter",
     title: str | None = None,
     show_tol: bool = True,
+    log_x: bool = False,
     alpha: float = 0.75,
     style: str | None = "mocha",
     ax: typing.Any = None,
@@ -236,6 +241,7 @@ def plot_history(
     x_axis: Horizontal axis (`'iter'`, `'time'`, or `'evals'`).
     title: Optional figure title.
     show_tol: Whether to draw dashed target tolerance lines.
+    log_x: Whether to use a logarithmic x-axis.
     alpha: Line opacity in `[0, 1]`.
     style: Matplotlib style name (defaults to Catppuccin `'mocha'`).
     ax: Optional pre-existing sequence of 2 (or 3) Matplotlib `Axes`.
@@ -250,6 +256,7 @@ def plot_history(
       x_axis=x_axis,
       title=title,
       show_tol=show_tol,
+      log_x=log_x,
       alpha=alpha,
       style=style,
       ax=ax,
@@ -303,7 +310,7 @@ def plot_spectrum(
         alpha=alpha,
         linewidth=1.2,
     )
-    if log_y and any(s > 0.0 for s in svals):
+    if log_y and all(s > 0.0 for s in svals):
       axis.set_yscale("log")
     axis.set_xlabel("Singular value index")
     axis.set_ylabel("Singular value")
