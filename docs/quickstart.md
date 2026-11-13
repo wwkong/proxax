@@ -148,11 +148,17 @@ sol = px.solve(
     feas_tol=1e-5,
 )
 
-print("Status:", sol.status_enum.name)
-print("Primal x:", sol.x)
-print("Dual multiplier:", sol.dual)
-print("Optimality residual:", float(sol.stats.opt_residual))
-print("Feasibility residual |sum(x) - 0.5|:", float(sol.stats.feas_residual))
+print(sol)
+# Solution(
+#   status=CONVERGED,
+#   obj=-1.352509e-01,
+#   opt_res=1.291e-06,
+#   feas_res=3.517e-06,
+#   iters=9 (inner=221),
+#   evals=(smooth=548, grad=490, prox=247),
+#   x=float32[2],
+#   dual=float32[],
+# )
 ```
 
 Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
