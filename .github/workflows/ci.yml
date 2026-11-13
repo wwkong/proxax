@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint-type-docs:
+    name: Lint, Type-Check & Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --python 3.12 --extra dev --extra docs
+      - name: Run ruff
+        run: uv run ruff check .
+      - name: Run mypy
+        run: uv run mypy
+      - name: Build Sphinx docs
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+        run: uv run sphinx-build -T -W --keep-going -b html docs site
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }} --extra dev
+      - name: Run pytest (float32)
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+        run: uv run pytest -v
+      - name: Run pytest (float64)
+        if: matrix.python-version == '3.12'
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+          JAX_ENABLE_X64: "1"
+        run: uv run pytest -v
