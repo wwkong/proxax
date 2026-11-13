@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wwkong/proxax/main/docs/_static/logo.png" alt="Proxax logo" width="110" />
+  <img src="https://raw.githubusercontent.com/wwkong/proxax/main/docs/_static/logo.png" alt="Proxax logo" width="180" />
 </p>
 
 # Proxax
@@ -166,7 +166,7 @@ If Proxax was helpful for a publication, please cite this repository:
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.2.8},
+  version = {0.3.1},
   year = {2026},
 }
 ```
