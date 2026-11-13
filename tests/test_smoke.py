@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pathlib
+import re
+import tomllib
+
 import jax
 import jax.numpy as jnp
 import optax
@@ -28,4 +32,23 @@ def test_px_facade_matches_package_namespace() -> None:
   assert hasattr(px.prox, "L1")
   assert hasattr(px.constraints, "equality")
   assert hasattr(px.oracle, "SmoothTerm")
+
+
+def test_version_sync() -> None:
+  """Ensures package, citation, README, and docs versions stay in sync."""
+  root = pathlib.Path(__file__).resolve().parent.parent
+  expected = tomllib.loads(
+      (root / "pyproject.toml").read_text(encoding="utf-8")
+  )["project"]["version"]
+  assert proxax.__version__ == expected
+  assert px.__version__ == expected
+
+  cff = (root / "CITATION.cff").read_text(encoding="utf-8")
+  cff_match = re.search(r'^version:\s*"([^"]+)"', cff, flags=re.MULTILINE)
+  assert cff_match is not None and cff_match.group(1) == expected
+
+  for doc_rel in ("README.md", "docs/index.md"):
+    text = (root / doc_rel).read_text(encoding="utf-8")
+    bib_match = re.search(r"version\s*=\s*\{([^}]+)\}", text)
+    assert bib_match is not None and bib_match.group(1) == expected
   assert hasattr(px.typing, "PyTree")

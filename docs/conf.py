@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import os
+import pathlib
+import tomllib
 
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+
+_PYPROJECT = tomllib.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "pyproject.toml")
+    .read_text(encoding="utf-8")
+)
 
 project = "Proxax"
 author = "Weiwei Kong"
 copyright = "2026, Weiwei Kong"
-release = "0.1.1"
+release = _PYPROJECT["project"]["version"]
 
 extensions = [
     "myst_parser",
