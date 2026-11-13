@@ -35,10 +35,25 @@ Reproductions of published benchmark tables using `proxax`:
 ```{toctree}
 :maxdepth: 1
 :hidden:
+:caption: Benchmarks
 
 panoc_benchmarks
 panoc_alm_benchmarks
+```
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+:caption: Scaling Studies
+
 padapt_vmap_gpu
 vmap_implicit_benchmarks
+```
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+:caption: Literature Replications
+
 maia2026_table1_dqp
 ```
