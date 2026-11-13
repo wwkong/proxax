@@ -59,6 +59,7 @@ html_theme_options = {
     "use_download_button": True,
     "show_toc_level": 2,
     "show_navbar_depth": 1,
+    "home_page_in_toc": True,
     "navigation_with_keys": False,
 }
 
