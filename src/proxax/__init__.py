@@ -18,6 +18,8 @@ __version__ = px.__version__
 
 CompositeProblem = _problem.CompositeProblem
 KKTResiduals = _problem.KKTResiduals
+MinMaxOracle = oracle.MinMaxOracle
+MinMaxProblem = oracle.MinMaxProblem
 Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
@@ -30,6 +32,8 @@ solve = _solve.solve
 __all__ = [
     "CompositeProblem",
     "KKTResiduals",
+    "MinMaxOracle",
+    "MinMaxProblem",
     "Solution",
     "SolveStats",
     "SolveStatus",

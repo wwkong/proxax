@@ -13,7 +13,7 @@ from proxax import solvers
 from proxax import tree
 from proxax import typing
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 CompositeProblem = _problem.CompositeProblem
 KKTResiduals = _problem.KKTResiduals

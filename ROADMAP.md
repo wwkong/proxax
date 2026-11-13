@@ -1,11 +1,11 @@
 # Proxax Roadmap
 
 This document tracks planned features, algorithmic extensions, and engineering
-milestones for **Proxax** beyond the current `v0.0.3` baseline.
+milestones for **Proxax** beyond the current `v0.0.4` baseline.
 
 ---
 
-## Current Baseline (`v0.0.3`)
+## Current Baseline (`v0.0.4`)
 
 - **Problem classes (least to most specialized):**
   1. Unconstrained composite optimization: $\min_{x \in \mathbb{R}^n} f(x) + h(x)$
@@ -15,7 +15,11 @@ milestones for **Proxax** beyond the current `v0.0.3` baseline.
      $\min_{x \in \mathbb{R}^n} f(x) + h(x)$ s.t. $\mathcal{A}(x) \in \mathcal{C}$
      (`px.CompositeProblem` — 5 solvers: `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`,
      `SProxALM`).
-  3. Matrix spectral composite optimization:
+  3. Min-max & saddle-point optimization:
+     $\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \Phi(x, y) + h(x) - g(y)$
+     (`px.MinMaxProblem` — 3 solvers: `ExtraGradient`, `PDHG`,
+     `ProxPointMinMax`).
+  4. Matrix spectral composite optimization:
      $\min_{X \in \mathbb{R}^{p \times q}} f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$
      (`px.SpectralProblem` — 2 single-SVD solvers: `DAICG`, `IAICG`).
 - **Core infrastructure:** Unified `from proxax import px` facade, PyTree-native
