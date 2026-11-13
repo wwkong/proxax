@@ -30,6 +30,9 @@ composable solver state trackers (`px.HistoryTracker`,
 .. automodule:: proxax.solvers.base
    :members:
 
+.. automodule:: proxax.plotting
+   :members:
+
 .. automodule:: proxax.typing
    :members:
 ```

@@ -7,6 +7,7 @@ from proxax import constraints
 from proxax import implicit
 from proxax import optax_compat
 from proxax import oracle
+from proxax import plotting
 from proxax import problem as _problem
 from proxax import prox
 from proxax import px
@@ -56,6 +57,7 @@ __all__ = [
     "implicit_solve",
     "optax_compat",
     "oracle",
+    "plotting",
     "prox",
     "px",
     "solve",

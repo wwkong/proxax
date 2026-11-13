@@ -246,7 +246,6 @@ class SolveStats:
     )
 
 
-@jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Solution:
   """Certified primal-dual solution returned by all `proxax` solvers.
@@ -259,6 +258,7 @@ class Solution:
       `v_hat in grad_f(x_hat) + dh(x_hat) + A^*(p_hat)`.
     status: Scalar `int32` JAX array encoding `SolveStatus`.
     stats: `SolveStats` counters and final residuals.
+    history: Optional `HistoryTracker` recorded when `track_history=True`.
   """
 
   x: _typing.PyTree
@@ -266,11 +266,46 @@ class Solution:
   subgrad: _typing.PyTree
   status: jax.Array
   stats: SolveStats
+  history: HistoryTracker | None = dataclasses.field(default=None)
 
   @property
   def status_enum(self) -> SolveStatus:
     """Converts scalar status code to Python `SolveStatus` (eager mode)."""
     return SolveStatus(int(self.status))
+
+  def plot(
+      self,
+      *,
+      x_axis: typing.Literal["iter", "time", "evals"] = "iter",
+      title: str | None = None,
+      show_tol: bool = True,
+      ax: typing.Any = None,
+  ) -> tuple[typing.Any, list[typing.Any]]:
+    """Plots recorded convergence curves if `self.history` is present."""
+    if self.history is None:
+      raise ValueError(
+          "Solution has no recorded history. Re-run with "
+          "`proxax.solve(..., jit=False, track_history=True)` or pass a "
+          "`HistoryTracker` via `callback=`."
+      )
+    return self.history.plot(
+        x_axis=x_axis,
+        title=title,
+        show_tol=show_tol,
+        ax=ax,
+    )
+
+  def plot_spectrum(
+      self,
+      *,
+      title: str | None = None,
+      log_y: bool = True,
+      ax: typing.Any = None,
+  ) -> tuple[typing.Any, typing.Any]:
+    """Plots the singular-value spectrum of a 2D matrix solution `self.x`."""
+    from proxax import plotting  # noqa: PLC0415
+
+    return plotting.plot_spectrum(self.x, title=title, log_y=log_y, ax=ax)
 
   def __repr__(self) -> str:
     """Returns a concise summary without dumping full array payloads."""
@@ -290,6 +325,13 @@ class Solution:
         f"  dual={_fmt_pytree(self.dual)},\n"
         ")"
     )
+
+
+jax.tree_util.register_dataclass(
+    Solution,
+    data_fields=["x", "dual", "subgrad", "status", "stats"],
+    meta_fields=["history"],
+)
 
 
 @jax.tree_util.register_dataclass
@@ -1019,6 +1061,25 @@ class HistoryTracker:
         "prox_evals": list(self.prox_evals),
         "elapsed_times": list(self.elapsed_times),
     }
+
+  def plot(
+      self,
+      *,
+      x_axis: typing.Literal["iter", "time", "evals"] = "iter",
+      title: str | None = None,
+      show_tol: bool = True,
+      ax: typing.Any = None,
+  ) -> tuple[typing.Any, list[typing.Any]]:
+    """Plots recorded objective and residual trajectories via Matplotlib."""
+    from proxax import plotting  # noqa: PLC0415
+
+    return plotting.plot_history(
+        self,
+        x_axis=x_axis,
+        title=title,
+        show_tol=show_tol,
+        ax=ax,
+    )
 
   def __repr__(self) -> str:
     """Returns a concise summary of recorded steps and latest metrics."""

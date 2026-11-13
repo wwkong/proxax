@@ -291,7 +291,28 @@ sol = px.solve(
 # Inspect or export recorded trajectories (for plotting, DataFrames, etc.):
 data = history.to_dict()
 print(history.obj_vals[-1], history.opt_residuals[-1], history.opt_tols[-1])
+
+# Plot convergence curves (requires `pip install proxax[plot]`):
+fig, axes = history.plot(x_axis="iter", title="IALM convergence")
 ```
+
+Or pass `track_history=True` directly to `px.solve(..., jit=False)` to attach the
+history to `sol.history` and call `sol.plot()` or `px.plotting.plot_histories`:
+
+```python
+sol_ialm = px.solve(problem, x0, method="ialm", jit=False, track_history=True)
+sol_qp = px.solve(problem, x0, method="qp_aipp", jit=False, track_history=True)
+
+sol_ialm.plot(x_axis="evals")
+px.plotting.plot_histories(
+    {"IALM": sol_ialm.history, "QP-AIPP": sol_qp.history},
+    x_axis="time",
+)
+```
+
+For matrix `SpectralProblem` solutions and benchmark suites, `px.plotting` also
+provides `sol.plot_spectrum()` (or `px.plotting.plot_spectrum`) and
+`px.plotting.plot_performance_profile`.
 
 With `verbose=True`, `HistoryTracker` prints an aligned table as the solver
 runs:

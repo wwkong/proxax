@@ -196,6 +196,7 @@ foundations/oracles
 guide/solving_problems
 guide/prox_and_constraints
 guide/optax_and_jax
+guide/plotting
 ```
 
 ```{toctree}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import typing
 
 from proxax import _typing
@@ -198,6 +199,7 @@ def solve(
     jit: bool = True,
     callback: typing.Any = None,
     time_limit: float | None = None,
+    track_history: bool = False,
 ) -> base.Solution:
   """Solves a composite, block, minmax, or spectral optimization problem.
 
@@ -220,6 +222,8 @@ def solve(
       `callback` and `time_limit`.
     callback: Optional per-outer-iteration callback (`jit=False` only).
     time_limit: Optional wall-clock limit in seconds (`jit=False` only).
+    track_history: If True (`jit=False` only), records per-iteration objective
+      and residual history into `solution.history` for `solution.plot()`.
 
   Returns:
     A `Solution` PyTree with certified primal `x`, optional `dual`, exact
@@ -227,14 +231,34 @@ def solve(
   """
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
+  if track_history and jit:
+    raise ValueError("`track_history=True` requires `jit=False`.")
   chosen, target = _select_solver(problem, solver, method, opt_tol, feas_tol)
-  return typing.cast(
+  tracker: base.HistoryTracker | None = None
+  effective_cb = callback
+  if track_history:
+    tracker = base.HistoryTracker()
+    if callback is None:
+      effective_cb = tracker
+    else:
+
+      def _combined_cb(st: typing.Any) -> bool:
+        stop_t = tracker(st)
+        stop_u = bool(callback(st))
+        return stop_t or stop_u
+
+      effective_cb = _combined_cb
+
+  sol = typing.cast(
       base.Solution,
       chosen.solve(
           target,
           x0,
           jit=jit,
-          callback=callback,
+          callback=effective_cb,
           time_limit=time_limit,
       ),
   )
+  if tracker is not None:
+    return dataclasses.replace(sol, history=tracker)
+  return sol
