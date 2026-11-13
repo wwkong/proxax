@@ -11,9 +11,10 @@ Proxax.
 Below, $\rho > 0$ denotes the stationarity tolerance $\|\hat{v}\| \le \rho$,
 $\eta > 0$ denotes the feasibility tolerance
 $\|\mathcal{A}(\hat{x}) - \Pi_{\mathcal{C}}(\mathcal{A}(\hat{x}))\| \le \eta$,
-$\Delta_0 := \phi(x_0) - \phi_\star$ is the initial optimality gap, and
-$(m, M)$ are the lower (weak-convexity) and upper (smoothness) curvature
-constants of $f$.
+$\Delta_0 := \phi(x_0) - \phi_\star$ is the initial optimality gap,
+$d_0 := \operatorname{dist}(x_0, X_\star)$ is the initial distance to the
+optimal solution set, and $(m, M)$ are the lower (weak-convexity) and upper
+(smoothness) curvature constants of $f$.
 
 ### Unconstrained Composite Solvers ($\min_x f(x) + h(x)$)
 
