@@ -24,108 +24,123 @@ from proxax import px
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _BallL1VectorProx:
-  weight: float
-  radius: float
+    weight: float
+    radius: float
 
-  @property
-  def strong_convexity(self) -> float:
-    return 0.0
+    @property
+    def strong_convexity(self) -> float:
+        return 0.0
 
-  def value(self, x: px.typing.PyTree) -> jax.Array:
-    return self.weight * jnp.sum(jnp.abs(jnp.asarray(x)))
+    def value(self, x: px.typing.PyTree) -> jax.Array:
+        return self.weight * jnp.sum(jnp.abs(jnp.asarray(x)))
 
-  def prox(self, x: px.typing.PyTree, step_size: px.typing.Scalar) -> px.typing.PyTree:
-    s_vec = jnp.asarray(x)
-    shrunk = jnp.sign(s_vec) * jnp.maximum(jnp.abs(s_vec) - step_size * self.weight, 0.0)
-    return optax.projections.projection_l2_ball(shrunk, self.radius)
+    def prox(
+        self, x: px.typing.PyTree, step_size: px.typing.Scalar
+    ) -> px.typing.PyTree:
+        s_vec = jnp.asarray(x)
+        shrunk = jnp.sign(s_vec) * jnp.maximum(
+            jnp.abs(s_vec) - step_size * self.weight, 0.0
+        )
+        return optax.projections.projection_l2_ball(shrunk, self.radius)
 
-  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
-    return optax.projections.projection_l2_ball(jnp.asarray(x), self.radius)
+    def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
+        return optax.projections.projection_l2_ball(jnp.asarray(x), self.radius)
 
 
 def _make_spectral_mc(
     obs_prob: float, m: int = 20, n: int = 20, rank: int = 3, seed: int = 55
 ) -> tuple[px.SpectralProblem, jax.Array]:
-  key = jax.random.PRNGKey(seed)
-  k1, k2, k3, k4 = jax.random.split(key, 4)
-  U = jax.random.normal(k1, (m, rank))
-  V = jax.random.normal(k2, (n, rank))
-  M_true = U @ V.T
-  mask = (jax.random.uniform(k3, (m, n)) < obs_prob).astype(jnp.float32)
-  M_obs = mask * (M_true + 0.05 * jax.random.normal(k4, (m, n)))
+    key = jax.random.PRNGKey(seed)
+    k1, k2, k3, k4 = jax.random.split(key, 4)
+    U = jax.random.normal(k1, (m, rank))
+    V = jax.random.normal(k2, (n, rank))
+    M_true = U @ V.T
+    mask = (jax.random.uniform(k3, (m, n)) < obs_prob).astype(jnp.float32)
+    M_obs = mask * (M_true + 0.05 * jax.random.normal(k4, (m, n)))
 
-  alpha = 0.05
-  mu = 0.2
-  beta = 1.0
-  theta = 0.5
-  kappa0 = beta / theta
-  radius = float(jnp.linalg.norm(M_true) * 1.5)
+    alpha = 0.05
+    mu = 0.2
+    beta = 1.0
+    theta = 0.5
+    kappa0 = beta / theta
+    radius = float(jnp.linalg.norm(M_true) * 1.5)
 
-  def _f1(X: jax.Array) -> jax.Array:
-    return 0.5 * jnp.sum(mask * (X - M_obs) ** 2)
+    def _f1(X: jax.Array) -> jax.Array:
+        return 0.5 * jnp.sum(mask * (X - M_obs) ** 2)
 
-  def _f2_vec(s: jax.Array) -> jax.Array:
-    s_abs = jnp.abs(s)
-    k_tilde = beta * (1.0 - jnp.exp(-jnp.sum(s_abs ** 2) / (2.0 * theta)))
-    k_sum = jnp.sum(beta * jnp.log1p(s_abs / theta) - kappa0 * s_abs)
-    return alpha * k_tilde + mu * k_sum
+    def _f2_vec(s: jax.Array) -> jax.Array:
+        s_abs = jnp.abs(s)
+        k_tilde = beta * (1.0 - jnp.exp(-jnp.sum(s_abs**2) / (2.0 * theta)))
+        k_sum = jnp.sum(beta * jnp.log1p(s_abs / theta) - kappa0 * s_abs)
+        return alpha * k_tilde + mu * k_sum
 
-  prob = px.SpectralProblem(
-      f1=px.oracle.as_smooth_term(_f1),
-      f2_vec=px.oracle.as_smooth_term(_f2_vec),
-      prox_vec=_BallL1VectorProx(weight=mu * kappa0, radius=radius),
-  )
-  return prob, jnp.zeros((m, n))
+    prob = px.SpectralProblem(
+        f1=px.oracle.as_smooth_term(_f1),
+        f2_vec=px.oracle.as_smooth_term(_f2_vec),
+        prox_vec=_BallL1VectorProx(weight=mu * kappa0, radius=radius),
+    )
+    return prob, jnp.zeros((m, n))
 
 
 def main() -> None:
-  tol = 1e-3
-  obs_probs = [0.30, 0.45, 0.60, 0.75]
-  solvers = [
-      ("DAICG (monotone)", px.solvers.DAICG(opt_tol=tol, monotone=True, max_outer_iters=600)),
-      ("DAICG (nonmonotone)", px.solvers.DAICG(opt_tol=tol, monotone=False, max_outer_iters=600)),
-      ("IAICG", px.solvers.IAICG(opt_tol=tol, max_outer_iters=600)),
-  ]
+    """Runs the spectral matrix completion sweep and trajectory collection."""
+    tol = 1e-3
+    obs_probs = [0.30, 0.45, 0.60, 0.75]
+    solvers = [
+        (
+            "DAICG (monotone)",
+            px.solvers.DAICG(opt_tol=tol, monotone=True, max_outer_iters=600),
+        ),
+        (
+            "DAICG (nonmonotone)",
+            px.solvers.DAICG(opt_tol=tol, monotone=False, max_outer_iters=600),
+        ),
+        ("IAICG", px.solvers.IAICG(opt_tol=tol, max_outer_iters=600)),
+    ]
 
-  rows = []
-  trajectories = {}
-  for p in obs_probs:
-    prob, x0 = _make_spectral_mc(p)
-    for name, solver in solvers:
-      track = (p == 0.45)
-      t0 = time.perf_counter()
-      sol = px.solve(prob, x0, solver=solver, track_history=track)
-      jax.block_until_ready(sol.x)
-      wall_s = time.perf_counter() - t0
-      oracle_evals = (
-          int(sol.stats.smooth_evals)
-          + int(sol.stats.grad_evals)
-          + int(sol.stats.prox_evals)
-      )
-      rows.append({
-          "obs_prob": p,
-          "solver": name,
-          "status": sol.status_enum.name,
-          "outer_iters": int(sol.stats.outer_iters),
-          "oracle_evals": oracle_evals,
-          "obj_val": float(sol.stats.obj_val),
-          "opt_residual": float(sol.stats.opt_residual),
-          "wall_s": round(wall_s, 3),
-      })
-      if track and sol.history is not None:
-        h = sol.history
-        evals = [
-            int(s + g + p_ev)
-            for s, g, p_ev in zip(h.smooth_evals, h.grad_evals, h.prox_evals)
-        ]
-        trajectories[name] = {
-            "outer_iters": [int(x) for x in h.outer_iters],
-            "oracle_evals": evals,
-            "opt_residuals": [float(x) for x in h.opt_residuals],
-            "obj_vals": [float(x) for x in h.obj_vals],
-        }
-  print(json.dumps({"rows": rows, "trajectories": trajectories}, indent=2))
+    rows = []
+    trajectories = {}
+    for p in obs_probs:
+        prob, x0 = _make_spectral_mc(p)
+        for name, solver in solvers:
+            track = p == 0.45
+            t0 = time.perf_counter()
+            sol = px.solve(prob, x0, solver=solver, track_history=track)
+            jax.block_until_ready(sol.x)
+            wall_s = time.perf_counter() - t0
+            oracle_evals = (
+                int(sol.stats.smooth_evals)
+                + int(sol.stats.grad_evals)
+                + int(sol.stats.prox_evals)
+            )
+            rows.append(
+                {
+                    "obs_prob": p,
+                    "solver": name,
+                    "status": sol.status_enum.name,
+                    "outer_iters": int(sol.stats.outer_iters),
+                    "oracle_evals": oracle_evals,
+                    "obj_val": float(sol.stats.obj_val),
+                    "opt_residual": float(sol.stats.opt_residual),
+                    "wall_s": round(wall_s, 3),
+                }
+            )
+            if track and sol.history is not None:
+                h = sol.history
+                evals = [
+                    int(s + g + p_ev)
+                    for s, g, p_ev in zip(
+                        h.smooth_evals, h.grad_evals, h.prox_evals, strict=True
+                    )
+                ]
+                trajectories[name] = {
+                    "outer_iters": [int(x) for x in h.outer_iters],
+                    "oracle_evals": evals,
+                    "opt_residuals": [float(x) for x in h.opt_residuals],
+                    "obj_vals": [float(x) for x in h.obj_vals],
+                }
+    print(json.dumps({"rows": rows, "trajectories": trajectories}, indent=2))
 
 
 if __name__ == "__main__":
-  main()
+    main()
