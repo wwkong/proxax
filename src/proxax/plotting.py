@@ -136,11 +136,11 @@ def _plot_residual_panel(
     alpha: float,
 ) -> None:
   """Plots a residual curve on log scale with an optional tolerance line."""
-  axis.plot(xs, residuals, label=label, alpha=alpha, linewidth=1.8)
+  axis.plot(xs, residuals, label=label, alpha=alpha, linewidth=1.2)
   if any(r > 0.0 for r in residuals):
     axis.set_yscale("log")
   if show_tol and tols and tols[-1] > 0.0:
-    axis.axhline(tols[-1], linestyle="--", linewidth=1.0, alpha=0.6)
+    axis.axhline(tols[-1], linestyle="--", linewidth=0.8, alpha=0.6)
   axis.set_ylabel(ylabel)
   axis.grid(True, which="both", alpha=0.3)
 
@@ -184,7 +184,7 @@ def plot_histories(
     x_label = "Outer iteration"
     for name, hist in histories.items():
       xs, x_label = _x_series(hist, x_axis)
-      axes[0].plot(xs, hist.obj_vals, label=name, alpha=alpha, linewidth=1.8)
+      axes[0].plot(xs, hist.obj_vals, label=name, alpha=alpha, linewidth=1.2)
       _plot_residual_panel(
           axes[1],
           xs,
@@ -207,8 +207,10 @@ def plot_histories(
             alpha=alpha,
         )
 
+    if all(v > 0.0 for h in histories.values() for v in h.obj_vals):
+      axes[0].set_yscale("log")
     axes[0].set_ylabel("Objective")
-    axes[0].grid(True, alpha=0.3)
+    axes[0].grid(True, which="both", alpha=0.3)
     if len(histories) > 1:
       axes[0].legend()
     axes[-1].set_xlabel(x_label)
@@ -297,9 +299,9 @@ def plot_spectrum(
         indices,
         svals,
         marker="o",
-        markersize=4.5,
+        markersize=3.8,
         alpha=alpha,
-        linewidth=1.8,
+        linewidth=1.2,
     )
     if log_y and any(s > 0.0 for s in svals):
       axis.set_yscale("log")
@@ -384,7 +386,7 @@ def plot_performance_profile(
       for idx in range(len(solved)):
         ys.append((idx + 1) / n_probs)
       ys.append(len(solved) / n_probs)
-      axis.step(xs, ys, where="post", label=name, alpha=alpha, linewidth=1.8)
+      axis.step(xs, ys, where="post", label=name, alpha=alpha, linewidth=1.2)
 
     axis.set_xlim(1.0, max_tau)
     axis.set_ylim(0.0, 1.05)

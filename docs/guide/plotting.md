@@ -58,8 +58,8 @@ for label, method in [
       c_prob,
       x0,
       method=method,
-      opt_tol=1e-3,
-      feas_tol=1e-3,
+      opt_tol=1e-4,
+      feas_tol=1e-4,
       track_history=True,
   )
   histories[label] = res.history
@@ -72,6 +72,12 @@ fig, axes = px.plotting.plot_histories(
 ```
 
 ![Constrained Lasso Comparison](../_static/plots/constrained_comparison.svg)
+
+Note that step 0 already consumes a small number of oracle evaluations for the
+initial proximal refinement certificate (`x_hat in dom(h)`), and `IAIPAL` starts
+from a slightly different step-0 point because it refines on the initial
+penalized oracle whereas `IALM`, `QP-APD`, and `QP-AIPP` refine on the base
+oracle.
 
 ---
 
