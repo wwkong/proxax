@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from proxax.optax_compat import transforms
 
+ACGSubproblemCarry = transforms.ACGSubproblemCarry
 AIPPTransformState = transforms.AIPPTransformState
 APDTransformState = transforms.APDTransformState
+ConstrainedOptaxTracker = transforms.ConstrainedOptaxTracker
 IALMTransformState = transforms.IALMTransformState
+OptaxTracker = transforms.OptaxTracker
+PFAPDSubproblemCarry = transforms.PFAPDSubproblemCarry
 ProximalState = transforms.ProximalState
 QPAPDTransformState = transforms.QPAPDTransformState
 QPTransformState = transforms.QPTransformState
@@ -18,9 +22,13 @@ qp_aipp = transforms.qp_aipp
 qp_apd = transforms.qp_apd
 
 __all__ = [
+    "ACGSubproblemCarry",
     "AIPPTransformState",
     "APDTransformState",
+    "ConstrainedOptaxTracker",
     "IALMTransformState",
+    "OptaxTracker",
+    "PFAPDSubproblemCarry",
     "ProximalState",
     "QPAPDTransformState",
     "QPTransformState",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+
 import jax
 import jax.numpy as jnp
 import optax
@@ -265,3 +267,56 @@ def test_optax_ialm_transform() -> None:
   assert int(state.alm_iter) >= 1
   assert float(state.opt_residual) <= 2e-3
   assert float(state.feas_residual) <= 2e-3
+
+
+def test_optax_states_compose_trackers_and_subproblems() -> None:
+  params = {"x": jnp.array([0.2, -0.1])}
+  eq = {
+      "eq": constraints.equality(
+          lambda p: jnp.sum(p["x"]),
+          rhs=jnp.asarray(0.5),
+      ),
+  }
+  box_prox = prox.Box(lower=-1.0, upper=1.0)
+
+  aipp_st = optax_compat.aipp(prox_op=box_prox).init(params)
+  apd_st = optax_compat.apd(prox_op=box_prox).init(params)
+  qp_aipp_st = optax_compat.qp_aipp(constraints=eq, prox_op=box_prox).init(
+      params
+  )
+  qp_apd_st = optax_compat.qp_apd(constraints=eq, prox_op=box_prox).init(params)
+  ialm_st = optax_compat.ialm(constraints=eq, prox_op=box_prox).init(params)
+
+  assert {f.name for f in dataclasses.fields(aipp_st)} == {
+      "tracker",
+      "subproblem",
+  }
+  assert isinstance(aipp_st.tracker, optax_compat.OptaxTracker)
+  assert isinstance(aipp_st.subproblem, optax_compat.ACGSubproblemCarry)
+  assert float(aipp_st.opt_residual) == float(aipp_st.tracker.opt_residual)
+  assert float(aipp_st.lipschitz) == float(aipp_st.subproblem.lipschitz)
+
+  assert {f.name for f in dataclasses.fields(apd_st)} == {
+      "tracker",
+      "subproblem",
+  }
+  assert isinstance(apd_st.tracker, optax_compat.OptaxTracker)
+  assert isinstance(apd_st.subproblem, optax_compat.PFAPDSubproblemCarry)
+  assert float(apd_st.lower_curvature) == float(
+      apd_st.subproblem.lower_curvature
+  )
+
+  for constrained_st in (qp_aipp_st, qp_apd_st, ialm_st):
+    field_names = {f.name for f in dataclasses.fields(constrained_st)}
+    assert "tracker" in field_names
+    assert "subproblem" in field_names
+    assert isinstance(
+        constrained_st.tracker,
+        optax_compat.ConstrainedOptaxTracker,
+    )
+    assert float(constrained_st.feas_residual) == float(
+        constrained_st.tracker.feas_residual
+    )
+  assert int(qp_aipp_st.penalty_iter) == int(qp_aipp_st.tracker.stage_iter)
+  assert int(qp_apd_st.penalty_iter) == int(qp_apd_st.tracker.stage_iter)
+  assert int(ialm_st.alm_iter) == int(ialm_st.tracker.stage_iter)
