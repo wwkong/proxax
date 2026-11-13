@@ -109,20 +109,22 @@ and detailed comparisons to the upstream MATLAB `nc_opt` package.
 
 ```python
 import jax.numpy as jnp
-import proxax
-from proxax import constraints
-from proxax import prox
+from proxax import px
 
 q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
 c_vec = jnp.array([-0.6, 0.2, -0.4])
 
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
-    proximal=prox.Box(lower=0.0, upper=1.0),
-    constraints=constraints.equality(lambda x: jnp.sum(x), rhs=1.0),
+    proximal=px.prox.Box(lower=0.0, upper=1.0),
+    constraints=px.constraints.equality(lambda x: jnp.sum(x), rhs=1.0),
 )
 
-sol = proxax.solve(problem, jnp.ones(3) / 3.0, method="ialm", opt_tol=1e-5, feas_tol=1e-5)
+sol = px.solve(
+    problem,
+    jnp.ones(3) / 3.0,
+    solver=px.solvers.IALM(opt_tol=1e-5, feas_tol=1e-5),
+)
 print(sol.status_enum.name, sol.x, float(sol.stats.opt_residual))
 ```
 

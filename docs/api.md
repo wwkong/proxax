@@ -1,16 +1,18 @@
 # API Reference
 
-This page documents every public class, protocol, and function in `proxax`. For
-conceptual introductions and basic examples, see the {doc}`guide/solving_problems`
-and {doc}`guide/prox_and_constraints` guides.
+All public symbols in `proxax` are exposed through the unified `px` facade
+(`from proxax import px`, or `import proxax as px`). For conceptual
+introductions and basic examples, see {doc}`guide/solving_problems` and
+{doc}`guide/prox_and_constraints`.
 
 ---
 
-## Problems, Solutions & Top-Level `solve`
+## Problems, Solutions & Top-Level `px.solve`
 
-Core problem containers (`CompositeProblem`, `SpectralProblem`), the unified
-`proxax.solve` entry point, and common return types (`Solution`, `SolveStats`,
-`SolveStatus`, `StoppingConfig`, `KKTResiduals`).
+Core problem containers (`px.CompositeProblem`, `px.SpectralProblem`), the
+unified `px.solve` entry point, common return types (`px.Solution`,
+`px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`), and
+type aliases (`px.typing`).
 
 ```{eval-rst}
 .. automodule:: proxax.problem
@@ -21,11 +23,14 @@ Core problem containers (`CompositeProblem`, `SpectralProblem`), the unified
 
 .. automodule:: proxax.solvers.base
    :members:
+
+.. automodule:: proxax.typing
+   :members:
 ```
 
 ---
 
-## Proximal Operators (`proxax.prox`)
+## Proximal Operators (`px.prox`)
 
 Convex norm regularizers (`L1`, `L2`, `L2Squared`, `ElasticNet`, `NuclearNorm`),
 set indicators (`NonNegative`, `Box`, `BoxL1`, `Simplex`, `L2Ball`, `L1Ball`),
@@ -47,7 +52,7 @@ and PyTree combinators (`MultiProx`, `Shifted`, `Zero`).
 
 ---
 
-## Constraints & Convex Sets (`proxax.constraints`)
+## Constraints & Convex Sets (`px.constraints`)
 
 Convenience builders (`equality`, `less_equal`, `greater_equal`, `box`,
 `in_set`), matrix and callable PyTree linear operators, and Euclidean-projected
@@ -64,7 +69,7 @@ Convenience builders (`equality`, `less_equal`, `greater_equal`, `box`,
 
 ---
 
-## Oracles & Stationarity Certificates (`proxax.oracle`, `proxax.certificates`)
+## Oracles & Stationarity Certificates (`px.oracle`, `px.certificates`)
 
 First-order smooth, composite, penalized, and spectral oracles, together with
 exact subdifferential refinement (`refine`, `refine_icg`).
@@ -85,7 +90,7 @@ exact subdifferential refinement (`refine`, `refine_icg`).
 
 ---
 
-## Unconstrained Composite Solvers (`proxax.solvers`)
+## Unconstrained Composite Solvers (`px.solvers`)
 
 Certified proximal-point and accelerated composite gradient solvers for
 $\min_x f(x) + h(x)$.
@@ -121,7 +126,7 @@ $\min_x f(x) + h(x)$.
 
 ---
 
-## Matrix Spectral Solvers (`proxax.solvers`)
+## Matrix Spectral Solvers (`px.solvers`)
 
 Singular-value composite solvers requiring only a single thin SVD per outer
 iteration on `SpectralProblem` or `NuclearNorm` objectives.
@@ -136,7 +141,7 @@ iteration on `SpectralProblem` or `NuclearNorm` objectives.
 
 ---
 
-## Set- and Cone-Constrained Solvers (`proxax.solvers`)
+## Set- and Cone-Constrained Solvers (`px.solvers`)
 
 Quadratic penalty and inexact/smoothed proximal augmented Lagrangian solvers for
 $\min_x f(x) + h(x)$ subject to $\mathcal{A}(x) \in \mathcal{C}$.
@@ -160,7 +165,7 @@ $\min_x f(x) + h(x)$ subject to $\mathcal{A}(x) \in \mathcal{C}$.
 
 ---
 
-## Optax Compatibility (`proxax.optax_compat`)
+## Optax Compatibility (`px.optax_compat`)
 
 Single-step `optax.GradientTransformation` and
 `optax.GradientTransformationExtraArgs` state machines for integrating `proxax`

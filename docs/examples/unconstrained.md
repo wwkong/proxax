@@ -23,14 +23,13 @@ whose unique minimizer is $x^\star = 1$ with optimal value $0$.
 
 ```python
 import jax.numpy as jnp
-import proxax
-from proxax import solvers
+from proxax import px
 
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5,
 )
 
-sol = proxax.solve(problem, jnp.array([-3.0]), solver=solvers.APD(opt_tol=1e-6))
+sol = px.solve(problem, jnp.array([-3.0]), solver=px.solvers.APD(opt_tol=1e-6))
 print(sol.status_enum.name, float(sol.x[0]), float(sol.stats.opt_residual))
 # CONVERGED 1.0 0.0
 ```
@@ -55,10 +54,7 @@ $M = \lambda_{\max}(H) = 50.0$ and weak convexity $m = -\lambda_{\min}(H) > 0$.
 ```python
 import jax
 import jax.numpy as jnp
-import proxax
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 key = jax.random.key(777)
 k1, k2, k3, k4 = jax.random.split(key, 4)
@@ -83,23 +79,23 @@ def smooth_qp(x: jax.Array) -> jax.Array:
   dbx = db_mat @ x
   return 0.5 * tau * jnp.dot(res, res) - 0.5 * xi * jnp.dot(dbx, dbx)
 
-problem = proxax.CompositeProblem(
-    smooth=terms.SmoothTerm(
+problem = px.CompositeProblem(
+    smooth=px.oracle.SmoothTerm(
         smooth_qp, upper_curvature=m_upper, lower_curvature=m_lower
     ),
-    proximal=prox.Simplex(scale=1.0),
+    proximal=px.prox.Simplex(scale=1.0),
 )
 
 x0 = jnp.ones(dim_n) / dim_n
 for name, solver in [
-    ("APD (param-free)", solvers.APD(opt_tol=1e-4)),
-    ("AIPP", solvers.AIPP(opt_tol=1e-4)),
-    ("ACACG", solvers.ACACG(opt_tol=1e-4)),
-    ("AdapFISTA", solvers.AdapFISTA(opt_tol=1e-4)),
-    ("NCFISTA", solvers.NCFISTA(opt_tol=1e-4)),
-    ("ECG", solvers.ECG(opt_tol=1e-4)),
+    ("APD (param-free)", px.solvers.APD(opt_tol=1e-4)),
+    ("AIPP", px.solvers.AIPP(opt_tol=1e-4)),
+    ("ACACG", px.solvers.ACACG(opt_tol=1e-4)),
+    ("AdapFISTA", px.solvers.AdapFISTA(opt_tol=1e-4)),
+    ("NCFISTA", px.solvers.NCFISTA(opt_tol=1e-4)),
+    ("ECG", px.solvers.ECG(opt_tol=1e-4)),
 ]:
-  sol = proxax.solve(problem, x0, solver=solver)
+  sol = px.solve(problem, x0, solver=solver)
   print(name, sol.status_enum.name, float(sol.stats.obj_val), int(sol.stats.grad_evals))
 ```
 
@@ -137,8 +133,7 @@ setting where parameter-free adaptive solvers shine:
 ```python
 import jax
 import jax.numpy as jnp
-import proxax
-from proxax import solvers
+from proxax import px
 
 k1, k2 = jax.random.split(jax.random.key(42))
 dim_n, num_samples = 25, 60
@@ -151,8 +146,8 @@ def svm_loss(x: jax.Array) -> jax.Array:
   margins = labels * (u_mat.T @ x)
   return jnp.mean(1.0 - jnp.tanh(margins)) + 0.5 * reg * jnp.dot(x, x)
 
-problem = proxax.CompositeProblem(smooth=svm_loss)
-sol = proxax.solve(problem, jnp.zeros(dim_n), solver=solvers.APD(opt_tol=1e-4))
+problem = px.CompositeProblem(smooth=svm_loss)
+sol = px.solve(problem, jnp.zeros(dim_n), solver=px.solvers.APD(opt_tol=1e-4))
 ```
 
 ### Solver Comparison (`opt_tol = 1e-4`)
@@ -162,4 +157,4 @@ sol = proxax.solve(problem, jnp.zeros(dim_n), solver=solvers.APD(opt_tol=1e-4))
 | `AdapAPG` | No | `CONVERGED` | `0.60651` | `8.70e-05` | `95.0%` | `35` |
 | `APD` | No | `CONVERGED` | `0.60651` | `8.60e-05` | `95.0%` | `60` |
 | `AG` | Yes ($M$) | `CONVERGED` | `0.60651` | `9.87e-05` | `95.0%` | `364` |
-| `UPFAG` | No | `CONVERGED` | `0.60651` | `9.90e-05` | `380` |
+| `UPFAG` | No | `CONVERGED` | `0.60651` | `9.90e-05` | `95.0%` | `380` |

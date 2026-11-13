@@ -7,7 +7,8 @@ three problems:
    all five constrained solvers (`IALM`, `IAIPAL`, `QPAPD`, `SProxALM`,
    `QPAIPP`).
 2. **Consensus Sparse PCA on the $k$-Fantope**, combining a custom matrix
-   projector, `prox.MultiProx`, and a matrix-free dictionary PyTree constraint.
+   projector, `px.prox.MultiProx`, and a matrix-free dictionary PyTree
+   constraint.
 3. **Box-constrained nonconvex matrix completion** with entrywise rating bounds.
 
 All code on this page can be executed directly via
@@ -34,11 +35,7 @@ $$\hat{v} \in \nabla f(\hat{x}) + N_{\Delta^n}(\hat{x}) + A_{\text{eq}}^\top \ha
 ```python
 import jax
 import jax.numpy as jnp
-import proxax
-from proxax import constraints
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 key = jax.random.key(777)
 k1, k2, k3, k4, k5 = jax.random.split(key, 5)
@@ -63,12 +60,12 @@ def smooth_fn(x: jax.Array) -> jax.Array:
   dbx = db_mat @ x
   return 0.5 * tau * jnp.dot(res, res) - 0.5 * xi * jnp.dot(dbx, dbx)
 
-problem = proxax.CompositeProblem(
-    smooth=terms.SmoothTerm(
+problem = px.CompositeProblem(
+    smooth=px.oracle.SmoothTerm(
         smooth_fn, upper_curvature=m_upper, lower_curvature=m_lower
     ),
-    proximal=prox.Simplex(scale=1.0),
-    constraints=constraints.equality(a_eq, rhs=rhs_b),
+    proximal=px.prox.Simplex(scale=1.0),
+    constraints=px.constraints.equality(a_eq, rhs=rhs_b),
 )
 ```
 
@@ -99,7 +96,7 @@ where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and $\frac{1}{2} b \nu^2
 - \nu |t|$ otherwise.
 
 In `proxax`, we keep the variable as a dictionary PyTree `{"pi": ..., "phi": ...}`,
-pair the two block regularizers via `prox.MultiProx`, and write the matrix
+pair the two block regularizers via `px.prox.MultiProx`, and write the matrix
 consensus constraint directly as `lambda z: z["pi"] - z["phi"]`:
 
 ```python
@@ -107,12 +104,7 @@ import dataclasses
 import typing
 import jax
 import jax.numpy as jnp
-import proxax
-from proxax import _typing
-from proxax import constraints
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -125,10 +117,10 @@ class FantopeProx:
   def strong_convexity(self) -> float:
     return 0.0
 
-  def value(self, x: _typing.PyTree) -> jax.Array:
+  def value(self, x: px.typing.PyTree) -> jax.Array:
     return jnp.asarray(0.0, dtype=jnp.asarray(x).dtype)
 
-  def _project(self, x: _typing.PyTree) -> jax.Array:
+  def _project(self, x: px.typing.PyTree) -> jax.Array:
     mat = jnp.asarray(x)
     eigvals, eigvecs = jnp.linalg.eigh(0.5 * (mat + mat.T))
     lo, hi = jnp.min(eigvals) - 1.0, jnp.max(eigvals)
@@ -146,11 +138,11 @@ class FantopeProx:
     proj_eigs = jnp.clip(eigvals - 0.5 * (lo_f + hi_f), 0.0, 1.0)
     return typing.cast(jax.Array, (eigvecs * proj_eigs[None, :]) @ eigvecs.T)
 
-  def prox(self, x: _typing.PyTree, step_size: _typing.Scalar) -> _typing.PyTree:
+  def prox(self, x: px.typing.PyTree, step_size: px.typing.Scalar) -> px.typing.PyTree:
     del step_size
     return self._project(x)
 
-  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
     return self._project(x)
 ```
 
@@ -172,18 +164,18 @@ smooth nonconvex log-penalty:
 
 $$\min_{X \in \mathbb{R}^{m \times n}} \; \frac{1}{2}\|P_\Omega(X - M_{\text{obs}})\|_F^2 + \mu \beta \sum_{i,j} \log\!\left(1 + \frac{\sqrt{X_{ij}^2 + \epsilon^2}}{\theta}\right) \quad \text{s.t.} \quad 0 \le X_{ij} \le 2$$
 
-we can enforce the box constraint via `constraints.box` and solve parameter-free
-with `QPAPD`:
+we can enforce the box constraint via `px.constraints.box` and solve
+parameter-free with `QPAPD`:
 
 ```python
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=smooth_bmc,
-    constraints=constraints.box(lambda x: x, lower=0.0, upper=2.0),
+    constraints=px.constraints.box(lambda x: x, lower=0.0, upper=2.0),
 )
-sol = proxax.solve(
+sol = px.solve(
     problem,
     jnp.full((12, 10), 0.5),
-    solver=solvers.QPAPD(opt_tol=1e-3, feas_tol=1e-4),
+    solver=px.solvers.QPAPD(opt_tol=1e-3, feas_tol=1e-4),
 )
 # QPAPD -> status=CONVERGED, stat=2.48e-04, box_viol=3.76e-05, full_matrix_RMSE=0.4686
 ```

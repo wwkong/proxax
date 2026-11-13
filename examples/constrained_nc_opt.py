@@ -1,9 +1,9 @@
-"""Set- and cone-constrained nonconvex examples ported from `wwkong/nc_opt`.
+"""Set- and cone-constrained nonconvex composite optimization examples.
 
-Covers three classic constrained benchmark families from `nc_opt/examples/`:
-1. Linearly-constrained nonconvex simplex QP (`nonconvex_lin_constr_qp.m`).
-2. Consensus Sparse PCA on the `k`-Fantope (`nonconvex_sparse_pca.m`).
-3. Box-constrained nonconvex matrix completion (`nonconvex_bounded_mc.m`).
+Covers three benchmark families:
+1. Linearly-constrained nonconvex simplex QP across 5 constrained solvers.
+2. Consensus Sparse PCA on the `k`-Fantope with dictionary PyTrees.
+3. Box-constrained nonconvex matrix completion.
 """
 
 from __future__ import annotations
@@ -14,12 +14,7 @@ import typing
 import jax
 import jax.numpy as jnp
 
-import proxax
-from proxax import _typing
-from proxax import constraints
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 
 @jax.tree_util.register_dataclass
@@ -38,21 +33,21 @@ class FantopeProx:
     """Strong convexity constant (`0.0`)."""
     return 0.0
 
-  def value(self, x: _typing.PyTree) -> jax.Array:
+  def value(self, x: px.typing.PyTree) -> jax.Array:
     """Returns `0.0` at feasible `k`-Fantope matrices."""
     mat = jnp.asarray(x)
     return jnp.asarray(0.0, dtype=mat.dtype)
 
-  def _project(self, x: _typing.PyTree) -> jax.Array:
+  def _project(self, x: px.typing.PyTree) -> jax.Array:
     mat = jnp.asarray(x)
     sym = 0.5 * (mat + mat.T)
     eigvals, eigvecs = jnp.linalg.eigh(sym)
     lo = jnp.min(eigvals) - 1.0
     hi = jnp.max(eigvals)
 
-    def body_fn(_: int, bounds: tuple[jax.Array, jax.Array]) -> tuple[
-        jax.Array, jax.Array
-    ]:
+    def body_fn(
+        _: int, bounds: tuple[jax.Array, jax.Array]
+    ) -> tuple[jax.Array, jax.Array]:
       low, high = bounds
       mid = 0.5 * (low + high)
       clipped_sum = jnp.sum(jnp.clip(eigvals - mid, 0.0, 1.0))
@@ -71,14 +66,14 @@ class FantopeProx:
 
   def prox(
       self,
-      x: _typing.PyTree,
-      step_size: _typing.Scalar,
-  ) -> _typing.PyTree:
+      x: px.typing.PyTree,
+      step_size: px.typing.Scalar,
+  ) -> px.typing.PyTree:
     """Projects `x` onto the `k`-Fantope."""
     del step_size
     return self._project(x)
 
-  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
     """Projects `x` onto the `k`-Fantope."""
     return self._project(x)
 
@@ -111,29 +106,29 @@ def run_linearly_constrained_qp() -> None:
     dbx = db_mat @ x
     return 0.5 * tau * jnp.dot(res, res) - 0.5 * xi * jnp.dot(dbx, dbx)
 
-  problem = proxax.CompositeProblem(
-      smooth=terms.SmoothTerm(
+  problem = px.CompositeProblem(
+      smooth=px.oracle.SmoothTerm(
           smooth_fn, upper_curvature=m_upper, lower_curvature=m_lower
       ),
-      proximal=prox.Simplex(scale=1.0),
-      constraints=constraints.equality(a_eq, rhs=rhs_b),
+      proximal=px.prox.Simplex(scale=1.0),
+      constraints=px.constraints.equality(a_eq, rhs=rhs_b),
   )
   x0 = jnp.linspace(0.1, 1.0, dim_n)
   x0 = x0 / jnp.sum(x0)
 
-  suite: list[tuple[str, solvers.Solver]] = [
-      ("QPAPD (param-free)", solvers.QPAPD(opt_tol=5e-4, feas_tol=5e-4)),
-      ("QPAIPP", solvers.QPAIPP(opt_tol=5e-4, feas_tol=5e-4)),
-      ("IALM (NL-IAPIAL)", solvers.IALM(opt_tol=5e-4, feas_tol=5e-4)),
+  suite: list[tuple[str, px.Solver]] = [
+      ("QPAPD (param-free)", px.solvers.QPAPD(opt_tol=5e-4, feas_tol=5e-4)),
+      ("QPAIPP", px.solvers.QPAIPP(opt_tol=5e-4, feas_tol=5e-4)),
+      ("IALM", px.solvers.IALM(opt_tol=5e-4, feas_tol=5e-4)),
       (
           "IAIPAL",
-          solvers.IAIPAL(
+          px.solvers.IAIPAL(
               opt_tol=5e-4, feas_tol=5e-4, penalty_init=5.0, max_outer_iters=60
           ),
       ),
       (
           "SProxALM",
-          solvers.SProxALM(
+          px.solvers.SProxALM(
               opt_tol=5e-4, feas_tol=5e-4, penalty=5.0, max_iters=3000
           ),
       ),
@@ -143,7 +138,7 @@ def run_linearly_constrained_qp() -> None:
       f"{'Stat':>10} {'Feas':>10} {'Grad':>6}"
   )
   for name, solver in suite:
-    sol = proxax.solve(problem, x0, solver=solver)
+    sol = px.solve(problem, x0, solver=solver)
     print(
         f"{name:<20} {sol.status_enum.name:<11} "
         f"{float(sol.stats.obj_val):>10.5f} "
@@ -154,7 +149,7 @@ def run_linearly_constrained_qp() -> None:
 
 
 def run_sparse_pca_fantope() -> None:
-  """Solves MCP-regularized Sparse PCA on the `k`-Fantope (`spca_01`)."""
+  """Solves MCP-regularized Sparse PCA on the `k`-Fantope."""
   print("\n=== 2. Consensus Sparse PCA on the k-Fantope (PyTree IALM) ===")
   dim_p, support_s, rank_k = 8, 3, 1
   v_true = jnp.zeros((dim_p,))
@@ -173,26 +168,26 @@ def run_sparse_pca_fantope() -> None:
   def smooth_spca(z: dict[str, jax.Array]) -> jax.Array:
     return -jnp.sum(sigma_cov * z["pi"]) + mcp_concave_part(z["phi"])
 
-  problem = proxax.CompositeProblem(
-      smooth=terms.SmoothTerm(
+  problem = px.CompositeProblem(
+      smooth=px.oracle.SmoothTerm(
           smooth_spca, upper_curvature=0.1, lower_curvature=1.0 / b_mcp
       ),
-      proximal=prox.MultiProx(
+      proximal=px.prox.MultiProx(
           {
               "pi": FantopeProx(rank_k=float(rank_k)),
-              "phi": prox.L1(weight=nu),
+              "phi": px.prox.L1(weight=nu),
           }
       ),
-      constraints=constraints.equality(lambda z: z["pi"] - z["phi"]),
+      constraints=px.constraints.equality(lambda z: z["pi"] - z["phi"]),
   )
   z0 = {
       "pi": jnp.eye(dim_p) * (rank_k / dim_p),
       "phi": jnp.zeros((dim_p, dim_p)),
   }
-  sol = proxax.solve(
+  sol = px.solve(
       problem,
       z0,
-      solver=solvers.IALM(opt_tol=1e-3, feas_tol=1e-3, penalty_init=2.0),
+      solver=px.solvers.IALM(opt_tol=1e-3, feas_tol=1e-3, penalty_init=2.0),
   )
   eigvals, eigvecs = jnp.linalg.eigh(0.5 * (sol.x["pi"] + sol.x["pi"].T))
   lead_vec = jnp.abs(eigvecs[:, jnp.argmax(eigvals)])
@@ -207,7 +202,7 @@ def run_sparse_pca_fantope() -> None:
 
 
 def run_bounded_matrix_completion() -> None:
-  """Solves box-constrained nonconvex matrix completion (`bounded_mc`)."""
+  """Solves box-constrained nonconvex matrix completion."""
   print("\n=== 3. Box-Constrained Nonconvex Matrix Completion ===")
   key = jax.random.key(99)
   k1, k2, k3 = jax.random.split(key, 3)
@@ -226,15 +221,15 @@ def run_bounded_matrix_completion() -> None:
     reg = mu * beta * jnp.sum(jnp.log(1.0 + smooth_abs / theta))
     return fit + reg
 
-  problem = proxax.CompositeProblem(
+  problem = px.CompositeProblem(
       smooth=smooth_bmc,
-      constraints=constraints.box(lambda x: x, lower=0.0, upper=2.0),
+      constraints=px.constraints.box(lambda x: x, lower=0.0, upper=2.0),
   )
   x0 = jnp.full((rows, cols), 0.5)
-  sol = proxax.solve(
+  sol = px.solve(
       problem,
       x0,
-      solver=solvers.QPAPD(opt_tol=1e-3, feas_tol=1e-4),
+      solver=px.solvers.QPAPD(opt_tol=1e-3, feas_tol=1e-4),
   )
   rmse = float(jnp.sqrt(jnp.mean((sol.x - target) ** 2)))
   print(

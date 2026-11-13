@@ -23,21 +23,21 @@ $f : \mathcal{X} \to \mathbb{R}$ and provides:
 - **Optional curvature metadata:** upper smoothness $M \ge 0$
   (`curvature_upper`) and weak convexity $m \ge 0$ (`curvature_lower`).
 
-In `proxax.oracle.terms`, any Python callable `fn(x)` passed to
-`CompositeProblem(smooth=fn)` is automatically wrapped in `SmoothTerm`, which
+In `px.oracle`, any Python callable `fn(x)` passed to
+`px.CompositeProblem(smooth=fn)` is automatically wrapped in `SmoothTerm`, which
 computes `(f(x), grad_f(x))` via `jax.value_and_grad(fn)`. You can also
-construct `SmoothTerm` directly when you want to supply known curvatures or a
-hand-optimized `(value, grad)` kernel:
+construct `px.oracle.SmoothTerm` directly when you want to supply known
+curvatures or a hand-optimized `(value, grad)` kernel:
 
 ```python
 import jax
 import jax.numpy as jnp
-from proxax.oracle import terms
+from proxax import px
 
 a_mat = jnp.array([[2.0, -0.5], [-0.5, -1.0]])
 
 # Option A: Let JAX differentiate `fn` automatically, with optional curvatures
-smooth_auto = terms.SmoothTerm(
+smooth_auto = px.oracle.SmoothTerm(
     lambda x: 0.5 * jnp.dot(x, a_mat @ x),
     upper_curvature=2.1,
     lower_curvature=1.1,
@@ -48,14 +48,14 @@ def custom_vag(x: jax.Array) -> tuple[jax.Array, jax.Array]:
   ax = a_mat @ x
   return 0.5 * jnp.dot(x, ax), ax
 
-smooth_custom = terms.SmoothTerm(
+smooth_custom = px.oracle.SmoothTerm(
     lambda x: 0.5 * jnp.dot(x, a_mat @ x),
     vag_fn=custom_vag,
 )
 ```
 
 When $f \equiv 0$ (pure feasibility or proximal problems), `smooth=None` uses
-`terms.ZeroSmooth()`, which has exact $(m, M) = (0, 0)$ and avoids autodiff.
+`px.oracle.ZeroSmooth()`, which has exact $(m, M) = (0, 0)$ and avoids autodiff.
 
 ---
 
@@ -88,7 +88,7 @@ seamlessly across every solver and Optax transform:
 import dataclasses
 import jax
 import jax.numpy as jnp
-from proxax import _typing
+from proxax import px
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -101,15 +101,15 @@ class WeightedL1:
   def strong_convexity(self) -> float:
     return 0.0
 
-  def value(self, x: _typing.PyTree) -> jax.Array:
+  def value(self, x: px.typing.PyTree) -> jax.Array:
     return jnp.sum(self.weights * jnp.abs(jnp.asarray(x)))
 
-  def prox(self, x: _typing.PyTree, step_size: _typing.Scalar) -> _typing.PyTree:
+  def prox(self, x: px.typing.PyTree, step_size: px.typing.Scalar) -> px.typing.PyTree:
     u = jnp.asarray(x)
     thresh = step_size * self.weights
     return jnp.sign(u) * jnp.maximum(jnp.abs(u) - thresh, 0.0)
 
-  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
     return x
 ```
 

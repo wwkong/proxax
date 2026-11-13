@@ -1,19 +1,14 @@
-"""Nonconvex spectral matrix completion (`nonconvex_spectral_mc.m`).
+"""Nonconvex log-sum spectral matrix completion vs convex nuclear norm.
 
-Ports `examples/spectral/nonconvex_spectral_mc.m` and
-`utils/generators/test_fn_spectral_mc_01.m` from `wwkong/nc_opt` (Kong &
-Monteiro, *arXiv:2007.11772*, 2020):
-
+Solves:
   min_{X in B_R}  0.5 * ||P_Omega(X - M_obs)||_F^2
                   + alpha * beta * (1 - exp(-||sigma(X)||_2^2 / (2 * theta)))
                   + mu * sum_i beta * log(1 + sigma_i(X) / theta)
 
-Using the classic DC / weakly-convex splitting with `kappa_0 = beta / theta`:
+using weakly-convex singular-value splitting with `kappa_0 = beta / theta`:
 - `f_1(X) = 0.5 * ||P_Omega(X - M_obs)||_F^2` (`M_1 = 1, m_1 = 0`),
-- `f_2^V(s) = alpha * kappa_tilde(s) + mu * sum_i (kappa(s_i) - kappa_0 |s_i|)`
-  (smooth weakly-convex singular-value term),
-- `h^V(s) = (mu * kappa_0) * ||s||_1 + delta_{||s||_2 <= R}(s)` (convex
-  l1-plus-Euclidean-ball singular-value regularizer).
+- `f_2^V(s) = alpha * kappa_tilde(s) + mu * sum_i (kappa(s_i) - kappa_0 |s_i|)`,
+- `h^V(s) = (mu * kappa_0) * ||s||_1 + delta_{||s||_2 <= R}(s)`.
 """
 
 from __future__ import annotations
@@ -24,13 +19,7 @@ import jax
 import jax.numpy as jnp
 import optax
 
-import proxax
-from proxax import _typing
-from proxax import oracle
-from proxax import prox
-from proxax import solvers
-from proxax import tree
-from proxax.oracle import terms
+from proxax import px
 
 
 @jax.tree_util.register_dataclass
@@ -46,23 +35,23 @@ class BallL1VectorProx:
     """Strong convexity constant (`0.0`)."""
     return 0.0
 
-  def value(self, x: _typing.PyTree) -> jax.Array:
+  def value(self, x: px.typing.PyTree) -> jax.Array:
     """Evaluates `weight * ||s||_1` at feasible singular-value vectors."""
     s_vec = jnp.asarray(x)
     return self.weight * jnp.sum(jnp.abs(s_vec))
 
   def prox(
       self,
-      x: _typing.PyTree,
-      step_size: _typing.Scalar,
-  ) -> _typing.PyTree:
+      x: px.typing.PyTree,
+      step_size: px.typing.Scalar,
+  ) -> px.typing.PyTree:
     """Applies soft-thresholding followed by Euclidean ball projection."""
     s_vec = jnp.asarray(x)
     thresh = step_size * self.weight
     shrunk = jnp.sign(s_vec) * jnp.maximum(jnp.abs(s_vec) - thresh, 0.0)
     return optax.projections.projection_l2_ball(shrunk, self.radius)
 
-  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
     """Projects onto `||s||_2 <= radius`."""
     s_vec = jnp.asarray(x)
     return optax.projections.projection_l2_ball(s_vec, self.radius)
@@ -109,15 +98,15 @@ def run_spectral_matrix_completion() -> None:
     return alpha * kappa_tilde + mu_reg * jnp.sum(kappa_s - kappa0 * abs_s)
 
   def ball_proj(mat: jax.Array) -> jax.Array:
-    frob = tree.norm(mat)
+    frob = px.tree.norm(mat)
     scale = jnp.minimum(1.0, radius / jnp.maximum(frob, 1e-12))
     return mat * scale
 
-  spec_problem = oracle.SpectralProblem(
-      f1=terms.SmoothTerm(
+  spec_problem = px.SpectralProblem(
+      f1=px.oracle.SmoothTerm(
           f1_fn, upper_curvature=m1_upper, lower_curvature=m1_lower
       ),
-      f2_vec=terms.SmoothTerm(
+      f2_vec=px.oracle.SmoothTerm(
           f2_vec_fn, upper_curvature=m2_upper, lower_curvature=m2_lower
       ),
       prox_vec=BallL1VectorProx(weight=mu_reg * kappa0, radius=radius),
@@ -128,15 +117,15 @@ def run_spectral_matrix_completion() -> None:
   tol = 1e-3
 
   spec_suite: list[
-      tuple[str, solvers.IAICG | solvers.DAICG | solvers.Solver]
+      tuple[str, px.solvers.IAICG | px.solvers.DAICG | px.Solver]
   ] = [
-      ("IAICG (constant)", solvers.IAICG(opt_tol=tol, step_type="constant")),
-      ("IAICG (adaptive)", solvers.IAICG(opt_tol=tol, step_type="adaptive")),
-      ("DAICG (monotone)", solvers.DAICG(opt_tol=tol, monotone=True)),
-      ("APD (matrix SVD)", solvers.APD(opt_tol=tol)),
+      ("IAICG (constant)", px.solvers.IAICG(opt_tol=tol, step_type="constant")),
+      ("IAICG (adaptive)", px.solvers.IAICG(opt_tol=tol, step_type="adaptive")),
+      ("DAICG (monotone)", px.solvers.DAICG(opt_tol=tol, monotone=True)),
+      ("APD (matrix SVD)", px.solvers.APD(opt_tol=tol)),
   ]
   for name, solver in spec_suite:
-    sol = proxax.solve(spec_problem, x0, solver=solver)
+    sol = px.solve(spec_problem, x0, solver=solver)
     s_vals = jnp.linalg.svdvals(sol.x)
     num_nz = int(jnp.sum(s_vals > 1e-2))
     rel_err = float(
@@ -151,11 +140,13 @@ def run_spectral_matrix_completion() -> None:
     )
 
   print("\n=== Convex Nuclear-Norm Baseline via CompositeProblem ===")
-  nuc_problem = proxax.CompositeProblem(
-      smooth=terms.SmoothTerm(f1_fn, upper_curvature=1.0, lower_curvature=0.0),
-      proximal=prox.NuclearNorm(weight=mu_reg * kappa0),
+  nuc_problem = px.CompositeProblem(
+      smooth=px.oracle.SmoothTerm(
+          f1_fn, upper_curvature=1.0, lower_curvature=0.0
+      ),
+      proximal=px.prox.NuclearNorm(weight=mu_reg * kappa0),
   )
-  sol_nuc = proxax.solve(nuc_problem, x0, solver=solvers.DAICG(opt_tol=tol))
+  sol_nuc = px.solve(nuc_problem, x0, solver=px.solvers.DAICG(opt_tol=tol))
   rank_nuc = int(jnp.sum(jnp.linalg.svdvals(sol_nuc.x) > 1e-2))
   err_nuc = float(
       jnp.linalg.norm(sol_nuc.x - mat_true) / jnp.linalg.norm(mat_true)

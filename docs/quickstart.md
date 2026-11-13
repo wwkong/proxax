@@ -3,7 +3,7 @@
 `proxax` solves smooth, nonsmooth, and constrained optimization problems in JAX.
 You write ordinary differentiable JAX functions for the smooth part of your
 objective, pick built-in proximal operators and constraints for the nonsmooth or
-constrained parts, and call `proxax.solve`.
+constrained parts, and call `px.solve`.
 
 ---
 
@@ -35,30 +35,40 @@ pip install "proxax[cuda12]"
 
 ::::
 
+### Importing `proxax`
+
+Everything in `proxax` is exposed under a single curated namespace `px` —
+either `from proxax import px` (or `import proxax as px`):
+
+- **Top-level entry points:** `px.CompositeProblem`, `px.SpectralProblem`,
+  `px.solve`, `px.Solution`, `px.SolveStatus`
+- **Submodules:** `px.prox`, `px.constraints`, `px.solvers`, `px.oracle`,
+  `px.optax_compat`, `px.certificates`, `px.tree`, `px.typing`
+
 ---
 
-## 1. Sparse Optimization (`smooth` + `prox.L1`)
+## 1. Sparse Optimization (`smooth` + `px.prox.L1`)
 
 Suppose you want to minimize a smooth loss plus an $\ell_1$ sparsity penalty:
 
 $$\min_{x \in \mathbb{R}^n} \; \frac{1}{2}\|A x - b\|_2^2 + \lambda \|x\|_1$$
 
-Pass your JAX loss function as `smooth` and `prox.L1(weight=...)` as `proximal`:
+Pass your JAX loss function as `smooth` and `px.prox.L1(weight=...)` as
+`proximal`:
 
 ```python
 import jax.numpy as jnp
-import proxax
-from proxax import prox
+from proxax import px
 
 a_mat = jnp.array([[1.0, 0.5, -0.2], [0.0, 1.2, 0.8]])
 b_vec = jnp.array([1.5, -0.6])
 
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2),
-    proximal=prox.L1(weight=0.1),
+    proximal=px.prox.L1(weight=0.1),
 )
 
-sol = proxax.solve(problem, x0=jnp.zeros(3), method="apd", opt_tol=1e-6)
+sol = px.solve(problem, x0=jnp.zeros(3), method="apd", opt_tol=1e-6)
 print("Status:", sol.status_enum.name)
 print("Solution x:", sol.x)
 print("Stationarity residual:", float(sol.stats.opt_residual))
@@ -79,19 +89,18 @@ through `proximal`:
 
 ```python
 import jax.numpy as jnp
-import proxax
-from proxax import prox
+from proxax import px
 
 # Indefinite (nonconvex) quadratic objective over [-1, 1]^2
 q_mat = jnp.array([[3.0, -1.5], [-1.5, -1.0]])
 c_vec = jnp.array([-0.8, 0.4])
 
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
-    proximal=prox.Box(lower=-1.0, upper=1.0),
+    proximal=px.prox.Box(lower=-1.0, upper=1.0),
 )
 
-sol = proxax.solve(problem, x0=jnp.zeros(2), method="apd", opt_tol=1e-6)
+sol = px.solve(problem, x0=jnp.zeros(2), method="apd", opt_tol=1e-6)
 print("x in [-1, 1]^2:", sol.x)
 ```
 
@@ -104,24 +113,22 @@ the box.
 
 When constraints couple variables through a linear operator $\mathcal{A}(x)$
 that does not have a closed-form projection when intersected with `proximal`,
-pass `constraints=...` using the helpers in `proxax.constraints`:
+pass `constraints=...` using the helpers in `px.constraints`:
 
 ```python
 import jax.numpy as jnp
-import proxax
-from proxax import constraints
-from proxax import prox
+from proxax import px
 
 q_mat = jnp.array([[3.0, -1.5], [-1.5, -1.0]])
 c_vec = jnp.array([-0.8, 0.4])
 
-problem = proxax.CompositeProblem(
+problem = px.CompositeProblem(
     smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
-    proximal=prox.Box(lower=-1.0, upper=1.0),
-    constraints=constraints.equality(lambda x: jnp.sum(x), rhs=0.5),
+    proximal=px.prox.Box(lower=-1.0, upper=1.0),
+    constraints=px.constraints.equality(lambda x: jnp.sum(x), rhs=0.5),
 )
 
-sol = proxax.solve(
+sol = px.solve(
     problem,
     x0=jnp.zeros(2),
     method="ialm",
@@ -136,15 +143,15 @@ print("Optimality residual:", float(sol.stats.opt_residual))
 print("Feasibility residual |sum(x) - 0.5|:", float(sol.stats.feas_residual))
 ```
 
-Notice that `constraints.equality` accepts either a dense JAX matrix **or** any
-linear Python function `x -> A(x)` — `proxax` synthesizes the transpose
+Notice that `px.constraints.equality` accepts either a dense JAX matrix **or**
+any linear Python function `x -> A(x)` — `proxax` synthesizes the transpose
 $\mathcal{A}^*$ automatically via `jax.linear_transpose`.
 
 ---
 
 ## Understanding the Returned `Solution`
 
-Every solver returns a `proxax.Solution` PyTree with five fields:
+Every solver returns a `px.Solution` PyTree with five fields:
 
 | Field | Type | Plain-English Meaning |
 | :--- | :--- | :--- |

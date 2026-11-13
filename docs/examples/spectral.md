@@ -1,7 +1,7 @@
 # Low-Rank & Spectral Matrix Completion
 
 This example recovers a noisy, partially observed low-rank matrix using
-`SpectralProblem`, comparing nonconvex log-sum singular-value regularization
+`px.SpectralProblem`, comparing nonconvex log-sum singular-value regularization
 against a convex nuclear-norm baseline.
 
 All code on this page can be executed via
@@ -49,18 +49,14 @@ singular-value vectors in $\mathbb{R}^{\min(p, q)}$.
 ## 2. Implementation in `proxax`
 
 We define the 1D singular-value proximal operator (`L1` + Euclidean ball) and
-assemble `proxax.SpectralProblem`:
+assemble `px.SpectralProblem`:
 
 ```python
 import dataclasses
 import jax
 import jax.numpy as jnp
 import optax
-import proxax
-from proxax import _typing
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,17 +70,17 @@ class BallL1VectorProx:
   def strong_convexity(self) -> float:
     return 0.0
 
-  def value(self, x: _typing.PyTree) -> jax.Array:
+  def value(self, x: px.typing.PyTree) -> jax.Array:
     return self.weight * jnp.sum(jnp.abs(jnp.asarray(x)))
 
-  def prox(self, x: _typing.PyTree, step_size: _typing.Scalar) -> _typing.PyTree:
+  def prox(self, x: px.typing.PyTree, step_size: px.typing.Scalar) -> px.typing.PyTree:
     s_vec = jnp.asarray(x)
     shrunk = jnp.sign(s_vec) * jnp.maximum(
         jnp.abs(s_vec) - step_size * self.weight, 0.0
     )
     return optax.projections.projection_l2_ball(shrunk, self.radius)
 
-  def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
+  def domain_project(self, x: px.typing.PyTree) -> px.typing.PyTree:
     return optax.projections.projection_l2_ball(jnp.asarray(x), self.radius)
 ```
 
@@ -92,33 +88,33 @@ Pass `spec_problem` to `IAICG`, `DAICG`, or any general unconstrained solver
 such as `APD`:
 
 ```python
-spec_problem = proxax.SpectralProblem(
-    f1=terms.SmoothTerm(f1_fn, upper_curvature=1.0, lower_curvature=0.0),
-    f2_vec=terms.SmoothTerm(
+spec_problem = px.SpectralProblem(
+    f1=px.oracle.SmoothTerm(f1_fn, upper_curvature=1.0, lower_curvature=0.0),
+    f2_vec=px.oracle.SmoothTerm(
         f2_vec_fn, upper_curvature=m2_upper, lower_curvature=m2_lower
     ),
     prox_vec=BallL1VectorProx(weight=mu_reg * kappa0, radius=radius),
     domain_proj=ball_proj,
 )
 
-sol_ia = proxax.solve(
-    spec_problem, x0, solver=solvers.IAICG(opt_tol=1e-3, step_type="adaptive")
+sol_ia = px.solve(
+    spec_problem, x0, solver=px.solvers.IAICG(opt_tol=1e-3, step_type="adaptive")
 )
-sol_da = proxax.solve(
-    spec_problem, x0, solver=solvers.DAICG(opt_tol=1e-3, monotone=True)
+sol_da = px.solve(
+    spec_problem, x0, solver=px.solvers.DAICG(opt_tol=1e-3, monotone=True)
 )
 ```
 
 For standard convex nuclear-norm matrix completion ($f_2^{\mathcal{V}} \equiv 0$),
-`IAICG` and `DAICG` also accept a regular `CompositeProblem` with
-`prox.NuclearNorm`:
+`IAICG` and `DAICG` also accept a regular `px.CompositeProblem` with
+`px.prox.NuclearNorm`:
 
 ```python
-nuc_problem = proxax.CompositeProblem(
-    smooth=terms.SmoothTerm(f1_fn, upper_curvature=1.0, lower_curvature=0.0),
-    proximal=prox.NuclearNorm(weight=mu_reg * kappa0),
+nuc_problem = px.CompositeProblem(
+    smooth=px.oracle.SmoothTerm(f1_fn, upper_curvature=1.0, lower_curvature=0.0),
+    proximal=px.prox.NuclearNorm(weight=mu_reg * kappa0),
 )
-sol_nuc = proxax.solve(nuc_problem, x0, solver=solvers.DAICG(opt_tol=1e-3))
+sol_nuc = px.solve(nuc_problem, x0, solver=px.solvers.DAICG(opt_tol=1e-3))
 ```
 
 ---

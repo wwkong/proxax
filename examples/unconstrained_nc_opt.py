@@ -1,9 +1,9 @@
-"""Unconstrained nonconvex composite examples ported from `wwkong/nc_opt`.
+"""Unconstrained nonconvex composite optimization examples.
 
-Covers three classic benchmark families from `nc_opt/examples/unconstrained/`:
-1. Basic univariate convex QP (`basic_convex_qp.m`).
-2. Nonconvex QP over the unit simplex (`nonconvex_qp.m` / `test_fn_unconstr`).
-3. Nonconvex hyperbolic-tangent SVM (`nonconvex_svm.m` / `test_fn_svm_01`).
+Covers three benchmark families:
+1. Basic univariate convex QP.
+2. Nonconvex QP over the unit simplex across 7 unconstrained solvers.
+3. Nonconvex hyperbolic-tangent margin classification.
 """
 
 from __future__ import annotations
@@ -11,10 +11,7 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 
-import proxax
-from proxax import prox
-from proxax import solvers
-from proxax.oracle import terms
+from proxax import px
 
 
 def calibrate_qp_curvatures(
@@ -47,13 +44,13 @@ def calibrate_qp_curvatures(
 
 
 def run_basic_convex_qp() -> None:
-  """Solves `min_{x in R} 0.5 * x^2 - x + 0.5` (`basic_convex_qp.m`)."""
-  print("=== 1. Basic Convex Univariate QP (basic_convex_qp.m) ===")
-  problem = proxax.CompositeProblem(
+  """Solves `min_{x in R} 0.5 * x^2 - x + 0.5`."""
+  print("=== 1. Basic Convex Univariate QP ===")
+  problem = px.CompositeProblem(
       smooth=lambda x: 0.5 * jnp.sum(x**2) - jnp.sum(x) + 0.5,
   )
   x0 = jnp.array([-3.0])
-  sol = proxax.solve(problem, x0, solver=solvers.APD(opt_tol=1e-6))
+  sol = px.solve(problem, x0, solver=px.solvers.APD(opt_tol=1e-6))
   print(
       f"APD -> status={sol.status_enum.name}, x*={float(sol.x[0]):.6f}, "
       f"obj={float(sol.stats.obj_val):.2e}, "
@@ -63,8 +60,8 @@ def run_basic_convex_qp() -> None:
 
 
 def run_nonconvex_simplex_qp() -> None:
-  """Solves nonconvex simplex QP (`nonconvex_qp.m` / `test_fn_unconstr_01`)."""
-  print("\n=== 2. Nonconvex Simplex QP (nonconvex_qp.m) ===")
+  """Solves an indefinite QP over the probability simplex."""
+  print("\n=== 2. Nonconvex Simplex QP ===")
   key = jax.random.key(777)
   k1, k2, k3, k4 = jax.random.split(key, 4)
   dim_m, dim_n = 10, 20
@@ -84,32 +81,32 @@ def run_nonconvex_simplex_qp() -> None:
     dbx = db_mat @ x
     return 0.5 * tau * jnp.dot(res, res) - 0.5 * xi * jnp.dot(dbx, dbx)
 
-  problem = proxax.CompositeProblem(
-      smooth=terms.SmoothTerm(
+  problem = px.CompositeProblem(
+      smooth=px.oracle.SmoothTerm(
           smooth_qp,
           upper_curvature=m_upper,
           lower_curvature=m_lower,
       ),
-      proximal=prox.Simplex(scale=1.0),
+      proximal=px.prox.Simplex(scale=1.0),
   )
   x0 = jnp.ones(dim_n) / dim_n
   tol = 1e-4
 
-  suite: list[tuple[str, solvers.Solver]] = [
-      ("APD (param-free)", solvers.APD(opt_tol=tol)),
-      ("AIPP", solvers.AIPP(opt_tol=tol)),
-      ("NCFISTA", solvers.NCFISTA(opt_tol=tol)),
-      ("AdapFISTA", solvers.AdapFISTA(opt_tol=tol)),
-      ("ACACG", solvers.ACACG(opt_tol=tol)),
-      ("UPFAG", solvers.UPFAG(opt_tol=tol)),
-      ("ECG", solvers.ECG(opt_tol=tol)),
+  suite: list[tuple[str, px.Solver]] = [
+      ("APD (param-free)", px.solvers.APD(opt_tol=tol)),
+      ("AIPP", px.solvers.AIPP(opt_tol=tol)),
+      ("NCFISTA", px.solvers.NCFISTA(opt_tol=tol)),
+      ("AdapFISTA", px.solvers.AdapFISTA(opt_tol=tol)),
+      ("ACACG", px.solvers.ACACG(opt_tol=tol)),
+      ("UPFAG", px.solvers.UPFAG(opt_tol=tol)),
+      ("ECG", px.solvers.ECG(opt_tol=tol)),
   ]
   header = (
       f"{'Solver':<18} {'Status':<11} {'Obj':>11} {'||v||_2':>10} {'Grad':>6}"
   )
   print(header)
   for name, solver in suite:
-    sol = proxax.solve(problem, x0, solver=solver)
+    sol = px.solve(problem, x0, solver=solver)
     print(
         f"{name:<18} {sol.status_enum.name:<11} "
         f"{float(sol.stats.obj_val):>11.5f} "
@@ -119,8 +116,8 @@ def run_nonconvex_simplex_qp() -> None:
 
 
 def run_nonconvex_svm() -> None:
-  """Solves nonconvex sigmoid/tanh SVM (`nonconvex_svm.m`)."""
-  print("\n=== 3. Nonconvex Hyperbolic-Tangent SVM (nonconvex_svm.m) ===")
+  """Solves nonconvex hyperbolic-tangent margin classification."""
+  print("\n=== 3. Nonconvex Hyperbolic-Tangent SVM ===")
   key = jax.random.key(42)
   k1, k2 = jax.random.split(key)
   dim_n, num_samples = 25, 60
@@ -136,23 +133,23 @@ def run_nonconvex_svm() -> None:
   m_bound = float(
       (4.0 * jnp.sqrt(3.0) / 9.0) * (jnp.sum(u_mat**2) / num_samples) + reg
   )
-  problem_free = proxax.CompositeProblem(smooth=svm_loss)
-  problem_curv = proxax.CompositeProblem(
-      smooth=terms.SmoothTerm(
+  problem_free = px.CompositeProblem(smooth=svm_loss)
+  problem_curv = px.CompositeProblem(
+      smooth=px.oracle.SmoothTerm(
           svm_loss, upper_curvature=m_bound, lower_curvature=m_bound
       )
   )
   x0 = jnp.zeros(dim_n)
   tol = 1e-4
 
-  svm_suite: list[tuple[str, proxax.CompositeProblem, solvers.Solver]] = [
-      ("APD (no M, m)", problem_free, solvers.APD(opt_tol=tol)),
-      ("UPFAG (no M, m)", problem_free, solvers.UPFAG(opt_tol=tol)),
-      ("AdapAPG (no M, m)", problem_free, solvers.AdapAPG(opt_tol=tol)),
-      ("AG (uses M)", problem_curv, solvers.AG(opt_tol=tol)),
+  svm_suite: list[tuple[str, px.CompositeProblem, px.Solver]] = [
+      ("APD (no M, m)", problem_free, px.solvers.APD(opt_tol=tol)),
+      ("UPFAG (no M, m)", problem_free, px.solvers.UPFAG(opt_tol=tol)),
+      ("AdapAPG (no M, m)", problem_free, px.solvers.AdapAPG(opt_tol=tol)),
+      ("AG (uses M)", problem_curv, px.solvers.AG(opt_tol=tol)),
   ]
   for name, prob, solver in svm_suite:
-    sol = proxax.solve(prob, x0, solver=solver)
+    sol = px.solve(prob, x0, solver=solver)
     acc = float(jnp.mean(jnp.sign(u_mat.T @ sol.x) == labels)) * 100.0
     print(
         f"{name:<18} status={sol.status_enum.name:<9} "

@@ -1,8 +1,8 @@
 """Step-by-step Optax transforms and `jax.vmap` batching with `proxax`.
 
 Demonstrates:
-1. Single-inner-step trajectory tracking with `proxax.optax_compat.apd` and
-   `proxax.optax_compat.ialm` inside a `jax.jit` training/optimization loop.
+1. Single-inner-step trajectory tracking with `px.optax_compat.apd` and
+   `px.optax_compat.ialm` inside a `jax.jit` training/optimization loop.
 2. Solving a batch of 16 nonconvex simplex QPs simultaneously via `jax.vmap`.
 """
 
@@ -12,24 +12,20 @@ import jax
 import jax.numpy as jnp
 import optax
 
-import proxax
-from proxax import constraints
-from proxax import optax_compat
-from proxax import prox
-from proxax import solvers
+from proxax import px
 
 
 def run_optax_apd_trajectory() -> None:
-  """Tracks inner/outer progress step-by-step with `optax_compat.apd`."""
-  print("=== 1. Step-by-Step Trajectory via proxax.optax_compat.apd ===")
+  """Tracks inner/outer progress step-by-step with `px.optax_compat.apd`."""
+  print("=== 1. Step-by-Step Trajectory via px.optax_compat.apd ===")
   q_diag = jnp.array([6.0, -2.5, 4.0, -1.5])
   linear_c = jnp.array([-1.2, 0.5, -0.8, 0.3])
 
   def loss_fn(x: jax.Array) -> jax.Array:
     return 0.5 * jnp.sum(q_diag * (x**2)) + jnp.dot(linear_c, x)
 
-  tx = optax_compat.apd(
-      prox_op=prox.Box(lower=-1.0, upper=1.0),
+  tx = px.optax_compat.apd(
+      prox_op=px.prox.Box(lower=-1.0, upper=1.0),
       opt_tol=1e-5,
       max_inner_iters=50,
   )
@@ -39,8 +35,8 @@ def run_optax_apd_trajectory() -> None:
   @jax.jit
   def step_fn(
       p: jax.Array,
-      st: optax_compat.APDTransformState,
-  ) -> tuple[jax.Array, optax_compat.APDTransformState]:
+      st: px.optax_compat.APDTransformState,
+  ) -> tuple[jax.Array, px.optax_compat.APDTransformState]:
     val, grads = jax.value_and_grad(loss_fn)(p)
     updates, next_st = tx.update(grads, st, p, value=val, value_fn=loss_fn)
     return optax.apply_updates(p, updates), next_st
@@ -59,18 +55,18 @@ def run_optax_apd_trajectory() -> None:
 
 
 def run_optax_ialm_loop() -> None:
-  """Solves an equality-constrained problem via `optax_compat.ialm`."""
-  print("\n=== 2. Constrained Step-by-Step Loop via optax_compat.ialm ===")
+  """Solves an equality-constrained problem via `px.optax_compat.ialm`."""
+  print("\n=== 2. Constrained Step-by-Step Loop via px.optax_compat.ialm ===")
 
   def smooth_fn(p: dict[str, jax.Array]) -> jax.Array:
     w = p["w"]
     return 0.5 * jnp.sum(jnp.array([3.0, -1.0, 2.0]) * (w**2)) - w[0]
 
-  tx = optax_compat.ialm(
-      constraints=constraints.equality(
+  tx = px.optax_compat.ialm(
+      constraints=px.constraints.equality(
           lambda p: jnp.sum(p["w"]), rhs=jnp.asarray(1.0)
       ),
-      prox_op=prox.Box(lower=0.0, upper=1.0),
+      prox_op=px.prox.Box(lower=0.0, upper=1.0),
       opt_tol=1e-4,
       feas_tol=1e-4,
   )
@@ -80,8 +76,8 @@ def run_optax_ialm_loop() -> None:
   @jax.jit
   def step_fn(
       p: dict[str, jax.Array],
-      st: optax_compat.IALMTransformState,
-  ) -> tuple[dict[str, jax.Array], optax_compat.IALMTransformState]:
+      st: px.optax_compat.IALMTransformState,
+  ) -> tuple[dict[str, jax.Array], px.optax_compat.IALMTransformState]:
     val, grads = jax.value_and_grad(smooth_fn)(p)
     updates, next_st = tx.update(grads, st, p, value=val, value_fn=smooth_fn)
     return optax.apply_updates(p, updates), next_st
@@ -108,17 +104,17 @@ def run_batched_vmap_qps() -> None:
   q_batch = 0.5 * (raw + jnp.swapaxes(raw, -1, -2)) - 0.8 * jnp.eye(dim_n)
   c_batch = jax.random.normal(k_c, (batch_size, dim_n))
   x0 = jnp.ones(dim_n) / dim_n
-  solver = solvers.APD(opt_tol=1e-4)
+  solver = px.solvers.APD(opt_tol=1e-4)
 
-  def solve_single(q_mat: jax.Array, c_vec: jax.Array) -> solvers.Solution:
-    prob = proxax.CompositeProblem(
+  def solve_single(q_mat: jax.Array, c_vec: jax.Array) -> px.Solution:
+    prob = px.CompositeProblem(
         smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
-        proximal=prox.Simplex(scale=1.0),
+        proximal=px.prox.Simplex(scale=1.0),
     )
     return solver.solve(prob, x0, jit=True)
 
   batched_sol = jax.jit(jax.vmap(solve_single))(q_batch, c_batch)
-  conv_code = int(solvers.SolveStatus.CONVERGED)
+  conv_code = int(px.SolveStatus.CONVERGED)
   num_conv = int(jnp.sum(batched_sol.status == conv_code))
   max_res = float(jnp.max(batched_sol.stats.opt_residual))
   mean_iters = float(jnp.mean(batched_sol.stats.inner_iters))

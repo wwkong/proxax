@@ -8,29 +8,16 @@ from proxax import optax_compat
 from proxax import oracle
 from proxax import problem as _problem
 from proxax import prox
+from proxax import px
 from proxax import solve as _solve
 from proxax import solvers
 from proxax import tree
+from proxax import typing
 
-__version__ = "0.0.2"
+__version__ = px.__version__
 
-ACACG = solvers.ACACG
-AG = solvers.AG
-AIPP = solvers.AIPP
-APD = solvers.APD
-AdapAPG = solvers.AdapAPG
-AdapFISTA = solvers.AdapFISTA
 CompositeProblem = _problem.CompositeProblem
-DAICG = solvers.DAICG
-ECG = solvers.ECG
-IAICG = solvers.IAICG
-IAIPAL = solvers.IAIPAL
-IALM = solvers.IALM
 KKTResiduals = _problem.KKTResiduals
-NCFISTA = solvers.NCFISTA
-QPAIPP = solvers.QPAIPP
-QPAPD = solvers.QPAPD
-SProxALM = solvers.SProxALM
 Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
@@ -38,27 +25,11 @@ Solver = solvers.Solver
 SpectralOracle = oracle.SpectralOracle
 SpectralProblem = oracle.SpectralProblem
 StoppingConfig = solvers.StoppingConfig
-UPFAG = solvers.UPFAG
 solve = _solve.solve
 
 __all__ = [
-    "ACACG",
-    "AG",
-    "AIPP",
-    "APD",
-    "AdapAPG",
-    "AdapFISTA",
     "CompositeProblem",
-    "DAICG",
-    "ECG",
-    "IAICG",
-    "IAIPAL",
-    "IALM",
     "KKTResiduals",
-    "NCFISTA",
-    "QPAIPP",
-    "QPAPD",
-    "SProxALM",
     "Solution",
     "SolveStats",
     "SolveStatus",
@@ -66,14 +37,15 @@ __all__ = [
     "SpectralOracle",
     "SpectralProblem",
     "StoppingConfig",
-    "UPFAG",
     "__version__",
     "certificates",
     "constraints",
     "optax_compat",
     "oracle",
     "prox",
+    "px",
     "solve",
     "solvers",
     "tree",
+    "typing",
 ]
