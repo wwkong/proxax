@@ -195,6 +195,33 @@ def _plot_kong2021_minmax() -> None:
   plt.close(fig)
 
 
+def _plot_dqp_trajectories() -> None:
+  trajs = json.loads((DATA_DIR / "dqp_trajectories.json").read_text())
+  solvers = ["PAdaptADMM-prac", "PAdaptADMM-theo", "DPADMM", "ADMM"]
+
+  fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0), constrained_layout=True)
+  for idx, s in enumerate(solvers):
+    t = trajs[s]
+    xs = t["grad_evals"]
+    axes[0].plot(xs, t["rel_opt"], marker=MARKERS[idx], color=PALETTE[idx], linewidth=1.8, markersize=5.0, label=s)
+    axes[1].plot(xs, t["rel_feas"], marker=MARKERS[idx], color=PALETTE[idx], linewidth=1.8, markersize=5.0, label=s)
+
+  for ax, title, ylabel in [
+      (axes[0], r"Relative Stationarity vs. Grad Evals ($B=2, m=4, n=6$)", r"$\mathrm{rel\_opt}$"),
+      (axes[1], r"Relative Feasibility vs. Grad Evals ($B=2, m=4, n=6$)", r"$\mathrm{rel\_feas}$"),
+  ]:
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.axhline(1e-3, color="#bac2de", linestyle="--", linewidth=1.0, alpha=0.7, label=r"tol ($10^{-3}$)")
+    ax.set_title(title)
+    ax.set_xlabel("Gradient evaluations")
+    ax.set_ylabel(ylabel)
+  axes[1].legend(frameon=False, loc="best")
+  fig.suptitle("Table-1 DQP Trajectories: PAdaptADMM vs. DPADMM & ADMM", fontsize=12)
+  fig.savefig(PLOTS_DIR / "dqp_trajectories.svg", format="svg")
+  plt.close(fig)
+
+
 def main() -> None:
   PLOTS_DIR.mkdir(parents=True, exist_ok=True)
   for name, fn in [
@@ -203,6 +230,7 @@ def main() -> None:
       ("kong2024_dpadmm", _plot_kong2024_dpadmm),
       ("kong2022_spectral", _plot_kong2022_spectral),
       ("kong2021_minmax", _plot_kong2021_minmax),
+      ("dqp_trajectories", _plot_dqp_trajectories),
   ]:
     if (DATA_DIR / f"{name}.json").exists():
       fn()

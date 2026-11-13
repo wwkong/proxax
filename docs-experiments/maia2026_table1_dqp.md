@@ -111,6 +111,17 @@ methods fail to converge on an instance ($B=16, (m,n)=(16,16)$).
 
 ![Nonconvex DQP Performance Profile](_static/plots/dqp_performance_profile.svg)
 
+## Convergence Trajectories (`B=2, m=4, n=6`)
+
+Stage-checkpointed convergence trajectories on the `(B=2, m=4, n=6)` instance
+(`experiments/maia2026_table1_dqp/collect_trajectories.py`) show how
+`PAdaptADMM-prac` maintains $\text{rel\_opt} \le 10^{-3}$ at every stage while
+halving feasibility **4.1× faster** in gradient evaluations than
+`PAdaptADMM-theo` (`7,744` vs. `31,590`) and **7.9× faster** than `DPADMM`
+(`61,514`), while fixed-penalty `ADMM` oscillates without converging:
+
+![Table-1 DQP Convergence Trajectories](_static/plots/dqp_trajectories.svg)
+
 ## Key Observations
 
 1. **`DPADMM` (`DP1`) was the most robust overall (7/8 converged):**
