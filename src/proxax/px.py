@@ -19,6 +19,7 @@ __version__ = "0.1.2"
 BlockProblem = oracle.BlockProblem
 BlockTerm = oracle.BlockTerm
 CompositeProblem = _problem.CompositeProblem
+HistoryTracker = solvers.HistoryTracker
 KKTResiduals = _problem.KKTResiduals
 MinMaxOracle = oracle.MinMaxOracle
 MinMaxProblem = oracle.MinMaxProblem
@@ -36,6 +37,7 @@ __all__ = [
     "BlockProblem",
     "BlockTerm",
     "CompositeProblem",
+    "HistoryTracker",
     "KKTResiduals",
     "MinMaxOracle",
     "MinMaxProblem",

@@ -245,20 +245,77 @@ see {doc}`../appendices/literature_and_theory`.
 
 ---
 
-## 5. Compilation, Callbacks & Time Limits (`jit=True` vs `jit=False`)
+## 5. Compilation, Callbacks, History Tracking & Time Limits (`jit=True` vs `jit=False`)
 
 By default, `px.solve(..., jit=True)` compiles the entire solver loop with
 `jax.lax.while_loop`. This gives minimal Python overhead on CPU/GPU and makes
 every solver compatible with `jax.jit` and `jax.vmap`.
 
 When debugging interactively in Python — or when you want a **per-iteration
-callback** or a **wall-clock `time_limit`** (in seconds) — pass `jit=False`:
+callback**, **history tracking**, or a **wall-clock `time_limit`** (in seconds)
+— pass `jit=False`.
+
+### Tracking Function Values & Tolerances (`px.HistoryTracker`)
+
+Use `px.HistoryTracker` as your `callback` to record objective values,
+optimality/feasibility residuals, effective tolerances, oracle counts, and
+wall-clock times at every outer iteration (and optionally print a live progress
+table with `verbose=True`):
+
+```python
+import jax.numpy as jnp
+from proxax import px
+
+a_mat = jnp.array([[2.0, 1.0, -1.0], [0.5, -1.5, 2.0], [1.0, 1.0, 1.0]])
+b_vec = jnp.array([1.0, -1.5, 0.5])
+c_mat = jnp.array([[1.0, 1.0, 1.0]])
+d_vec = jnp.array([1.0])
+
+problem = px.CompositeProblem(
+    smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2),
+    proximal=px.prox.L1(weight=0.1),
+    constraints=px.constraints.equality(c_mat, d_vec),
+)
+
+history = px.HistoryTracker(verbose=True, print_every=1)
+sol = px.solve(
+    problem,
+    jnp.zeros(3),
+    method="ialm",
+    opt_tol=1e-6,
+    feas_tol=1e-6,
+    jit=False,
+    callback=history,
+)
+
+# Inspect or export recorded trajectories (for plotting, DataFrames, etc.):
+data = history.to_dict()
+print(history.obj_vals[-1], history.opt_residuals[-1], history.opt_tols[-1])
+```
+
+With `verbose=True`, `HistoryTracker` prints an aligned table as the solver
+runs:
+
+```text
+  iter |   inner |          obj |         opt_res (tol) |        feas_res (tol) |    time
+----------------------------------------------------------------------------------------
+     1 |      27 |   1.2693e-01 |  7.50e-07 ( 1.00e-06) |  2.53e-01 ( 1.00e-06) |   1.26s
+   ...
+    15 |     274 |   2.2500e-01 |  9.12e-07 ( 1.00e-06) |  6.37e-07 ( 1.00e-06) |   2.92s
+```
+
+See `examples/history_tracker.py` for the full runnable script.
+
+### Custom Callbacks & Time Limits
+
+You can also pass any Python callable `callback(state)` (return `True` to stop
+early):
 
 ```python
 from proxax import px
 
-def log_outer_step(info: object) -> None:
-  print(info)
+def log_outer_step(state: object) -> None:
+  print(state.outer_iters, state.best_obj)
 
 sol = px.solve(
     problem,
@@ -274,7 +331,25 @@ sol = px.solve(
 
 ## 6. Inspecting Solutions & Verifying KKT Residuals
 
-Every `px.Solution` object exposes diagnostic counters and an independent KKT
+`px.Solution` provides a compact `__repr__` summarizing status, objective,
+residuals, iteration/oracle counts, and variable shapes without dumping full
+arrays:
+
+```python
+print(sol)
+# Solution(
+#   status=CONVERGED,
+#   obj=2.249996e-01,
+#   opt_res=9.117e-07,
+#   feas_res=6.373e-07,
+#   iters=15 (inner=274),
+#   evals=(smooth=711, grad=624, prox=317),
+#   x=float64[3],
+#   dual=float64[1],
+# )
+```
+
+Every `px.Solution` object also exposes numeric fields and an independent KKT
 check:
 
 ```python

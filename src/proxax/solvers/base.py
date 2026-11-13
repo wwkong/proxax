@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import time
 import typing
 from collections import abc
 
@@ -112,6 +113,62 @@ class OracleCounts:
         prox_evals=p_next,
     )
 
+  def __repr__(self) -> str:
+    """Returns a compact string representation of evaluation counts."""
+    return (
+        "OracleCounts("
+        f"smooth={_fmt_int(self.smooth_evals)}, "
+        f"grad={_fmt_int(self.grad_evals)}, "
+        f"prox={_fmt_int(self.prox_evals)})"
+    )
+
+
+def _fmt_int(val: jax.Array) -> str:
+  """Formats a scalar integer array, staying safe under `jax.jit` tracing."""
+  if isinstance(val, jax.core.Tracer):
+    return "<traced>"
+  try:
+    return str(int(val))
+  except (TypeError, ValueError):
+    return repr(val)
+
+
+def _fmt_float(val: jax.Array, spec: str = ".6e") -> str:
+  """Formats a scalar float array, staying safe under `jax.jit` tracing."""
+  if isinstance(val, jax.core.Tracer):
+    return "<traced>"
+  try:
+    return f"{float(val):{spec}}"
+  except (TypeError, ValueError):
+    return repr(val)
+
+
+def _fmt_status(status: jax.Array) -> str:
+  """Formats a scalar `SolveStatus` code, staying safe under tracing."""
+  if isinstance(status, jax.core.Tracer):
+    return "<traced>"
+  try:
+    return SolveStatus(int(status)).name
+  except (TypeError, ValueError):
+    return repr(status)
+
+
+def _fmt_pytree(value: _typing.PyTree | None) -> str:
+  """Summarizes a PyTree's shape/dtype without printing raw array values."""
+  if value is None:
+    return "None"
+  leaves = jax.tree_util.tree_leaves(value)
+  if not leaves:
+    return "PyTree(0 leaves)"
+  if len(leaves) == 1:
+    leaf = leaves[0]
+    if hasattr(leaf, "shape") and hasattr(leaf, "dtype"):
+      dims = ",".join(str(d) for d in leaf.shape)
+      return f"{leaf.dtype}[{dims}]"
+    return type(leaf).__name__
+  total = sum(int(leaf.size) for leaf in leaves if hasattr(leaf, "size"))
+  return f"PyTree({len(leaves)} leaves, {total} elems)"
+
 
 class OracleCountsMixin:
   """Zero-slot `@property` forwarding mixin for states composing `counts`."""
@@ -173,6 +230,21 @@ class SolveStats:
   feas_residual: jax.Array
   obj_val: jax.Array
 
+  def __repr__(self) -> str:
+    """Returns a concise summary of solver statistics."""
+    return (
+        "SolveStats(\n"
+        f"  iters={_fmt_int(self.outer_iters)} "
+        f"(inner={_fmt_int(self.inner_iters)}),\n"
+        f"  obj={_fmt_float(self.obj_val)},\n"
+        f"  opt_res={_fmt_float(self.opt_residual, '.3e')},\n"
+        f"  feas_res={_fmt_float(self.feas_residual, '.3e')},\n"
+        f"  evals=(smooth={_fmt_int(self.smooth_evals)}, "
+        f"grad={_fmt_int(self.grad_evals)}, "
+        f"prox={_fmt_int(self.prox_evals)}),\n"
+        ")"
+    )
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -199,6 +271,25 @@ class Solution:
   def status_enum(self) -> SolveStatus:
     """Converts scalar status code to Python `SolveStatus` (eager mode)."""
     return SolveStatus(int(self.status))
+
+  def __repr__(self) -> str:
+    """Returns a concise summary without dumping full array payloads."""
+    st = self.stats
+    return (
+        "Solution(\n"
+        f"  status={_fmt_status(self.status)},\n"
+        f"  obj={_fmt_float(st.obj_val)},\n"
+        f"  opt_res={_fmt_float(st.opt_residual, '.3e')},\n"
+        f"  feas_res={_fmt_float(st.feas_residual, '.3e')},\n"
+        f"  iters={_fmt_int(st.outer_iters)} "
+        f"(inner={_fmt_int(st.inner_iters)}),\n"
+        f"  evals=(smooth={_fmt_int(st.smooth_evals)}, "
+        f"grad={_fmt_int(st.grad_evals)}, "
+        f"prox={_fmt_int(st.prox_evals)}),\n"
+        f"  x={_fmt_pytree(self.x)},\n"
+        f"  dual={_fmt_pytree(self.dual)},\n"
+        ")"
+    )
 
 
 @jax.tree_util.register_dataclass
@@ -809,6 +900,136 @@ def run_solver_loop(
       time_limit=time_limit,
       on_time_limit=_on_timeout,
   )
+
+
+class HistoryTracker:
+  """Records per-iteration objective values, residuals, and tolerances.
+
+  Designed for use as an eager-mode `callback` in `proxax.solve(..., jit=False,
+  callback=tracker)` or direct `solver.solve(..., jit=False, callback=tracker)`.
+
+  Attributes:
+    verbose: If `True`, prints a formatted progress table while solving.
+    print_every: Row print interval when `verbose=True`.
+    outer_iters: Recorded outer iteration counts.
+    inner_iters: Recorded cumulative inner iteration counts.
+    obj_vals: Recorded best composite objective values.
+    opt_residuals: Recorded optimality residuals.
+    feas_residuals: Recorded feasibility residuals (`0.0` if unconstrained).
+    opt_tols: Recorded effective optimality tolerances.
+    feas_tols: Recorded effective feasibility tolerances (`0.0` if
+      unconstrained).
+    smooth_evals: Recorded cumulative smooth evaluations.
+    grad_evals: Recorded cumulative gradient evaluations.
+    prox_evals: Recorded cumulative proximal evaluations.
+    elapsed_times: Wall-clock seconds since tracker creation.
+  """
+
+  def __init__(
+      self,
+      *,
+      verbose: bool = False,
+      print_every: int = 1,
+  ) -> None:
+    """Initializes an empty history tracker."""
+    if print_every < 1:
+      raise ValueError("`print_every` must be >= 1.")
+    self.verbose = verbose
+    self.print_every = print_every
+    self.outer_iters: list[int] = []
+    self.inner_iters: list[int] = []
+    self.obj_vals: list[float] = []
+    self.opt_residuals: list[float] = []
+    self.feas_residuals: list[float] = []
+    self.opt_tols: list[float] = []
+    self.feas_tols: list[float] = []
+    self.smooth_evals: list[int] = []
+    self.grad_evals: list[int] = []
+    self.prox_evals: list[int] = []
+    self.elapsed_times: list[float] = []
+    self._t0 = time.perf_counter()
+    self._printed_header = False
+
+  def __call__(
+      self,
+      state: SolverTrackerMixin | SolverTracker | ConstrainedTracker,
+  ) -> bool:
+    """Appends metrics from `state` and optionally prints a progress row."""
+    outer = int(state.outer_iters)
+    inner = int(state.inner_iters)
+    obj = float(state.best_obj)
+    opt_res = float(state.best_opt_res)
+    opt_tol = float(state.target_opt_tol)
+    if isinstance(state, (ConstrainedTracker, ConstrainedTrackerMixin)):
+      feas_res = float(state.best_feas_res)
+      feas_tol = float(state.target_feas_tol)
+    else:
+      feas_res = 0.0
+      feas_tol = 0.0
+    counts = state.counts
+    elapsed = time.perf_counter() - self._t0
+
+    self.outer_iters.append(outer)
+    self.inner_iters.append(inner)
+    self.obj_vals.append(obj)
+    self.opt_residuals.append(opt_res)
+    self.feas_residuals.append(feas_res)
+    self.opt_tols.append(opt_tol)
+    self.feas_tols.append(feas_tol)
+    self.smooth_evals.append(int(counts.smooth_evals))
+    self.grad_evals.append(int(counts.grad_evals))
+    self.prox_evals.append(int(counts.prox_evals))
+    self.elapsed_times.append(elapsed)
+
+    should_print = (
+        not self._printed_header
+        or len(self.outer_iters) % self.print_every == 0
+    )
+    if self.verbose and should_print:
+      if not self._printed_header:
+        print(
+            f"{'iter':>6} | {'inner':>7} | {'obj':>12} | "
+            f"{'opt_res (tol)':>21} | {'feas_res (tol)':>21} | {'time':>7}"
+        )
+        print("-" * 88)
+        self._printed_header = True
+      print(
+          f"{outer:>6d} | {inner:>7d} | {obj:>12.4e} | "
+          f"{opt_res:>9.2e} ({opt_tol:>9.2e}) | "
+          f"{feas_res:>9.2e} ({feas_tol:>9.2e}) | {elapsed:>6.2f}s"
+      )
+    return False
+
+  def __len__(self) -> int:
+    """Returns the number of recorded solver steps."""
+    return len(self.outer_iters)
+
+  def to_dict(self) -> dict[str, list[int] | list[float]]:
+    """Returns all recorded trajectories as a plain dictionary."""
+    return {
+        "outer_iters": list(self.outer_iters),
+        "inner_iters": list(self.inner_iters),
+        "obj_vals": list(self.obj_vals),
+        "opt_residuals": list(self.opt_residuals),
+        "feas_residuals": list(self.feas_residuals),
+        "opt_tols": list(self.opt_tols),
+        "feas_tols": list(self.feas_tols),
+        "smooth_evals": list(self.smooth_evals),
+        "grad_evals": list(self.grad_evals),
+        "prox_evals": list(self.prox_evals),
+        "elapsed_times": list(self.elapsed_times),
+    }
+
+  def __repr__(self) -> str:
+    """Returns a concise summary of recorded steps and latest metrics."""
+    if not self.outer_iters:
+      return "HistoryTracker(steps=0)"
+    return (
+        f"HistoryTracker(steps={len(self)}, "
+        f"last_obj={self.obj_vals[-1]:.6e}, "
+        f"opt_res={self.opt_residuals[-1]:.2e}/{self.opt_tols[-1]:.2e}, "
+        f"feas_res={self.feas_residuals[-1]:.2e}/{self.feas_tols[-1]:.2e})"
+    )
 
 
 @typing.runtime_checkable

@@ -13,9 +13,9 @@ Core problem containers (`px.CompositeProblem`, `px.BlockProblem`,
 `px.BlockTerm`, `px.SpectralProblem`, `px.MinMaxProblem`), the unified
 `px.solve` entry point, implicit differentiation (`px.implicit_solve`), common return types (`px.Solution`,
 `px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`),
-composable solver state trackers (`px.solvers.SolverTracker`,
-`px.solvers.ConstrainedTracker`, `px.solvers.OracleCounts`), and type aliases
-(`px.typing`).
+composable solver state trackers (`px.HistoryTracker`,
+`px.solvers.SolverTracker`, `px.solvers.ConstrainedTracker`,
+`px.solvers.OracleCounts`), and type aliases (`px.typing`).
 
 ```{eval-rst}
 .. automodule:: proxax.problem

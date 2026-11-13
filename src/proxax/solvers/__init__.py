@@ -33,6 +33,7 @@ ECG = unconstrained.ECG
 ECGState = unconstrained.ECGState
 ExtraGradient = minmax.ExtraGradient
 ExtraGradientState = minmax.ExtraGradientState
+HistoryTracker = base.HistoryTracker
 IALM = constrained.IALM
 IALMState = constrained.IALMState
 IAICG = unconstrained.IAICG
@@ -90,6 +91,7 @@ __all__ = [
     "ECGState",
     "ExtraGradient",
     "ExtraGradientState",
+    "HistoryTracker",
     "IALM",
     "IALMState",
     "IAICG",

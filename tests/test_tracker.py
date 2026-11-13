@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
 
 import jax
 import jax.numpy as jnp
@@ -134,3 +135,105 @@ def test_solver_states_compose_trackers_and_expose_properties() -> None:
   assert isinstance(ialm_st.tracker, px.solvers.ConstrainedTracker)
   assert jnp.array_equal(ialm_st.best_dual, ialm_st.tracker.best_dual)
   assert float(ialm_st.best_feas_res) == float(ialm_st.tracker.best_feas_res)
+
+
+def test_solution_and_stats_repr() -> None:
+  """`Solution`, `SolveStats`, and `OracleCounts` render concise reprs."""
+  prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((x - 1.0) ** 2),
+      proximal=px.prox.L1(0.1),
+  )
+  sol = px.solve(prob, jnp.zeros(4), method="apd", opt_tol=1e-5)
+  s_repr = repr(sol)
+  assert "Solution(" in s_repr
+  assert "status=CONVERGED" in s_repr
+  assert "x=float" in s_repr
+  assert "[4]" in s_repr
+  assert "dual=None" in s_repr
+  assert "SolveStats(" in repr(sol.stats)
+  counts = px.solvers.OracleCounts.create(smooth=3, grad=2, prox=1)
+  assert repr(counts) == "OracleCounts(smooth=3, grad=2, prox=1)"
+
+  # Multi-leaf PyTree summary & jax.jit tracer safety.
+  tree_sol = px.Solution(
+      x={"a": jnp.zeros(2), "b": jnp.zeros((2, 3))},
+      dual=None,
+      subgrad={"a": jnp.zeros(2), "b": jnp.zeros((2, 3))},
+      status=px.solvers.base.status_code(px.SolveStatus.CONVERGED),
+      stats=sol.stats,
+  )
+  assert "PyTree(2 leaves, 8 elems)" in repr(tree_sol)
+
+  captured: list[str] = []
+
+  @jax.jit
+  def _repr_under_jit(x: jax.Array) -> jax.Array:
+    st = px.solvers.SolverTracker.from_init(
+        x=x,
+        subgrad=x,
+        opt_res=jnp.asarray(0.0),
+        obj=jnp.asarray(0.0),
+        opt_tol=1e-5,
+    )
+    captured.append(repr(st.to_solution()))
+    return x
+
+  _repr_under_jit(jnp.zeros(2))
+  assert "status=<traced>" in captured[0]
+
+
+def test_history_tracker_unconstrained_and_constrained(
+    capsys: typing.Any,
+) -> None:
+  """`HistoryTracker` records objective values, residuals, and tolerances."""
+  a_mat = jnp.array([[3.0, 1.0], [1.0, 2.0]])
+  b_vec = jnp.array([1.0, -2.0])
+  prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((a_mat @ x - b_vec) ** 2),
+      proximal=px.prox.L1(0.1),
+  )
+  hist = px.HistoryTracker(verbose=True, print_every=1)
+  assert repr(hist) == "HistoryTracker(steps=0)"
+  sol = px.solve(
+      prob,
+      jnp.array([5.0, -5.0]),
+      method="apd",
+      opt_tol=1e-6,
+      jit=False,
+      callback=hist,
+  )
+  assert sol.status_enum == px.SolveStatus.CONVERGED
+  assert len(hist) >= 1
+  assert len(hist.obj_vals) == len(hist)
+  assert hist.opt_tols[-1] > 0.0
+  assert all(v == 0.0 for v in hist.feas_residuals)
+  assert "HistoryTracker(steps=" in repr(hist)
+  assert "opt_res (tol)" in capsys.readouterr().out
+  d = hist.to_dict()
+  assert set(d.keys()) >= {
+      "outer_iters",
+      "obj_vals",
+      "opt_residuals",
+      "feas_residuals",
+      "opt_tols",
+      "feas_tols",
+      "elapsed_times",
+  }
+
+  c_prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum((x - 2.0) ** 2),
+      constraints=px.constraints.equality(jnp.ones((1, 2)), jnp.array([1.0])),
+  )
+  c_hist = px.HistoryTracker()
+  c_sol = px.solve(
+      c_prob,
+      jnp.zeros(2),
+      method="ialm",
+      opt_tol=1e-5,
+      feas_tol=1e-5,
+      jit=False,
+      callback=c_hist,
+  )
+  assert c_sol.status_enum == px.SolveStatus.CONVERGED
+  assert len(c_hist) >= 1
+  assert c_hist.feas_tols[-1] > 0.0
