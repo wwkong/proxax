@@ -28,7 +28,7 @@ constrained optimization in **JAX** and **Optax**.
 [Documentation](https://proxax.readthedocs.io/en/latest/) ·
 [User Guide](https://proxax.readthedocs.io/en/latest/guide/solving_problems.html) ·
 [API Reference](https://proxax.readthedocs.io/en/latest/api.html) ·
-[Roadmap](https://github.com/wwkong/proxax/blob/main/ROADMAP.md) ·
+[Changelog](https://github.com/wwkong/proxax/blob/main/CHANGELOG.md) ·
 [Open an Issue](https://github.com/wwkong/proxax/issues)
 
 ## Installation
@@ -138,8 +138,10 @@ print(sol.status_enum.name, sol.x, f"{float(sol.stats.opt_residual):.2e}")
 Self-contained benchmark scripts live in
 [`examples/`](https://github.com/wwkong/proxax/tree/main/examples):
 
-*   [`examples/unconstrained_nc_opt.py`](https://github.com/wwkong/proxax/blob/main/examples/unconstrained_nc_opt.py) — univariate convex QP, nonconvex simplex QP across 7 solvers, and nonconvex `tanh` margin classification.
-*   [`examples/constrained_nc_opt.py`](https://github.com/wwkong/proxax/blob/main/examples/constrained_nc_opt.py) — linearly-constrained nonconvex simplex QP across all 5 constrained solvers, MCP Sparse PCA on the $k$-Fantope, and box-constrained matrix completion.
+*   [`examples/unconstrained.py`](https://github.com/wwkong/proxax/blob/main/examples/unconstrained.py) — univariate convex QP, nonconvex simplex QP across 7 solvers, and nonconvex `tanh` margin classification.
+*   [`examples/constrained.py`](https://github.com/wwkong/proxax/blob/main/examples/constrained.py) — linearly-constrained nonconvex simplex QP across all 5 constrained solvers, MCP Sparse PCA on the $k$-Fantope, and box-constrained matrix completion.
+*   [`examples/minmax.py`](https://github.com/wwkong/proxax/blob/main/examples/minmax.py) — bilinear zero-sum matrix game over simplices (`ExtraGradient`, `PDHG`) and weakly nonconvex–strongly concave minimax (`ProxPointMinMax`).
+*   [`examples/block.py`](https://github.com/wwkong/proxax/blob/main/examples/block.py) — two-block Lasso consensus splitting and three-block nonconvex quadratic splitting (`ADMM`, `DPADMM`, `PAdaptADMM`).
 *   [`examples/spectral_matrix_completion.py`](https://github.com/wwkong/proxax/blob/main/examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`DAICG`, `IAICG`, `APD`) vs convex `NuclearNorm`.
 *   [`examples/optax_and_vmap.py`](https://github.com/wwkong/proxax/blob/main/examples/optax_and_vmap.py) — single-step trajectory tracking with `px.optax_compat` and parallel solving via `jax.jit(jax.vmap(...))`.
 

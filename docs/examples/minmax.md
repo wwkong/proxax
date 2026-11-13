@@ -11,6 +11,12 @@ satisfying:
 
 $$\hat{v}_x \in \nabla_x \Phi(\hat{x}, \hat{y}) + \partial h(\hat{x}), \qquad \hat{v}_y \in -\nabla_y \Phi(\hat{x}, \hat{y}) + \partial g(\hat{y}), \qquad \sqrt{\|\hat{v}_x\|_2^2 + \|\hat{v}_y\|_2^2} \le \rho.$$
 
+All code on this page can be run directly via `examples/minmax.py`:
+
+```bash
+uv run python examples/minmax.py
+```
+
 ---
 
 ## 1. Bilinear Two-Player Matrix Game over Simplices

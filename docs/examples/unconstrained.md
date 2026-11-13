@@ -5,10 +5,10 @@ structure: a sanity-check convex quadratic, an indefinite quadratic over the
 probability simplex, and binary classification with a nonconvex margin loss.
 
 All code on this page can be run directly via
-`examples/unconstrained_nc_opt.py`:
+`examples/unconstrained.py`:
 
 ```bash
-uv run python examples/unconstrained_nc_opt.py
+uv run python examples/unconstrained.py
 ```
 
 ---

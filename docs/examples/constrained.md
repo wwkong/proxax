@@ -12,10 +12,10 @@ three problems:
 3. **Box-constrained nonconvex matrix completion** with entrywise rating bounds.
 
 All code on this page can be executed directly via
-`examples/constrained_nc_opt.py`:
+`examples/constrained.py`:
 
 ```bash
-uv run python examples/constrained_nc_opt.py
+uv run python examples/constrained.py
 ```
 
 ---

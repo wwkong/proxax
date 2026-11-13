@@ -52,11 +52,11 @@ Every benchmark script in `nc_opt/examples/` has a runnable JAX counterpart in
 
 | `nc_opt` MATLAB Script & Generator | Proxax Script | Documentation Section |
 | :--- | :--- | :--- |
-| `examples/unconstrained/basic_convex_qp.m` | `examples/unconstrained_nc_opt.py` | {doc}`../examples/unconstrained` (Section 1) |
-| `examples/unconstrained/nonconvex_qp.m` (`test_fn_unconstr_01.m`) | `examples/unconstrained_nc_opt.py` | {doc}`../examples/unconstrained` (Section 2) |
-| `examples/unconstrained/nonconvex_svm.m` (`test_fn_svm_01.m`) | `examples/unconstrained_nc_opt.py` | {doc}`../examples/unconstrained` (Section 3) |
+| `examples/unconstrained/basic_convex_qp.m` | `examples/unconstrained.py` | {doc}`../examples/unconstrained` (Section 1) |
+| `examples/unconstrained/nonconvex_qp.m` (`test_fn_unconstr_01.m`) | `examples/unconstrained.py` | {doc}`../examples/unconstrained` (Section 2) |
+| `examples/unconstrained/nonconvex_svm.m` (`test_fn_svm_01.m`) | `examples/unconstrained.py` | {doc}`../examples/unconstrained` (Section 3) |
 | `examples/spectral/nonconvex_spectral_mc.m` (`test_fn_spectral_mc_01.m`) | `examples/spectral_matrix_completion.py` | {doc}`../examples/spectral` |
-| `examples/constrained/nonconvex_lin_constr_qp.m` (`test_fn_lin_constr_01.m`) | `examples/constrained_nc_opt.py` | {doc}`../examples/constrained` (Section 1) |
-| `examples/constrained/nonconvex_sparse_pca.m` (`test_fn_spca_01.m`) | `examples/constrained_nc_opt.py` | {doc}`../examples/constrained` (Section 2) |
-| `examples/matrix_completion/nonconvex_bounded_mc.m` | `examples/constrained_nc_opt.py` | {doc}`../examples/constrained` (Section 3) |
+| `examples/constrained/nonconvex_lin_constr_qp.m` (`test_fn_lin_constr_01.m`) | `examples/constrained.py` | {doc}`../examples/constrained` (Section 1) |
+| `examples/constrained/nonconvex_sparse_pca.m` (`test_fn_spca_01.m`) | `examples/constrained.py` | {doc}`../examples/constrained` (Section 2) |
+| `examples/matrix_completion/nonconvex_bounded_mc.m` | `examples/constrained.py` | {doc}`../examples/constrained` (Section 3) |
 | *(JAX / Optax native extension)* | `examples/optax_and_vmap.py` | {doc}`../guide/optax_and_jax` |
