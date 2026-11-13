@@ -11,8 +11,10 @@ introductions and basic examples, see {doc}`guide/solving_problems` and
 
 Core problem containers (`px.CompositeProblem`, `px.SpectralProblem`), the
 unified `px.solve` entry point, common return types (`px.Solution`,
-`px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`), and
-type aliases (`px.typing`).
+`px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`),
+composable solver state trackers (`px.solvers.SolverTracker`,
+`px.solvers.ConstrainedTracker`, `px.solvers.OracleCounts`), and type aliases
+(`px.typing`).
 
 ```{eval-rst}
 .. automodule:: proxax.problem
@@ -168,7 +170,9 @@ $\min_x f(x) + h(x)$ subject to $\mathcal{A}(x) \in \mathcal{C}$.
 ## Optax Compatibility (`px.optax_compat`)
 
 Single-step `optax.GradientTransformation` and
-`optax.GradientTransformationExtraArgs` state machines for integrating `proxax`
+`optax.GradientTransformationExtraArgs` state machines, together with composable
+outer trackers (`OptaxTracker`, `ConstrainedOptaxTracker`) and inner subproblem
+carries (`ACGSubproblemCarry`, `PFAPDSubproblemCarry`), for integrating `proxax`
 into custom Optax loops.
 
 ```{eval-rst}

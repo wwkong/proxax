@@ -55,7 +55,11 @@ If you want to inspect iterates, log custom metrics, or interleave solver steps
 with external JAX simulation code, `px.optax_compat.apd` (and
 `px.optax_compat.aipp`) advances **one inner step per `tx.update` call** while
 tracking the exact stationarity residual `state.opt_residual` and adaptive
-curvature estimate `state.lower_curvature`:
+curvature estimate `state.lower_curvature`. Under the hood, every Optax
+transform state composes `state.tracker` (`OptaxTracker` or
+`ConstrainedOptaxTracker`) and `state.subproblem` (`ACGSubproblemCarry` or
+`PFAPDSubproblemCarry`), and exposes read-only `@property` aliases at the top
+level for convenience:
 
 $$\min_{x \in [-1, 1]^4} \; \frac{1}{2}\sum_{i=1}^4 q_i x_i^2 + \langle c, x \rangle, \qquad q = (6, -2.5, 4, -1.5)$$
 
