@@ -44,6 +44,6 @@ All benchmarks were executed on CPU with `JAX_PLATFORMS=cpu` via [`experiments/p
 
 ## Performance Profile
 
-![PANOC Performance Profile](../_static/plots/panoc_benchmark_profile.svg)
+![PANOC Performance Profile](_static/plots/panoc_benchmark_profile.svg)
 
 `PANOC` achieves the lowest oracle evaluation count on the ill-conditioned Lasso (`cond=1000`), Sparse Logistic Regression, and OSCAR Regression problems, while remaining competitive across all remaining tasks.

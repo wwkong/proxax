@@ -222,14 +222,6 @@ api
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: Experiments
-
-experiments/index
-```
-
-```{toctree}
-:maxdepth: 2
-:hidden:
 :caption: Appendices
 
 appendices/literature_and_theory

@@ -24,6 +24,7 @@ htmlcov/
 
 # Documentation build output
 site/
+site-experiments/
 
 # IDE & OS artifacts
 .vscode/

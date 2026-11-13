@@ -38,6 +38,6 @@ All benchmarks were executed on CPU with `JAX_PLATFORMS=cpu` via [`experiments/p
 
 ## Performance Profile
 
-![PANOC-ALM Performance Profile](../_static/plots/panoc_alm_profile.svg)
+![PANOC-ALM Performance Profile](_static/plots/panoc_alm_profile.svg)
 
 `PANOC-ALM` solves every problem in the suite and uses nearly **5x fewer oracle evaluations** than `IALM (APD)` on the ill-conditioned Constrained Lasso (`cond=1000`) benchmark.

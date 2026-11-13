@@ -109,7 +109,7 @@ methods fail to converge on an instance ($B=16, (m,n)=(16,16)$).
 | 16 | (16, 16) | 256 | `ADMM` | MAX_ITER | 50,000 | 0 | 1,600,000 | -2.0729e+05 | 1.73e+00 | 2.22e+00 | 189.44 |
 ```
 
-![Nonconvex DQP Performance Profile](../_static/plots/dqp_performance_profile.svg)
+![Nonconvex DQP Performance Profile](_static/plots/dqp_performance_profile.svg)
 
 ## Key Observations
 

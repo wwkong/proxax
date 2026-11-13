@@ -21,6 +21,6 @@ Executed on CPU (`JAX_PLATFORMS=cpu`) after JIT warmup via [`experiments/vmap_im
 
 ## Throughput Scaling
 
-![vmap Implicit Scaling](../_static/plots/vmap_implicit_scaling.svg)
+![vmap Implicit Scaling](_static/plots/vmap_implicit_scaling.svg)
 
 Vectorizing `px.implicit_solve` with `jax.vmap` and `jax.jit` scales throughput from ~6k samples/sec at batch size 1 to **187.8k samples/sec** at batch size 128 on CPU.
