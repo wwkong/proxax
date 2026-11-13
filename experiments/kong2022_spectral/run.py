@@ -1,7 +1,7 @@
 """Small-scale replication of Kong & Monteiro (COAP 2022): spectral NCO.
 
-Sweeps observation density p in {0.30, 0.45, 0.60, 0.75} on 20x20 rank-3
-noisy matrix completion with nonconvex log-sum singular-value regularization.
+Records convergence trajectories on 20x20 rank-3 noisy matrix completion
+(obs_prob=0.45) and sweeps observation density p in {0.30, 0.45, 0.60, 0.75}.
 """
 
 from __future__ import annotations
@@ -88,11 +88,13 @@ def main() -> None:
   ]
 
   rows = []
+  trajectories = {}
   for p in obs_probs:
     prob, x0 = _make_spectral_mc(p)
     for name, solver in solvers:
+      track = (p == 0.45)
       t0 = time.perf_counter()
-      sol = px.solve(prob, x0, solver=solver)
+      sol = px.solve(prob, x0, solver=solver, track_history=track)
       jax.block_until_ready(sol.x)
       wall_s = time.perf_counter() - t0
       oracle_evals = (
@@ -110,7 +112,19 @@ def main() -> None:
           "opt_residual": float(sol.stats.opt_residual),
           "wall_s": round(wall_s, 3),
       })
-  print(json.dumps(rows, indent=2))
+      if track and sol.history is not None:
+        h = sol.history
+        evals = [
+            int(s + g + p_ev)
+            for s, g, p_ev in zip(h.smooth_evals, h.grad_evals, h.prox_evals)
+        ]
+        trajectories[name] = {
+            "outer_iters": [int(x) for x in h.outer_iters],
+            "oracle_evals": evals,
+            "opt_residuals": [float(x) for x in h.opt_residuals],
+            "obj_vals": [float(x) for x in h.obj_vals],
+        }
+  print(json.dumps({"rows": rows, "trajectories": trajectories}, indent=2))
 
 
 if __name__ == "__main__":

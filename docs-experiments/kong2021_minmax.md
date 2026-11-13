@@ -10,9 +10,9 @@ All runs execute sequentially on CPU via [`experiments/kong2021_minmax/run.py`](
 JAX_PLATFORMS=cpu uv run python experiments/kong2021_minmax/run.py
 ```
 
-## Dual-Curvature Sweep Plot
+## Convergence Trajectories (`m_y = 0.2`)
 
-![Nonconvex-Concave Min-Max QP](_static/plots/kong2021_minmax.svg)
+![Nonconvex-Concave Min-Max QP Trajectories](_static/plots/kong2021_minmax.svg)
 
 ## Results
 

@@ -1,8 +1,8 @@
 """Small-scale replication of Kong (SIOPT 2024): curvature-free nonconvex QPs.
 
-Sweeps condition number kappa in {10, 40, 100, 250} on:
+Sweeps condition number kappa in {10, 40, 100, 250, 500} on:
 1. Nonconvex Spectrahedron QP (10x10)
-2. Nonconvex Simplex QP (n=30)
+2. Nonconvex Simplex QP (n=40)
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def _make_spectrahedron_qp(
 
 
 def _make_simplex_qp(
-    kappa: float, n: int = 30, seed: int = 19
+    kappa: float, n: int = 40, seed: int = 19
 ) -> tuple[px.CompositeProblem, jax.Array]:
   key = jax.random.PRNGKey(seed)
   k1, k2, k3 = jax.random.split(key, 3)
@@ -69,20 +69,19 @@ def _make_simplex_qp(
 
 def main() -> None:
   tol = 1e-4
-  kappas = [10, 40, 100, 250]
+  kappas = [10, 40, 100, 250, 500]
   solvers = [
       ("APD", px.solvers.APD(opt_tol=tol, max_outer_iters=250)),
-      ("AdapAPG", px.solvers.AdapAPG(opt_tol=tol, max_iters=2000)),
+      ("AdapAPG", px.solvers.AdapAPG(opt_tol=tol, max_iters=3000)),
+      ("PANOC", px.solvers.PANOC(opt_tol=tol, max_iters=3000)),
       ("AIPP", px.solvers.AIPP(opt_tol=tol, max_outer_iters=250)),
-      ("AG", px.solvers.AG(opt_tol=tol, max_iters=2000)),
-      ("UPFAG", px.solvers.UPFAG(opt_tol=tol, max_iters=2000)),
-      ("PANOC", px.solvers.PANOC(opt_tol=tol, max_iters=2000)),
+      ("AG", px.solvers.AG(opt_tol=tol, max_iters=3000)),
   ]
 
   rows = []
   for family, builder in [
       ("Spectrahedron QP (10x10)", _make_spectrahedron_qp),
-      ("Simplex QP (n=30)", _make_simplex_qp),
+      ("Simplex QP (n=40)", _make_simplex_qp),
   ]:
     for kappa in kappas:
       prob, x0 = builder(kappa)

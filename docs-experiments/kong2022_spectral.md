@@ -10,7 +10,7 @@ All runs execute sequentially on CPU via [`experiments/kong2022_spectral/run.py`
 JAX_PLATFORMS=cpu uv run python experiments/kong2022_spectral/run.py
 ```
 
-## Observation-Density Plot
+## Convergence Trajectories (`p = 45%`)
 
 ![Doubly vs. Inner Acceleration on Spectral Matrix Completion](_static/plots/kong2022_spectral.svg)
 

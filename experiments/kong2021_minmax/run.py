@@ -1,7 +1,7 @@
 """Small-scale replication of Kong & Monteiro (SIOPT 2021): nonconvex-concave min-max.
 
-Sweeps y-concavity regularization m_y in {0.05, 0.2, 0.5, 1.0} on a 16x16
-box/simplex-constrained nonconvex-concave saddle-point QP.
+Records convergence trajectories on a 16x16 nonconvex-concave QP (m_y=0.2)
+and sweeps dual concavity regularization m_y in {0.05, 0.2, 0.5, 1.0}.
 """
 
 from __future__ import annotations
@@ -60,11 +60,13 @@ def main() -> None:
   ]
 
   rows = []
+  trajectories = {}
   for m_y in m_ys:
     prob, z0 = _make_minmax_qp(m_y)
     for name, solver in solvers:
+      track = (m_y == 0.2)
       t0 = time.perf_counter()
-      sol = px.solve(prob, z0, solver=solver)
+      sol = px.solve(prob, z0, solver=solver, track_history=track)
       jax.block_until_ready(sol.x)
       wall_s = time.perf_counter() - t0
       oracle_evals = (
@@ -82,7 +84,19 @@ def main() -> None:
           "opt_residual": float(sol.stats.opt_residual),
           "wall_s": round(wall_s, 3),
       })
-  print(json.dumps(rows, indent=2))
+      if track and sol.history is not None:
+        h = sol.history
+        evals = [
+            int(s + g + p_ev)
+            for s, g, p_ev in zip(h.smooth_evals, h.grad_evals, h.prox_evals)
+        ]
+        trajectories[name] = {
+            "outer_iters": [int(x) for x in h.outer_iters],
+            "oracle_evals": evals,
+            "opt_residuals": [float(x) for x in h.opt_residuals],
+            "obj_vals": [float(x) for x in h.obj_vals],
+        }
+  print(json.dumps({"rows": rows, "trajectories": trajectories}, indent=2))
 
 
 if __name__ == "__main__":

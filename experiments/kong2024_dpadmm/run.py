@@ -1,7 +1,7 @@
 """Small-scale replication of Kong & Monteiro (SIOPT 2024): DP.ADMM vs PAdaptADMM.
 
-Sweeps third-block coupling rank r in {1, 2, 4, 6} (where m=6, so r < 6 is
-rank-deficient) on a 3-block nonconvex QP (n=24 total).
+Records JIT-compiled stage/iteration trajectories on a rank-deficient (r=2, m=6)
+3-block nonconvex QP (n=24) and sweeps coupling rank r in {1, 2, 4, 6}.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def main() -> None:
   ranks = [1, 2, 4, 6]
   solvers = [
       ("DPADMM", px.solvers.DPADMM(opt_tol=tol, feas_tol=tol, c_init=2.0, max_stages=80)),
-      ("PAdaptADMM", px.solvers.PAdaptADMM(opt_tol=tol, feas_tol=tol, gamma_init=10.0, lmt_bound=10.0, adaptive_tau=True, max_stages=80)),
+      ("PAdaptADMM", px.solvers.PAdaptADMM(opt_tol=tol, feas_tol=tol, gamma_init=25.0, lmt_bound=10.0, adaptive_tau=True, max_stages=40)),
       ("ADMM (rho=5)", px.solvers.ADMM(opt_tol=tol, feas_tol=tol, rho=5.0, max_iters=1500)),
   ]
 
@@ -88,7 +88,31 @@ def main() -> None:
           "feas_residual": float(sol.stats.feas_residual),
           "wall_s": round(wall_s, 3),
       })
-  print(json.dumps(rows, indent=2))
+
+  # JIT-compiled trajectory checkpoints on the rank-deficient r=2 instance
+  prob_r2, x0_r2 = _make_multiblock_qp(rank_a3=2)
+  trajectories: dict[str, dict[str, list[float | int]]] = {
+      "DPADMM": {"outer_iters": [], "opt_residuals": [], "feas_residuals": []},
+      "PAdaptADMM": {"outer_iters": [], "opt_residuals": [], "feas_residuals": []},
+      "ADMM (rho=5)": {"outer_iters": [], "opt_residuals": [], "feas_residuals": []},
+  }
+  for s_cap in [1, 2, 5, 10, 20, 40, 80]:
+    sol = px.solve(prob_r2, x0_r2, solver=px.solvers.DPADMM(opt_tol=tol, feas_tol=tol, c_init=2.0, max_stages=s_cap))
+    trajectories["DPADMM"]["outer_iters"].append(int(sol.stats.outer_iters))
+    trajectories["DPADMM"]["opt_residuals"].append(float(sol.stats.opt_residual))
+    trajectories["DPADMM"]["feas_residuals"].append(float(sol.stats.feas_residual))
+  for s_cap in [1, 2, 5, 10, 20, 40]:
+    sol = px.solve(prob_r2, x0_r2, solver=px.solvers.PAdaptADMM(opt_tol=tol, feas_tol=tol, gamma_init=25.0, lmt_bound=10.0, adaptive_tau=True, max_stages=s_cap))
+    trajectories["PAdaptADMM"]["outer_iters"].append(int(sol.stats.outer_iters))
+    trajectories["PAdaptADMM"]["opt_residuals"].append(float(sol.stats.opt_residual))
+    trajectories["PAdaptADMM"]["feas_residuals"].append(float(sol.stats.feas_residual))
+  for it_cap in [25, 50, 100, 200, 300, 415]:
+    sol = px.solve(prob_r2, x0_r2, solver=px.solvers.ADMM(opt_tol=tol, feas_tol=tol, rho=5.0, max_iters=it_cap))
+    trajectories["ADMM (rho=5)"]["outer_iters"].append(int(sol.stats.outer_iters))
+    trajectories["ADMM (rho=5)"]["opt_residuals"].append(float(sol.stats.opt_residual))
+    trajectories["ADMM (rho=5)"]["feas_residuals"].append(float(sol.stats.feas_residual))
+
+  print(json.dumps({"rows": rows, "trajectories": trajectories}, indent=2))
 
 
 if __name__ == "__main__":
