@@ -45,10 +45,23 @@ def while_loop(
     ValueError: If `callback` or `time_limit` is supplied when `jit=True`.
   """
   if jit:
-    if callback is not None:
-      raise ValueError("Python `callback` requires `jit=False`.")
     if time_limit is not None:
       raise ValueError("Wall-clock `time_limit` requires `jit=False`.")
+    if callback is not None:
+      if not getattr(callback, "_supports_jit_callback", False):
+        raise ValueError("Python `callback` requires `jit=False`.")
+
+      def _cb_wrapper(st: StateT) -> None:
+        callback(st)
+
+      jax.debug.callback(_cb_wrapper, init_val)
+
+      def _jit_body(st: StateT) -> StateT:
+        st_next = body_fun(st)
+        jax.debug.callback(_cb_wrapper, st_next)
+        return st_next
+
+      return jax.lax.while_loop(cond_fun, _jit_body, init_val)
     return jax.lax.while_loop(cond_fun, body_fun, init_val)
 
   state = init_val

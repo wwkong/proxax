@@ -126,9 +126,6 @@ def test_solution_track_history_and_plot(
       proximal=px.prox.L1(0.1),
   )
 
-  with pytest.raises(ValueError, match="jit=False"):
-    px.solve(prob, jnp.array([5.0, -5.0]), track_history=True)
-
   sol_no_hist = px.solve(prob, jnp.array([5.0, -5.0]), method="apd")
   with pytest.raises(ValueError, match="no recorded history"):
     sol_no_hist.plot()
@@ -138,10 +135,10 @@ def test_solution_track_history_and_plot(
       jnp.array([5.0, -5.0]),
       method="apd",
       opt_tol=1e-6,
-      jit=False,
       track_history=True,
   )
   assert sol.history is not None
+  assert sol.history.outer_iters[0] == 0
   fig, axes = sol.plot(x_axis="evals", title="APD")
   assert fig.title == "APD"
   assert len(axes) == 2
@@ -170,22 +167,20 @@ def test_plot_histories_constrained_and_time_axis(
       method="ialm",
       opt_tol=1e-4,
       feas_tol=1e-4,
-      jit=False,
       track_history=True,
   )
   sol2 = px.solve(
       prob,
       jnp.zeros(2),
-      method="iaipal",
+      method="qp_aipp",
       opt_tol=1e-4,
       feas_tol=1e-4,
-      jit=False,
       track_history=True,
   )
   assert sol1.history is not None and sol2.history is not None
 
   fig, axes = px.plotting.plot_histories(
-      {"IALM": sol1.history, "IAIPAL": sol2.history},
+      {"IALM": sol1.history, "QP-AIPP": sol2.history},
       x_axis="time",
   )
   assert len(axes) == 3

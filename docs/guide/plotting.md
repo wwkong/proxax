@@ -14,8 +14,9 @@ pip install proxax[plot]
 
 ## 1. Plotting Convergence Curves (`sol.plot()` / `history.plot()`)
 
-Pass `track_history=True` with `jit=False` to `px.solve(...)` to attach a
-`px.HistoryTracker` to `sol.history`, then call `sol.plot()`:
+Pass `track_history=True` to `px.solve(...)` to attach a
+`px.HistoryTracker` to `sol.history` (works with `jit=True` via
+`jax.debug.callback`), then call `sol.plot()`:
 
 ```python
 from proxax import px
@@ -26,7 +27,6 @@ sol = px.solve(
     method="ialm",
     opt_tol=1e-5,
     feas_tol=1e-5,
-    jit=False,
     track_history=True,
 )
 fig, axes = sol.plot(x_axis="evals", title="IALM Convergence")
@@ -48,14 +48,18 @@ feasibility residuals on constrained problems):
 
 ```python
 histories = {}
-for label, method in [("IALM", "ialm"), ("IAIPAL", "iaipal")]:
+for label, method in [
+    ("IALM", "ialm"),
+    ("IAIPAL", "iaipal"),
+    ("QP-APD", "qp_apd"),
+    ("QP-AIPP", "qp_aipp"),
+]:
   res = px.solve(
       c_prob,
       x0,
       method=method,
-      opt_tol=1e-4,
-      feas_tol=1e-4,
-      jit=False,
+      opt_tol=1e-3,
+      feas_tol=1e-3,
       track_history=True,
   )
   histories[label] = res.history
@@ -63,7 +67,7 @@ for label, method in [("IALM", "ialm"), ("IAIPAL", "iaipal")]:
 fig, axes = px.plotting.plot_histories(
     histories,
     x_axis="evals",
-    title="Constrained Lasso: IALM vs IAIPAL",
+    title="Constrained Lasso: IALM vs IAIPAL vs QP-APD vs QP-AIPP",
 )
 ```
 

@@ -287,7 +287,7 @@ class Solution:
     if self.history is None:
       raise ValueError(
           "Solution has no recorded history. Re-run with "
-          "`proxax.solve(..., jit=False, track_history=True)` or pass a "
+          "`proxax.solve(..., track_history=True)` or pass a "
           "`HistoryTracker` via `callback=`."
       )
     return self.history.plot(
@@ -960,8 +960,9 @@ def run_solver_loop(
 class HistoryTracker:
   """Records per-iteration objective values, residuals, and tolerances.
 
-  Designed for use as an eager-mode `callback` in `proxax.solve(..., jit=False,
-  callback=tracker)` or direct `solver.solve(..., jit=False, callback=tracker)`.
+  Designed for use as a `callback` in `proxax.solve(..., callback=tracker)`
+  (works with both `jit=True` via `jax.debug.callback` and `jit=False`) or
+  enabled automatically via `proxax.solve(..., track_history=True)`.
 
   Attributes:
     verbose: If `True`, prints a formatted progress table while solving.
@@ -979,6 +980,8 @@ class HistoryTracker:
     prox_evals: Recorded cumulative proximal evaluations.
     elapsed_times: Wall-clock seconds since tracker creation.
   """
+
+  _supports_jit_callback: typing.ClassVar[bool] = True
 
   def __init__(
       self,

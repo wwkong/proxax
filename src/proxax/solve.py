@@ -220,10 +220,11 @@ def solve(
     jit: If True, executes inner/outer loops via `jax.lax.while_loop` (`jit` and
       `vmap` compatible). If False, runs eager Python loops supporting
       `callback` and `time_limit`.
-    callback: Optional per-outer-iteration callback (`jit=False` only).
+    callback: Optional per-outer-iteration callback (`jit=False` only, except
+      `HistoryTracker` which also supports `jit=True`).
     time_limit: Optional wall-clock limit in seconds (`jit=False` only).
-    track_history: If True (`jit=False` only), records per-iteration objective
-      and residual history into `solution.history` for `solution.plot()`.
+    track_history: If True, records per-iteration objective and residual history
+      into `solution.history` for `solution.plot()` (works with `jit=True`).
 
   Returns:
     A `Solution` PyTree with certified primal `x`, optional `dual`, exact
@@ -231,8 +232,11 @@ def solve(
   """
   if solver is not None and method is not None:
     raise ValueError("Specify at most one of `solver` or `method`.")
-  if track_history and jit:
-    raise ValueError("`track_history=True` requires `jit=False`.")
+  if track_history and callback is not None and jit:
+    raise ValueError(
+        "Combining a custom `callback` with `track_history=True` "
+        "requires `jit=False`."
+    )
   chosen, target = _select_solver(problem, solver, method, opt_tol, feas_tol)
   tracker: base.HistoryTracker | None = None
   effective_cb = callback

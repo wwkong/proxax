@@ -296,12 +296,13 @@ print(history.obj_vals[-1], history.opt_residuals[-1], history.opt_tols[-1])
 fig, axes = history.plot(x_axis="iter", title="IALM convergence")
 ```
 
-Or pass `track_history=True` directly to `px.solve(..., jit=False)` to attach the
-history to `sol.history` and call `sol.plot()` or `px.plotting.plot_histories`:
+Or pass `track_history=True` directly to `px.solve(...)` (works with `jit=True`
+via `jax.debug.callback`) to attach the history to `sol.history` and call
+`sol.plot()` or `px.plotting.plot_histories`:
 
 ```python
-sol_ialm = px.solve(problem, x0, method="ialm", jit=False, track_history=True)
-sol_qp = px.solve(problem, x0, method="qp_aipp", jit=False, track_history=True)
+sol_ialm = px.solve(problem, x0, method="ialm", track_history=True)
+sol_qp = px.solve(problem, x0, method="qp_aipp", track_history=True)
 
 sol_ialm.plot(x_axis="evals")
 px.plotting.plot_histories(
