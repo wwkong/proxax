@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-13
+
+### Changed
+- Split experiment benchmarks and scaling studies into a standalone Sphinx subproject under `docs-experiments/` with `docs-experiments/.readthedocs.yaml` (`https://proxax.readthedocs.io/projects/experiments/en/latest/`).
+- Restored `sphinx_book_theme` with `show_navbar_depth=1` (collapsed left sidebar by default) on the main docs, and cross-linked the Experiments portal in `docs/index.md`.
+- Re-rendered `docs/_static/plots/minmax_phase.gif` at 240 DPI (`1320x1152`) and kept raster GIF/PNG plots at native crisp resolution in `custom.css`.
+
 ## [0.2.5] - 2026-11-13
 
 ### Added
