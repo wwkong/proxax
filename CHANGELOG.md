@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-11-13
+
+### Changed
+- Reorganized documentation for conciseness, clarity, and cleaner navigation: moved deep internal oracle/certificate math into `docs/appendices/oracles_and_certificates.md` and tightened `docs/foundations/*`, `docs/guide/*`, and `docs/quickstart.md`.
+- Folded the 5 small `docs/foundations/problem_classes/*` subpages directly into `docs/foundations/problem_classes.md`.
+- Grouped `docs/examples/index.md`, `docs/api.md`, and the external `Experiment Reports & Benchmarks` link under a unified `Reference & Resources` sidebar section in `docs/index.md`.
+
 ## [0.2.7] - 2026-11-13
 
 ### Added
