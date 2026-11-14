@@ -196,8 +196,8 @@ def run_clarabel_baseline(
     feas_tol: float,
 ) -> harness.BenchmarkResult:
   """Runs Clarabel on a ``QPSIFProblem`` as an IPM baseline."""
-  import clarabel
-  import scipy.sparse as sp
+  import clarabel  # type: ignore[import-untyped]
+  import scipy.sparse as sp  # type: ignore[import-untyped]
 
   n = qp.P.shape[0]
   m = qp.A.shape[0]

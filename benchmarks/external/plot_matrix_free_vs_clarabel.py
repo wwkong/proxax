@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import re
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
@@ -53,8 +54,8 @@ def _apply_mocha_style() -> None:
   })
 
 
-def _parse_results(md_path: Path) -> dict[tuple[str, str], dict[str, object]]:
-  rows: dict[tuple[str, str], dict[str, object]] = {}
+def _parse_results(md_path: Path) -> dict[tuple[str, str], dict[str, Any]]:
+  rows: dict[tuple[str, str], dict[str, Any]] = {}
   for line in md_path.read_text(encoding="utf-8").splitlines():
     m = _ROW_RE.match(line.strip())
     if m:
@@ -67,7 +68,7 @@ def _parse_results(md_path: Path) -> dict[tuple[str, str], dict[str, object]]:
 
 
 def plot_scaling(
-    rows: dict[tuple[str, str], dict[str, object]], out_path: Path
+    rows: dict[tuple[str, str], dict[str, Any]], out_path: Path
 ) -> None:
   """Generates a 3-panel log-scale runtime scaling plot."""
   _apply_mocha_style()
@@ -157,7 +158,7 @@ def plot_scaling(
 
 
 def plot_speedup(
-    rows: dict[tuple[str, str], dict[str, object]], out_path: Path
+    rows: dict[tuple[str, str], dict[str, Any]], out_path: Path
 ) -> None:
   """Generates a horizontal log-scale speedup chart vs. Clarabel."""
   _apply_mocha_style()

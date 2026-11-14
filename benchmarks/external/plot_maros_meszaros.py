@@ -148,9 +148,9 @@ def _dolan_more_curve(
         ]
         best = max(min(converged_vals), 1e-12) if converged_vals else 1.0
         for s in solvers:
-            r = by_prob[p].get(s)
-            if r is not None and r["status"] == "CONVERGED":
-                ratios[s].append(max(float(r[metric_key]) / best, 1.0))
+            r_opt = by_prob[p].get(s)
+            if r_opt is not None and r_opt["status"] == "CONVERGED":
+                ratios[s].append(max(float(r_opt[metric_key]) / best, 1.0))
             else:
                 ratios[s].append(math.inf)
 
