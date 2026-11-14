@@ -103,9 +103,13 @@ probs = jax.jit(layer.batched)(logits)  # shape (batch, dim)
 
 ## 5. Bilevel Optax Example
 
-For a complete bilevel Elastic-Net tuning loop combining `px.implicit_solve`
-with `optax.adam`, see `examples/bilevel_optax.py` (as well as
-`examples/implicit_solve.py`, `examples/diff_capped_simplex.py`, and
+In `examples/bilevel_optax.py`, `px.implicit_solve` is combined with
+`optax.adam` to learn per-coordinate Elastic-Net hyperparameters
+$\theta = (\theta_1, \theta_2) \in \mathbb{R} \times \mathbb{R}^d$:
+
+$$\min_{\theta_1 \in \mathbb{R},\; \theta_2 \in \mathbb{R}^d} \; \frac{1}{2}\|A_{\text{val}} \hat{x}(\theta) - y_{\text{val}}\|_2^2 \quad \text{s.t.} \quad \hat{x}(\theta) = \arg\min_{x \in \mathbb{R}^d} \; \frac{1}{2}\|A_{\text{train}} x - y_{\text{train}}\|_2^2 + \frac{1}{2}\sum_{j=1}^d e^{\theta_{2,j}} x_j^2 + e^{\theta_1}\|x\|_1$$
+
+(See also `examples/implicit_solve.py`, `examples/diff_capped_simplex.py`, and
 `examples/nn_structured_layer.py`):
 
 ```bash
