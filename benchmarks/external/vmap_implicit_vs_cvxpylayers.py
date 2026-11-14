@@ -290,8 +290,9 @@ def _solve_with_proxax(
     tol: float,
     repeats: int,
     ref_grad: np.ndarray,
+    backend: str = "vmap",
 ) -> LayerBenchmarkResult:
-  """Runs proxax vmap(implicit_solve) + jit(value_and_grad)."""
+  """Runs proxax batch_implicit_solve + jit(value_and_grad)."""
   import jax
   import jax.numpy as jnp
 
@@ -306,66 +307,46 @@ def _solve_with_proxax(
     b_j = jnp.asarray(case.b, dtype=jnp.float64)
     x0 = jnp.full(case.n, 0.2, dtype=jnp.float64)
 
-    def solve_one(q_vec: typing.Any) -> typing.Any:
-      def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
-        return px.CompositeProblem(
-            smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) + jnp.dot(q_in, x),
-            proximal=px.prox.NonNegative(),
-            constraints=px.constraints.less_equal(A_j, b_j),
-        )
-
-      return px.implicit_solve(
-          prob_fn,
-          x0,
-          q_vec,
-          solver=solver,
-          opt_tol=tol,
-          feas_tol=tol,
-          linear_tol=tol,
+    def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
+      return px.CompositeProblem(
+          smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) + jnp.dot(q_in, x),
+          proximal=px.prox.NonNegative(),
+          constraints=px.constraints.less_equal(A_j, b_j),
       )
 
   elif case.suite == "simplex_layer":
     x0 = jnp.full(case.n, 1.0 / case.n, dtype=jnp.float64)
 
-    def solve_one(q_vec: typing.Any) -> typing.Any:
-      def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
-        return px.CompositeProblem(
-            smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) - jnp.dot(q_in, x),
-            proximal=px.prox.Simplex(),
-        )
-
-      return px.implicit_solve(
-          prob_fn,
-          x0,
-          q_vec,
-          solver=solver,
-          opt_tol=tol,
-          linear_tol=tol,
+    def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
+      return px.CompositeProblem(
+          smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) - jnp.dot(q_in, x),
+          proximal=px.prox.Simplex(),
       )
 
   else:
     x0 = jnp.zeros(case.n, dtype=jnp.float64)
 
-    def solve_one(q_vec: typing.Any) -> typing.Any:
-      def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
-        return px.CompositeProblem(
-            smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) + jnp.dot(q_in, x),
-            proximal=px.prox.L2Ball(radius=1.0),
-        )
-
-      return px.implicit_solve(
-          prob_fn,
-          x0,
-          q_vec,
-          solver=solver,
-          opt_tol=tol,
-          linear_tol=tol,
+    def prob_fn(q_in: typing.Any) -> px.CompositeProblem:
+      return px.CompositeProblem(
+          smooth=lambda x: 0.5 * jnp.dot(x, P_j @ x) + jnp.dot(q_in, x),
+          proximal=px.prox.L2Ball(radius=1.0),
       )
+
+  feas_tol = tol if case.suite == "qp_layer" else 1e-5
 
   @jax.jit
   def loss_and_grad(qb: typing.Any) -> tuple[typing.Any, typing.Any]:
     def loss(q_in: typing.Any) -> typing.Any:
-      xs = jax.vmap(solve_one)(q_in)
+      xs = px.batch_implicit_solve(
+          prob_fn,
+          x0,
+          q_in,
+          solver=solver,
+          opt_tol=tol,
+          feas_tol=feas_tol,
+          linear_tol=tol,
+          backend=backend,
+      )
       if case.suite in ("simplex_layer", "l2ball_layer"):
         return 0.5 * jnp.sum((xs - 0.5) ** 2)
       return 0.5 * jnp.sum(xs**2)
@@ -466,14 +447,16 @@ def run_benchmark(
         flush=True,
     )
     if case.suite == "qp_layer":
-      solvers: list[tuple[str, typing.Any]] = [
-          ("proxax-IALM", IALM(opt_tol=tol, feas_tol=tol)),
+      solvers: list[tuple[str, typing.Any, str]] = [
+          ("proxax-IALM(vmap)", IALM(opt_tol=tol, feas_tol=tol), "vmap"),
+          ("proxax-IALM(threads)", IALM(opt_tol=tol, feas_tol=tol), "threads"),
       ]
     else:
       solvers = [
-          ("proxax-PANOC", PANOC(opt_tol=tol)),
+          ("proxax-PANOC(vmap)", PANOC(opt_tol=tol), "vmap"),
+          ("proxax-PANOC(threads)", PANOC(opt_tol=tol), "threads"),
       ]
-    for s_name, solver in solvers:
+    for s_name, solver, backend in solvers:
       res = _solve_with_proxax(
           case,
           solver_name=s_name,
@@ -481,6 +464,7 @@ def run_benchmark(
           tol=tol,
           repeats=repeats,
           ref_grad=ref_grad,
+          backend=backend,
       )
       print(
           f"  {s_name}: {1e3 * res.run_s:.2f} ms "

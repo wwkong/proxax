@@ -15,15 +15,17 @@ DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
     "cvxpylayers": "#94e2d5",
-    "proxax-IALM": "#89b4fa",
-    "proxax-IAIPAL": "#a6e3a1",
-    "proxax-PANOC": "#cba6f7",
+    "proxax-IALM(vmap)": "#89b4fa",
+    "proxax-IALM(threads)": "#a6e3a1",
+    "proxax-PANOC(vmap)": "#cba6f7",
+    "proxax-PANOC(threads)": "#f9e2af",
 }
 SOLVER_MARKERS = {
     "cvxpylayers": "P",
-    "proxax-IALM": "o",
-    "proxax-IAIPAL": "s",
-    "proxax-PANOC": "^",
+    "proxax-IALM(vmap)": "o",
+    "proxax-IALM(threads)": "s",
+    "proxax-PANOC(vmap)": "^",
+    "proxax-PANOC(threads)": "D",
 }
 
 
@@ -56,22 +58,25 @@ def plot_scaling(out_path: Path) -> None:
       (
           "Batched QP Layer (n=50, m=25)",
           {
-              "cvxpylayers": [16.46, 75.32, 248.88, 881.14],
-              "proxax-IALM": [0.93, 37.34, 257.92, 1113.57],
+              "cvxpylayers": [14.05, 70.81, 227.66, 806.73],
+              "proxax-IALM(vmap)": [0.96, 37.49, 252.14, 1108.99],
+              "proxax-IALM(threads)": [1.64, 9.01, 42.93, 156.20],
           },
       ),
       (
           "Batched Simplex Layer (n=100)",
           {
-              "cvxpylayers": [23.48, 107.31, 372.45, 1430.25],
-              "proxax-PANOC": [0.70, 8.34, 37.19, 177.25],
+              "cvxpylayers": [26.29, 114.52, 344.08, 1566.05],
+              "proxax-PANOC(vmap)": [0.80, 8.47, 37.84, 193.69],
+              "proxax-PANOC(threads)": [1.12, 7.80, 26.34, 88.86],
           },
       ),
       (
           "Batched l2-Ball Layer (n=100)",
           {
-              "cvxpylayers": [19.44, 103.55, 334.40, 1331.42],
-              "proxax-PANOC": [0.24, 2.13, 10.50, 34.74],
+              "cvxpylayers": [22.92, 127.11, 349.87, 1574.06],
+              "proxax-PANOC(vmap)": [0.29, 2.50, 10.46, 44.52],
+              "proxax-PANOC(threads)": [0.69, 6.29, 26.27, 87.87],
           },
       ),
   ]

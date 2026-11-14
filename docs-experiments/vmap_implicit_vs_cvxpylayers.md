@@ -1,6 +1,6 @@
 # Batched Differentiable Layers (`proxax` vs. `cvxpylayers`)
 
-CPU (`float64`) comparison of `proxax` (`jax.vmap` + `px.implicit_solve`) against `cvxpylayers` (`1.2.0`, `CvxpyLayer` via `diffcp`) for end-to-end **forward solve + backward VJP** (`jax.value_and_grad`) across batch sizes $B \in \{1, 16, 64, 256\}$.
+CPU (`float64`) comparison of `proxax` (`px.batch_implicit_solve` with `backend="vmap"` and `backend="threads"`) against `cvxpylayers` (`1.2.0`, `CvxpyLayer` via `diffcp`) for end-to-end **forward solve + backward VJP** (`jax.value_and_grad`) across batch sizes $B \in \{1, 16, 64, 256\}$.
 
 ## Problem Classes
 
@@ -35,33 +35,46 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 PYTHONPATH=. .venv/bin/python benchmarks/exte
 
 | Suite | Problem | Solver | $B$ | Loss | Rel Grad Err | Compile (s) | Run (ms) | Speedup vs. `cvxpylayers` |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `qp_layer` | `qp_layer_n50_B1` | `proxax-IALM` | 1 | 15.0505 | `6.47e-06` | 2.74 | **0.93** | **17.70×** |
-| `qp_layer` | `qp_layer_n50_B1` | `cvxpylayers` | 1 | 15.0505 | `0.00e+00` | 0.75 | 16.46 | 1.00× |
-| `qp_layer` | `qp_layer_n50_B16` | `proxax-IALM` | 16 | 233.9316 | `8.52e-06` | 1.38 | **37.34** | **2.02×** |
-| `qp_layer` | `qp_layer_n50_B16` | `cvxpylayers` | 16 | 233.9315 | `0.00e+00` | 1.30 | 75.32 | 1.00× |
-| `qp_layer` | `qp_layer_n50_B64` | `proxax-IALM` | 64 | 779.2278 | `1.04e-05` | 1.44 | 257.92 | 0.96× |
-| `qp_layer` | `qp_layer_n50_B64` | `cvxpylayers` | 64 | 779.2281 | `0.00e+00` | 1.62 | **248.88** | 1.00× |
-| `qp_layer` | `qp_layer_n50_B256` | `proxax-IALM` | 256 | 2520.8586 | `1.07e-05` | 2.55 | 1113.57 | 0.79× |
-| `qp_layer` | `qp_layer_n50_B256` | `cvxpylayers` | 256 | 2520.8582 | `0.00e+00` | 2.48 | **881.14** | 1.00× |
-| `simplex_layer` | `simplex_layer_n100_B1` | `proxax-PANOC` | 1 | 12.2180 | `8.51e-06` | 1.01 | **0.70** | **33.54×** |
-| `simplex_layer` | `simplex_layer_n100_B1` | `cvxpylayers` | 1 | 12.2180 | `0.00e+00` | 0.66 | 23.48 | 1.00× |
-| `simplex_layer` | `simplex_layer_n100_B16` | `proxax-PANOC` | 16 | 195.1466 | `3.86e-06` | 0.88 | **8.34** | **12.87×** |
-| `simplex_layer` | `simplex_layer_n100_B16` | `cvxpylayers` | 16 | 195.1466 | `0.00e+00` | 1.05 | 107.31 | 1.00× |
-| `simplex_layer` | `simplex_layer_n100_B64` | `proxax-PANOC` | 64 | 781.8064 | `5.51e-06` | 0.93 | **37.19** | **10.01×** |
-| `simplex_layer` | `simplex_layer_n100_B64` | `cvxpylayers` | 64 | 781.8064 | `0.00e+00` | 1.63 | 372.45 | 1.00× |
-| `simplex_layer` | `simplex_layer_n100_B256` | `proxax-PANOC` | 256 | 3124.3430 | `4.27e-06` | 1.11 | **177.25** | **8.07×** |
-| `simplex_layer` | `simplex_layer_n100_B256` | `cvxpylayers` | 256 | 3124.3431 | `0.00e+00` | 2.65 | 1430.25 | 1.00× |
-| `l2ball_layer` | `l2ball_layer_n100_B1` | `proxax-PANOC` | 1 | 13.3139 | `1.08e-06` | 1.71 | **0.24** | **81.00×** |
-| `l2ball_layer` | `l2ball_layer_n100_B1` | `cvxpylayers` | 1 | 13.3139 | `0.00e+00` | 0.69 | 19.44 | 1.00× |
-| `l2ball_layer` | `l2ball_layer_n100_B16` | `proxax-PANOC` | 16 | 209.6644 | `1.25e-06` | 0.72 | **2.13** | **48.62×** |
-| `l2ball_layer` | `l2ball_layer_n100_B16` | `cvxpylayers` | 16 | 209.6644 | `0.00e+00` | 1.05 | 103.55 | 1.00× |
-| `l2ball_layer` | `l2ball_layer_n100_B64` | `proxax-PANOC` | 64 | 829.8868 | `1.39e-06` | 0.70 | **10.50** | **31.85×** |
-| `l2ball_layer` | `l2ball_layer_n100_B64` | `cvxpylayers` | 64 | 829.8868 | `0.00e+00` | 1.42 | 334.40 | 1.00× |
-| `l2ball_layer` | `l2ball_layer_n100_B256` | `proxax-PANOC` | 256 | 3310.2253 | `1.09e-06` | 0.81 | **34.74** | **38.33×** |
-| `l2ball_layer` | `l2ball_layer_n100_B256` | `cvxpylayers` | 256 | 3310.2253 | `0.00e+00` | 2.49 | 1331.42 | 1.00× |
+| `qp_layer` | `qp_layer_n50_B1` | `proxax-IALM(vmap)` | 1 | 15.0505 | `6.47e-06` | 2.58 | **0.96** | **14.64×** |
+| `qp_layer` | `qp_layer_n50_B1` | `proxax-IALM(threads)` | 1 | 15.0505 | `6.47e-06` | 2.11 | 1.64 | 8.57× |
+| `qp_layer` | `qp_layer_n50_B1` | `cvxpylayers` | 1 | 15.0505 | `0.00e+00` | 0.68 | 14.05 | 1.00× |
+| `qp_layer` | `qp_layer_n50_B16` | `proxax-IALM(threads)` | 16 | 233.9316 | `8.52e-06` | 2.02 | **9.01** | **7.86×** |
+| `qp_layer` | `qp_layer_n50_B16` | `proxax-IALM(vmap)` | 16 | 233.9316 | `8.52e-06` | 1.22 | 37.49 | 1.89× |
+| `qp_layer` | `qp_layer_n50_B16` | `cvxpylayers` | 16 | 233.9315 | `0.00e+00` | 1.26 | 70.81 | 1.00× |
+| `qp_layer` | `qp_layer_n50_B64` | `proxax-IALM(threads)` | 64 | 779.2278 | `1.04e-05` | 2.01 | **42.93** | **5.30×** |
+| `qp_layer` | `qp_layer_n50_B64` | `cvxpylayers` | 64 | 779.2281 | `0.00e+00` | 1.50 | 227.66 | 1.00× |
+| `qp_layer` | `qp_layer_n50_B64` | `proxax-IALM(vmap)` | 64 | 779.2278 | `1.04e-05` | 1.48 | 252.14 | 0.90× |
+| `qp_layer` | `qp_layer_n50_B256` | `proxax-IALM(threads)` | 256 | 2520.8586 | `1.07e-05` | 2.06 | **156.20** | **5.16×** |
+| `qp_layer` | `qp_layer_n50_B256` | `cvxpylayers` | 256 | 2520.8582 | `0.00e+00` | 2.23 | 806.73 | 1.00× |
+| `qp_layer` | `qp_layer_n50_B256` | `proxax-IALM(vmap)` | 256 | 2520.8586 | `1.07e-05` | 2.20 | 1108.99 | 0.73× |
+| `simplex_layer` | `simplex_layer_n100_B1` | `proxax-PANOC(vmap)` | 1 | 12.2180 | `8.51e-06` | 1.11 | **0.80** | **32.86×** |
+| `simplex_layer` | `simplex_layer_n100_B1` | `proxax-PANOC(threads)` | 1 | 12.2180 | `8.51e-06` | 0.85 | 1.12 | 23.47× |
+| `simplex_layer` | `simplex_layer_n100_B1` | `cvxpylayers` | 1 | 12.2180 | `0.00e+00` | 0.76 | 26.29 | 1.00× |
+| `simplex_layer` | `simplex_layer_n100_B16` | `proxax-PANOC(threads)` | 16 | 195.1466 | `3.86e-06` | 0.71 | **7.80** | **14.68×** |
+| `simplex_layer` | `simplex_layer_n100_B16` | `proxax-PANOC(vmap)` | 16 | 195.1466 | `3.86e-06` | 0.95 | 8.47 | 13.52× |
+| `simplex_layer` | `simplex_layer_n100_B16` | `cvxpylayers` | 16 | 195.1466 | `0.00e+00` | 1.16 | 114.52 | 1.00× |
+| `simplex_layer` | `simplex_layer_n100_B64` | `proxax-PANOC(threads)` | 64 | 781.8064 | `5.51e-06` | 0.70 | **26.34** | **13.06×** |
+| `simplex_layer` | `simplex_layer_n100_B64` | `proxax-PANOC(vmap)` | 64 | 781.8064 | `5.51e-06` | 0.84 | 37.84 | 9.09× |
+| `simplex_layer` | `simplex_layer_n100_B64` | `cvxpylayers` | 64 | 781.8064 | `0.00e+00` | 1.49 | 344.08 | 1.00× |
+| `simplex_layer` | `simplex_layer_n100_B256` | `proxax-PANOC(threads)` | 256 | 3124.3430 | `4.27e-06` | 0.76 | **88.86** | **17.62×** |
+| `simplex_layer` | `simplex_layer_n100_B256` | `proxax-PANOC(vmap)` | 256 | 3124.3430 | `4.27e-06` | 1.23 | 193.69 | 8.09× |
+| `simplex_layer` | `simplex_layer_n100_B256` | `cvxpylayers` | 256 | 3124.3431 | `0.00e+00` | 2.99 | 1566.05 | 1.00× |
+| `l2ball_layer` | `l2ball_layer_n100_B1` | `proxax-PANOC(vmap)` | 1 | 13.3139 | `1.08e-06` | 1.89 | **0.29** | **79.03×** |
+| `l2ball_layer` | `l2ball_layer_n100_B1` | `proxax-PANOC(threads)` | 1 | 13.3139 | `1.08e-06` | 1.66 | 0.69 | 33.22× |
+| `l2ball_layer` | `l2ball_layer_n100_B1` | `cvxpylayers` | 1 | 13.3139 | `0.00e+00` | 0.66 | 22.92 | 1.00× |
+| `l2ball_layer` | `l2ball_layer_n100_B16` | `proxax-PANOC(vmap)` | 16 | 209.6644 | `1.25e-06` | 0.85 | **2.50** | **50.84×** |
+| `l2ball_layer` | `l2ball_layer_n100_B16` | `proxax-PANOC(threads)` | 16 | 209.6644 | `1.25e-06` | 1.57 | 6.29 | 20.21× |
+| `l2ball_layer` | `l2ball_layer_n100_B16` | `cvxpylayers` | 16 | 209.6644 | `0.00e+00` | 1.26 | 127.11 | 1.00× |
+| `l2ball_layer` | `l2ball_layer_n100_B64` | `proxax-PANOC(vmap)` | 64 | 829.8868 | `1.39e-06` | 0.71 | **10.46** | **33.45×** |
+| `l2ball_layer` | `l2ball_layer_n100_B64` | `proxax-PANOC(threads)` | 64 | 829.8868 | `1.39e-06` | 1.53 | 26.27 | 13.32× |
+| `l2ball_layer` | `l2ball_layer_n100_B64` | `cvxpylayers` | 64 | 829.8868 | `0.00e+00` | 1.49 | 349.87 | 1.00× |
+| `l2ball_layer` | `l2ball_layer_n100_B256` | `proxax-PANOC(vmap)` | 256 | 3310.2253 | `1.09e-06` | 0.87 | **44.52** | **35.36×** |
+| `l2ball_layer` | `l2ball_layer_n100_B256` | `proxax-PANOC(threads)` | 256 | 3310.2253 | `1.09e-06` | 1.75 | 87.87 | 17.91× |
+| `l2ball_layer` | `l2ball_layer_n100_B256` | `cvxpylayers` | 256 | 3310.2253 | `0.00e+00` | 2.74 | 1574.06 | 1.00× |
 
 ## Key Takeaways
 
-* **$\ell_2$-Ball & Simplex layers (`proxax-PANOC`):** End-to-end XLA batching (`jax.vmap` + `px.implicit_solve`) beats `cvxpylayers` by **31.85–81.00×** on `l2ball_layer` (`34.74 ms` vs. `1331.42 ms` at $B=256$) and **8.07–33.54×** on `simplex_layer` (`177.25 ms` vs. `1430.25 ms` at $B=256$).
-* **Linearly-constrained QP layers (`proxax-IALM`):** `proxax-IALM` is **17.70× faster** at $B=1$ (`0.93 ms` vs. `16.46 ms`), **2.02× faster** at $B=16$ (`37.34 ms` vs. `75.32 ms`), and near parity at $B=64$ (`257.92 ms` vs. `248.88 ms`) on CPU, where `jax.vmap` runs `lax.while_loop` in lockstep up to the worst-case iteration count in the batch (`max_outer=21, max_inner=1817` vs. `median_inner=755` at $B=256$).
+* **`proxax` wins every problem and batch size (`5.16–79.03×` faster):** Combining `px.batch_implicit_solve(..., backend="threads")` for heterogeneous CPU batches with `backend="vmap"` for uniform/single-instance batches beats `cvxpylayers` on all 12 cases.
+* **Threadpool eliminates `vmap` tail latency on CPU (`qp_layer`, `simplex_layer`):** On `qp_layer` at $B=256$, `proxax-IALM(threads)` drops runtime from `1108.99 ms` (`vmap`) to `156.20 ms` (**7.10×** faster than `vmap`, **5.16×** faster than `cvxpylayers`); on `simplex_layer` at $B=256$, `proxax-PANOC(threads)` drops runtime from `193.69 ms` to `88.86 ms` (**17.62×** faster than `cvxpylayers`).
+* **`vmap` shines on uniform fast-converging batches (`l2ball_layer`):** When iteration counts are tight and uniform across the batch, pure-XLA `proxax-PANOC(vmap)` avoids threadpool dispatch overhead and beats `cvxpylayers` by **33.45–79.03×** (`44.52 ms` vs. `1574.06 ms` at $B=256$).
 * **Verified gradient agreement:** Relative $\ell_2$ gradient discrepancy against `cvxpylayers` stays between `1.08e-06` and `1.07e-05` across all 12 cases.

@@ -72,6 +72,145 @@ def _implicit_vjp_solve(
   return vjp_th(tree.scale(-1.0, u))[0]
 
 
+def implicit_vjp_from_solution(
+    problem_fn: collections.abc.Callable[
+        [_typing.PyTree], DifferentiableProblem
+    ],
+    x0: _typing.PyTree,
+    x_hat: _typing.PyTree,
+    p_hat: _typing.PyTree,
+    theta: _typing.PyTree,
+    g_out: _typing.PyTree,
+    *,
+    is_minmax: bool,
+    is_block: bool,
+    has_dual: bool,
+    step_size: float = 1.0,
+    linear_solver: str = "gmres",
+    linear_tol: float = 1e-5,
+    linear_maxiter: int = 100,
+    damping: float = 1e-6,
+    return_dual: bool = False,
+) -> _typing.PyTree:
+  """Computes implicit VJP `d_theta` given pre-solved `(x_hat, p_hat)`."""
+  tau = jnp.asarray(step_size, dtype=tree.infer_dtype(x_hat))
+
+  if is_minmax:
+
+    def fixed_point_minmax(
+        z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
+    ) -> tuple[_typing.PyTree, _typing.PyTree]:
+      x, y = z
+      prob = typing.cast(minmax_mod.MinMaxProblem, problem_fn(th))
+      _, gx, gy = prob.oracle.phi_val_grad(x, y)
+      x_next = prob.prox_x.prox(tree.sub(x, tree.scale(tau, gx)), tau)
+      y_next = prob.prox_y.prox(tree.add(y, tree.scale(tau, gy)), tau)
+      return (tree.sub(x, x_next), tree.sub(y, y_next))
+
+    return _implicit_vjp_solve(
+        fixed_point_minmax,
+        x_hat,
+        theta,
+        g_out,
+        linear_solver=linear_solver,
+        linear_tol=linear_tol,
+        linear_maxiter=linear_maxiter,
+        damping=damping,
+    )
+
+  if is_block:
+
+    def fixed_point_block(
+        z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
+    ) -> tuple[_typing.PyTree, _typing.PyTree]:
+      x_blocks, p = z
+      prob = typing.cast(block_mod.BlockProblem, problem_fn(th))
+      x_tuple = tuple(x_blocks)
+      ops = prob.bind_operators(x_tuple)
+      f_blocks = []
+      for blk, op, x_i in zip(prob.blocks, ops, x_tuple, strict=True):
+        smooth = typing.cast(terms.SmoothObjective, blk.smooth)
+        _, grad_i = smooth.value_and_grad(x_i)
+        adj_p = op.rmatvec(p)
+        x_next = blk.proximal.prox(
+            tree.sub(x_i, tree.scale(tau, tree.add(grad_i, adj_p))),
+            tau,
+        )
+        f_blocks.append(tree.sub(x_i, x_next))
+      f_p = prob.coupling_residual(x_tuple, bound_ops=ops)
+      fx_out: _typing.PyTree = (
+          tuple(f_blocks) if isinstance(x_blocks, tuple) else f_blocks
+      )
+      return (fx_out, f_p)
+
+    rhs_b = g_out if return_dual else (g_out, tree.zeros_like(p_hat))
+    return _implicit_vjp_solve(
+        fixed_point_block,
+        (x_hat, p_hat),
+        theta,
+        rhs_b,
+        linear_solver=linear_solver,
+        linear_tol=linear_tol,
+        linear_maxiter=linear_maxiter,
+        damping=damping,
+    )
+
+  if not has_dual:
+
+    def fixed_point_unc(
+        x: _typing.PyTree, th: _typing.PyTree
+    ) -> _typing.PyTree:
+      prob = typing.cast(problem_mod.CompositeProblem, problem_fn(th))
+      orc = prob.oracle
+      _, grad = orc.smooth_value_and_grad(x)
+      x_next = orc.prox(tree.sub(x, tree.scale(tau, grad)), tau)
+      return tree.sub(x, x_next)
+
+    return _implicit_vjp_solve(
+        fixed_point_unc,
+        x_hat,
+        theta,
+        g_out,
+        linear_solver=linear_solver,
+        linear_tol=linear_tol,
+        linear_maxiter=linear_maxiter,
+        damping=damping,
+    )
+
+  def fixed_point_kkt(
+      z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
+  ) -> tuple[_typing.PyTree, _typing.PyTree]:
+    x, p = z
+    prob = typing.cast(problem_mod.CompositeProblem, problem_fn(th))
+    orc = prob.oracle
+    bound_c = prob.bind_constraints(x)
+    assert bound_c is not None
+    _, grad = orc.smooth_value_and_grad(x)
+    adj_p = bound_c.adjoint(p)
+    x_next = orc.prox(
+        tree.sub(x, tree.scale(tau, tree.add(grad, adj_p))),
+        tau,
+    )
+    f_x = tree.sub(x, x_next)
+    _, p_next = bound_c.penalty_and_dual(
+        x, multiplier=p, penalty=1.0, dampen=0.0
+    )
+    f_p = tree.sub(p_next, p)
+    return (f_x, f_p)
+
+  rhs_z = g_out if return_dual else (g_out, tree.zeros_like(p_hat))
+  return _implicit_vjp_solve(
+      fixed_point_kkt,
+      (x_hat, p_hat),
+      theta,
+      rhs_z,
+      linear_solver=linear_solver,
+      linear_tol=linear_tol,
+      linear_maxiter=linear_maxiter,
+      damping=damping,
+  )
+
+
 def implicit_solve(
     problem_fn: collections.abc.Callable[
         [_typing.PyTree], DifferentiableProblem
@@ -170,124 +309,22 @@ def implicit_solve(
       g_out: _typing.PyTree,
   ) -> tuple[_typing.PyTree, _typing.PyTree]:
     x_hat, p_hat, theta = res
-    tau = jnp.asarray(step_size, dtype=tree.infer_dtype(x_hat))
-
-    if is_minmax:
-
-      def fixed_point_minmax(
-          z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
-      ) -> tuple[_typing.PyTree, _typing.PyTree]:
-        x, y = z
-        prob = typing.cast(minmax_mod.MinMaxProblem, problem_fn(th))
-        _, gx, gy = prob.oracle.phi_val_grad(x, y)
-        x_next = prob.prox_x.prox(tree.sub(x, tree.scale(tau, gx)), tau)
-        y_next = prob.prox_y.prox(tree.add(y, tree.scale(tau, gy)), tau)
-        return (tree.sub(x, x_next), tree.sub(y, y_next))
-
-      d_theta = _implicit_vjp_solve(
-          fixed_point_minmax,
-          x_hat,
-          theta,
-          g_out,
-          linear_solver=linear_solver,
-          linear_tol=linear_tol,
-          linear_maxiter=linear_maxiter,
-          damping=damping,
-      )
-      return tree.zeros_like(x0), d_theta
-
-    if is_block:
-
-      def fixed_point_block(
-          z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
-      ) -> tuple[_typing.PyTree, _typing.PyTree]:
-        x_blocks, p = z
-        prob = typing.cast(block_mod.BlockProblem, problem_fn(th))
-        x_tuple = tuple(x_blocks)
-        ops = prob.bind_operators(x_tuple)
-        f_blocks = []
-        for blk, op, x_i in zip(prob.blocks, ops, x_tuple, strict=True):
-          smooth = typing.cast(terms.SmoothObjective, blk.smooth)
-          _, grad_i = smooth.value_and_grad(x_i)
-          adj_p = op.rmatvec(p)
-          x_next = blk.proximal.prox(
-              tree.sub(x_i, tree.scale(tau, tree.add(grad_i, adj_p))),
-              tau,
-          )
-          f_blocks.append(tree.sub(x_i, x_next))
-        f_p = prob.coupling_residual(x_tuple, bound_ops=ops)
-        fx_out: _typing.PyTree = (
-            tuple(f_blocks) if isinstance(x_blocks, tuple) else f_blocks
-        )
-        return (fx_out, f_p)
-
-      rhs_b = g_out if return_dual else (g_out, tree.zeros_like(p_hat))
-      d_theta = _implicit_vjp_solve(
-          fixed_point_block,
-          (x_hat, p_hat),
-          theta,
-          rhs_b,
-          linear_solver=linear_solver,
-          linear_tol=linear_tol,
-          linear_maxiter=linear_maxiter,
-          damping=damping,
-      )
-      return tree.zeros_like(x0), d_theta
-
-    if not has_dual:
-
-      def fixed_point_unc(
-          x: _typing.PyTree, th: _typing.PyTree
-      ) -> _typing.PyTree:
-        prob = typing.cast(problem_mod.CompositeProblem, problem_fn(th))
-        orc = prob.oracle
-        _, grad = orc.smooth_value_and_grad(x)
-        x_next = orc.prox(tree.sub(x, tree.scale(tau, grad)), tau)
-        return tree.sub(x, x_next)
-
-      d_theta = _implicit_vjp_solve(
-          fixed_point_unc,
-          x_hat,
-          theta,
-          g_out,
-          linear_solver=linear_solver,
-          linear_tol=linear_tol,
-          linear_maxiter=linear_maxiter,
-          damping=damping,
-      )
-      return tree.zeros_like(x0), d_theta
-
-    def fixed_point_kkt(
-        z: tuple[_typing.PyTree, _typing.PyTree], th: _typing.PyTree
-    ) -> tuple[_typing.PyTree, _typing.PyTree]:
-      x, p = z
-      prob = typing.cast(problem_mod.CompositeProblem, problem_fn(th))
-      orc = prob.oracle
-      bound_c = prob.bind_constraints(x)
-      assert bound_c is not None
-      _, grad = orc.smooth_value_and_grad(x)
-      adj_p = bound_c.adjoint(p)
-      x_next = orc.prox(
-          tree.sub(x, tree.scale(tau, tree.add(grad, adj_p))),
-          tau,
-      )
-      f_x = tree.sub(x, x_next)
-      _, p_next = bound_c.penalty_and_dual(
-          x, multiplier=p, penalty=1.0, dampen=0.0
-      )
-      f_p = tree.sub(p_next, p)
-      return (f_x, f_p)
-
-    rhs_z = g_out if return_dual else (g_out, tree.zeros_like(p_hat))
-    d_theta = _implicit_vjp_solve(
-        fixed_point_kkt,
-        (x_hat, p_hat),
+    d_theta = implicit_vjp_from_solution(
+        problem_fn,
+        x0,
+        x_hat,
+        p_hat,
         theta,
-        rhs_z,
+        g_out,
+        is_minmax=is_minmax,
+        is_block=is_block,
+        has_dual=has_dual,
+        step_size=step_size,
         linear_solver=linear_solver,
         linear_tol=linear_tol,
         linear_maxiter=linear_maxiter,
         damping=damping,
+        return_dual=return_dual,
     )
     return tree.zeros_like(x0), d_theta
 
