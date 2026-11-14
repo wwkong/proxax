@@ -7,10 +7,6 @@
 [![CI](https://github.com/wwkong/proxax/actions/workflows/ci.yml/badge.svg)](https://github.com/wwkong/proxax/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/readthedocs/proxax)](https://proxax.readthedocs.io/en/latest/)
 
-```bash
-pip install proxax
-```
-
 **Proxax** is a library of **certified first-order proximal, spectral,
 penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
 constrained optimization in **JAX** and **Optax** — covering both convex and
