@@ -4,6 +4,18 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-11-14
+
+### Added
+- Added `px.batch_solve` and `px.batch_implicit_solve` (`proxax.batch`, also exported at top-level `proxax`) with `backend="auto" | "vmap" | "threads"`, persistent `ThreadPoolExecutor` (`_THREAD_POOL_CACHE`), `chunk_size` partitioning, and weak-keyed compiled caches (`_BATCH_SOLVE_CACHE`, `_BATCH_IMPLICIT_CACHE`).
+- Added external benchmark suites and reports in `docs-experiments/` comparing `proxax` against `Clarabel`, `alpaqa`, and `cvxpylayers` (`batch_vs_clarabel`, `batch_vs_alpaqa`, `vmap_implicit_vs_cvxpylayers`, `mpc_rollout`, `diff_training_loop`, `large_matrix_free`).
+- Separated **External Benchmarks** and **Internal Benchmarks** in `docs-experiments/index.md` with Executive Summary tables across all four sections.
+- Separated `docs/guide/batching_and_parallelism.md` (`Batching & Parallelism`) from `docs/guide/optax_and_jax.md`, added `proxax.batch` to `docs/api.md`, and added `docs/appendices/implementation_optimizations.md` (`Appendix D: Implementation Optimizations`).
+
+### Fixed
+- Pre-compiled `jax.jit(_one_fwd).lower(...).compile()` outside `jax.pure_callback` and pre-converted `x_init` / `params_batch` to NumPy arrays before `pool.map` in `_host_batch_fwd`, eliminating nested JIT and `lax.slice` contention across worker threads.
+- Added tracer-aware dispatch (`_run_fwd_dispatch`) and pre-compiled `_vmap_bwd` in `px.batch_implicit_solve(..., backend="threads")` so eager `jax.value_and_grad` loops bypass `jax.pure_callback` without requiring `block_until_ready()`.
+
 ## [0.3.1] - 2026-11-13
 
 ### Changed
