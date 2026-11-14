@@ -23,10 +23,13 @@ You only need a single import line (`from proxax import px`, or equivalently
 
 ### `px.CompositeProblem` (Most Problems)
 
-Use `px.CompositeProblem` whenever you want to minimize a smooth function
-`smooth`, a nonsmooth regularizer or simple set `proximal`, and/or linear/cone
-constraints `constraints`. For example, to solve the L1-regularized
-least-squares problem
+`px.CompositeProblem` models composite optimization problems of the form
+
+$$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+
+where `smooth` represents $f$, `proximal` represents $h$, and `constraints`
+represents $\mathcal{A}(x) \in \mathcal{C}$. For example, to solve the
+L1-regularized least-squares problem
 
 $$\min_{x \in \mathbb{R}^n} \; \frac{1}{2}\|x - 1.5\|_2^2 + 0.2 \|x\|_1$$
 
@@ -88,16 +91,21 @@ print(sol.x["w"], sol.x["b"])
 ### Other Problem Classes (`SpectralProblem`, `MinMaxProblem`, `BlockProblem`)
 
 - **`px.SpectralProblem(f1=..., f2_vec=..., prox_vec=...)`:** Matrix singular-value
-  optimization $\min_X f_1(X) + (f_2^{\mathcal{V}} + h^{\mathcal{V}})(\sigma(X))$
-  using one thin SVD per outer step (`DAICG` / `IAICG`). See
-  {doc}`../examples/spectral` and `examples/spectral_matrix_completion.py`.
-- **`px.MinMaxProblem(coupling=..., prox_x=..., prox_y=...)`:** Saddle-point
-  problems $\min_x \max_y \Phi(x, y) + h_x(x) - h_y(y)$ solved with
-  `ExtraGradient`, `PDHG`, or `ProxPointMinMax`. See {doc}`../examples/minmax`.
-- **`px.BlockProblem(blocks=(...), rhs=...)`:** Multi-block splitting
-  $\min \sum_i (f_i(x_i) + h_i(x_i))$ s.t. $\sum_i \mathcal{A}_i(x_i) = b$
-  using `BlockTerm` and `ADMM` / `DPADMM` / `PAdaptADMM`. See
-  {doc}`../examples/block`.
+  optimization using one thin SVD per outer step (`DAICG` / `IAICG`, see
+  {doc}`../examples/spectral` and `examples/spectral_matrix_completion.py`):
+
+  $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
+
+- **`px.MinMaxProblem(coupling=..., prox_x=..., prox_y=...)`:** Composite
+  saddle-point problems solved with `ExtraGradient`, `PDHG`, or
+  `ProxPointMinMax` (see {doc}`../examples/minmax`):
+
+  $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h_x(x) - h_y(y)$$
+
+- **`px.BlockProblem(blocks=(...), rhs=...)`:** Multi-block splitting using
+  `BlockTerm` and `ADMM` / `DPADMM` / `PAdaptADMM` (see {doc}`../examples/block`):
+
+  $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
 
 ---
 
