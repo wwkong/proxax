@@ -9,11 +9,11 @@ import pathlib
 import time
 from collections.abc import Callable
 
-import clarabel  # type: ignore[import-untyped]
+import clarabel
 import jax
 import jax.numpy as jnp
 import numpy as np
-import scipy.sparse as sp  # type: ignore[import-untyped]
+import scipy.sparse as sp
 
 import proxax as px
 from benchmarks import harness
