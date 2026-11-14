@@ -4,6 +4,9 @@ This appendix provides a visual overview of Proxax's layered package structure,
 solve-time dispatch pipeline, inner–outer solver composition, and batched /
 differentiable execution paths.
 
+> **Tip:** All diagrams below support interactive **scroll-to-zoom, drag-to-pan**,
+> and the **fullscreen** button in the corner.
+
 ---
 
 ## 1. Layered Package Architecture
@@ -13,46 +16,42 @@ certified solver engines, and the underlying `jax` / `optax` runtime substrate
 into four layers:
 
 ```{mermaid}
-%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'padding': 16, 'nodeSpacing': 30, 'rankSpacing': 46}, 'themeVariables': {'fontFamily': 'Inter, system-ui, -apple-system, sans-serif', 'fontSize': '13.5px', 'lineColor': '#64748b', 'primaryTextColor': '#0f172a'}}}%%
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 28, 'rankSpacing': 42}}}%%
 flowchart TB
-    classDef user fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px
-    classDef model fill:#d1fae5,stroke:#059669,color:#064e3b,stroke-width:1.5px
-    classDef solver fill:#ede9fe,stroke:#7c3aed,color:#3b0764,stroke-width:1.5px
-    classDef substrate fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+    classDef user stroke:#3b82f6,stroke-width:2px
+    classDef model stroke:#10b981,stroke-width:2px
+    classDef solver stroke:#8b5cf6,stroke-width:2px
+    classDef substrate stroke:#f59e0b,stroke-width:2px
 
-    subgraph L1["User & Ecosystem Layer"]
-        direction LR
-        PX(["<b>proxax.px</b><br/>curated facade"]):::user
-        SOLVE["<b>solve / batch_solve</b><br/>single & batched entry"]:::user
-        DIFF["<b>implicit_solve / layers</b><br/>differentiable optimization"]:::user
-        OPTAX["<b>optax_compat</b><br/>GradientTransformationExtraArgs"]:::user
-        PLOT["<b>plotting</b><br/>convergence & spectrum"]:::user
+    subgraph L1["1. User & Ecosystem Layer"]
+        PX(["proxax.px<br/>curated facade"]):::user
+        SOLVE["solve / batch_solve<br/>single & batched entry"]:::user
+        DIFF["implicit_solve / layers<br/>differentiable opt"]:::user
+        OPTAX["optax_compat<br/>Optax transforms"]:::user
+        PLOT["plotting<br/>convergence & spectrum"]:::user
     end
 
-    subgraph L2["Problem & Operator Modeling Layer"]
-        direction LR
-        PROB["<b>problem</b><br/>CompositeProblem, LinearConstraint"]:::model
-        PROX["<b>prox</b><br/>norms, indicators, folded_concave,<br/>exotic, combinators"]:::model
-        CONS["<b>constraints</b><br/>sets, linear_op"]:::model
-        ORA["<b>oracle</b><br/>composite, spectral, spectral_problem,<br/>minmax, block, terms"]:::model
-        PREC["<b>precondition</b><br/>ruiz_equilibrate"]:::model
+    subgraph L2["2. Problem & Operator Modeling Layer"]
+        PROB["problem<br/>CompositeProblem,<br/>LinearConstraint"]:::model
+        ORA["oracle<br/>composite, spectral,<br/>minmax, block, terms"]:::model
+        PROX["prox<br/>norms, indicators,<br/>folded_concave, exotic"]:::model
+        CONS["constraints<br/>sets, linear_op"]:::model
+        PREC["precondition<br/>ruiz_equilibrate"]:::model
     end
 
-    subgraph L3["Solver & Certificate Engine Layer"]
-        direction LR
-        UNC["<b>solvers.unconstrained</b><br/>APD, PANOC, AIPP, AdapFISTA, ..."]:::solver
-        CON["<b>solvers.constrained</b><br/>IALM, IAIPAL, SProxALM, QPAIPP, QPAPD"]:::solver
-        MM["<b>solvers.minmax</b><br/>ExtraGradient, PDHG, ProxPoint"]:::solver
-        BLK["<b>solvers.block</b><br/>ADMM, DPADMM, PAdaptADMM"]:::solver
-        INN["<b>solvers.inner</b><br/>ACG, PFACG"]:::solver
-        CERT["<b>certificates</b><br/>stationarity, minmax"]:::solver
-        LOOP["<b>_loop & tree</b><br/>while_loop / PyTree linalg"]:::solver
+    subgraph L3["3. Solver & Certificate Engine Layer"]
+        UNC["solvers.unconstrained<br/>APD, PANOC, AIPP, ..."]:::solver
+        CON["solvers.constrained<br/>IALM, IAIPAL, SProxALM,<br/>QPAIPP, QPAPD"]:::solver
+        MM["solvers.minmax<br/>ExtraGradient, PDHG,<br/>ProxPoint"]:::solver
+        BLK["solvers.block<br/>ADMM, DPADMM,<br/>PAdaptADMM"]:::solver
+        INN["solvers.inner<br/>ACG, PFACG"]:::solver
+        CERT["certificates<br/>stationarity, minmax"]:::solver
+        LOOP["_loop & tree<br/>while_loop & PyTree linalg"]:::solver
     end
 
-    subgraph L4["JAX & Optax Runtime Substrate"]
-        direction LR
-        JAX[("<b>jax</b><br/>jit, vmap, grad, linear_transpose,<br/>custom_vjp, lax.while_loop")]:::substrate
-        OX[("<b>optax</b><br/>optax.tree, optax.projections,<br/>GradientTransformationExtraArgs")]:::substrate
+    subgraph L4["4. JAX & Optax Runtime Substrate"]
+        JAX[("jax<br/>jit, vmap, grad, custom_vjp,<br/>linear_transpose, while_loop")]:::substrate
+        OX[("optax<br/>optax.tree, projections,<br/>GradientTransformationExtraArgs")]:::substrate
     end
 
     PX --> SOLVE & DIFF & OPTAX & PLOT
@@ -64,11 +63,6 @@ flowchart TB
     UNC & CON & MM & BLK --> CERT & LOOP
     L2 --> JAX & OX
     L3 --> JAX & OX
-
-    style L1 fill:#eff6ff,stroke:#93c5fd,stroke-width:1.5px,color:#1e3a8a
-    style L2 fill:#ecfdf5,stroke:#6ee7b7,stroke-width:1.5px,color:#064e3b
-    style L3 fill:#f5f3ff,stroke:#c4b5fd,stroke-width:1.5px,color:#3b0764
-    style L4 fill:#fffbeb,stroke:#fcd34d,stroke-width:1.5px,color:#78350f
 ```
 
 ---
@@ -81,25 +75,24 @@ either to a compiled `jax.lax.while_loop` (`jit=True`) or a Python loop with
 wall-clock `time_limit` support (`jit=False`), and emits a certified `Solution`:
 
 ```{mermaid}
-%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'padding': 14, 'nodeSpacing': 34, 'rankSpacing': 44}, 'themeVariables': {'fontFamily': 'Inter, system-ui, -apple-system, sans-serif', 'fontSize': '13.5px', 'lineColor': '#64748b', 'primaryTextColor': '#0f172a'}}}%%
-flowchart LR
-    classDef io fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px
-    classDef step fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:1.5px
-    classDef decision fill:#ffe4e6,stroke:#e11d48,color:#881337,stroke-width:1.5px
-    classDef engine fill:#ede9fe,stroke:#7c3aed,color:#3b0764,stroke-width:1.5px
-    classDef cert fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
+flowchart TB
+    classDef io stroke:#3b82f6,stroke-width:2px
+    classDef decision stroke:#f43f5e,stroke-width:2px
+    classDef engine stroke:#8b5cf6,stroke-width:2px
+    classDef cert stroke:#10b981,stroke-width:2px
 
-    IN(["<b>px.solve</b>(problem, x0,<br/>solver=..., jit=True)"]):::io
-    NORM["Normalize problem &<br/>bind LinearOperator to x0"]:::step
-    DOM["Project x0 onto dom(h)<br/>via proximal.domain_project"]:::step
+    IN(["px.solve(problem, x0,<br/>solver=..., jit=True)"]):::io
+    NORM["Normalize problem &<br/>bind LinearOperator to x0"]
+    DOM["Project x0 onto dom(h)<br/>via proximal.domain_project"]
     DISP{"solver is None?"}:::decision
-    AUTO["Auto-select default solver<br/>by problem class & constraints"]:::step
-    EXEC["Initialize SolverState"]:::step
+    AUTO["Auto-select default solver<br/>by problem class & constraints"]
+    EXEC["Initialize SolverState"]
     JIT{"jit=True?"}:::decision
-    XLA["<b>jax.lax.while_loop</b><br/>(zero host-dispatch overhead)"]:::engine
-    PY["<b>Python loop</b> via _loop.py<br/>(supports time_limit & callbacks)"]:::engine
+    XLA["jax.lax.while_loop<br/>(zero host-dispatch overhead)"]:::engine
+    PY["Python loop via _loop.py<br/>(time_limit & callbacks)"]:::engine
     CERT["Compute stationarity / KKT<br/>certificate (x_hat, p_hat, v_hat)"]:::cert
-    OUT(["<b>Solution</b>(status, x, dual,<br/>opt_res, feas_res, stats)"]):::cert
+    OUT(["Solution(status, x, dual,<br/>opt_res, feas_res, stats)"]):::cert
 
     IN --> NORM --> DOM --> DISP
     DISP -->|"Yes (auto)"| AUTO --> EXEC
@@ -119,28 +112,28 @@ set- and cone-constrained problems into smooth penalized or proximal-regularized
 subproblems without re-compiling XLA graphs across outer iterations:
 
 ```{mermaid}
-%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'padding': 14, 'nodeSpacing': 32, 'rankSpacing': 42}, 'themeVariables': {'fontFamily': 'Inter, system-ui, -apple-system, sans-serif', 'fontSize': '13.5px', 'lineColor': '#64748b', 'primaryTextColor': '#0f172a'}}}%%
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
 flowchart TB
-    classDef prob fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px
-    classDef oracle fill:#d1fae5,stroke:#059669,color:#064e3b,stroke-width:1.5px
-    classDef decision fill:#ffe4e6,stroke:#e11d48,color:#881337,stroke-width:1.5px
-    classDef inner fill:#ede9fe,stroke:#7c3aed,color:#3b0764,stroke-width:1.5px
-    classDef outer fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
-    classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+    classDef prob stroke:#3b82f6,stroke-width:2px
+    classDef oracle stroke:#10b981,stroke-width:2px
+    classDef decision stroke:#f43f5e,stroke-width:2px
+    classDef inner stroke:#8b5cf6,stroke-width:2px
+    classDef outer stroke:#f59e0b,stroke-width:2px
+    classDef done stroke:#10b981,stroke-width:2px
 
-    CP(["<b>CompositeProblem</b><br/>min f(x) + h(x) s.t. A(x) in C"]):::prob
-    PEN["<b>PenalizedOracle</b><br/>(dynamic multiplier p_bar, penalty c)"]:::oracle
-    REG["<b>ProxRegularizedOracle</b><br/>(dynamic center x_k, smooth_reg, prox_reg)"]:::oracle
+    CP(["CompositeProblem<br/>min f(x) + h(x) s.t. A(x) in C"]):::prob
+    PEN["PenalizedOracle<br/>(dynamic multiplier p_bar, penalty c)"]:::oracle
+    REG["ProxRegularizedOracle<br/>(dynamic center x_k, smooth_reg, prox_reg)"]:::oracle
 
     SUB{"Inner subproblem solver"}:::decision
-    ACG["<b>inner.ACG / inner.PFACG</b><br/>accelerated convex"]:::inner
-    APD["<b>unconstrained.APD</b><br/>parameter-free"]:::inner
-    PANOC["<b>unconstrained.PANOC</b><br/>quasi-Newton FBE"]:::inner
+    ACG["inner.ACG / inner.PFACG<br/>accelerated convex"]:::inner
+    APD["unconstrained.APD<br/>parameter-free"]:::inner
+    PANOC["unconstrained.PANOC<br/>quasi-Newton FBE"]:::inner
 
-    REF["<b>Stationarity & KKT refinement</b><br/>(certificates.stationarity)"]:::outer
+    REF["Stationarity & KKT refinement<br/>(certificates.stationarity)"]:::outer
     UPD{"opt_res <= opt_tol &<br/>feas_res <= feas_tol?"}:::decision
     STEP["Outer dual / penalty update<br/>p_{k+1}, c_{k+1}"]:::outer
-    DONE(["<b>Certified KKT Solution</b><br/>(x_hat, p_hat, v_hat)"]):::done
+    DONE(["Certified KKT Solution<br/>(x_hat, p_hat, v_hat)"]):::done
 
     CP --> PEN --> REG --> SUB
     SUB --> ACG & APD & PANOC
@@ -164,24 +157,24 @@ CPU and vectorized `jax.vmap` execution on GPU, while sharing a `custom_vjp`
 implicit-differentiation backward pass:
 
 ```{mermaid}
-%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'padding': 14, 'nodeSpacing': 34, 'rankSpacing': 44}, 'themeVariables': {'fontFamily': 'Inter, system-ui, -apple-system, sans-serif', 'fontSize': '13.5px', 'lineColor': '#64748b', 'primaryTextColor': '#0f172a'}}}%%
-flowchart LR
-    classDef io fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px
-    classDef decision fill:#ffe4e6,stroke:#e11d48,color:#881337,stroke-width:1.5px
-    classDef cpu fill:#d1fae5,stroke:#059669,color:#064e3b,stroke-width:1.5px
-    classDef gpu fill:#ede9fe,stroke:#7c3aed,color:#3b0764,stroke-width:1.5px
-    classDef bwd fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
+flowchart TB
+    classDef io stroke:#3b82f6,stroke-width:2px
+    classDef decision stroke:#f43f5e,stroke-width:2px
+    classDef cpu stroke:#10b981,stroke-width:2px
+    classDef gpu stroke:#8b5cf6,stroke-width:2px
+    classDef bwd stroke:#f59e0b,stroke-width:2px
 
-    B_IN(["<b>px.batch_solve / batch_implicit_solve</b><br/>(x0_batch, params_batch, backend='auto')"]):::io
-    DEV{"Device &<br/>batch size B?"}:::decision
-    THR["<b>Persistent ThreadPoolExecutor</b> +<br/>precompiled jax.pure_callback"]:::cpu
-    VMAP["<b>jax.vmap</b> over<br/>jit-compiled px.solve"]:::gpu
-    FWD(["Batched Solution<br/><b>x_star_batch</b>"]):::io
-    BWD["<b>Backward pass (custom_vjp)</b><br/>implicit linear solve on KKT /<br/>fixed-point residual (CG / GMRES)"]:::bwd
+    B_IN(["px.batch_solve / batch_implicit_solve<br/>(x0_batch, params_batch, backend='auto')"]):::io
+    DEV{"Device & batch size B?"}:::decision
+    THR["Persistent ThreadPoolExecutor +<br/>precompiled jax.pure_callback"]:::cpu
+    VMAP["jax.vmap over<br/>jit-compiled px.solve"]:::gpu
+    FWD(["Batched Solution: x_star_batch"]):::io
+    BWD["Backward pass (custom_vjp)<br/>implicit linear solve on KKT /<br/>fixed-point residual (CG / GMRES)"]:::bwd
 
     B_IN --> DEV
-    DEV -->|"CPU, B > 1<br/>(backend='threads')"| THR --> FWD
-    DEV -->|"GPU or B = 1<br/>(backend='vmap')"| VMAP --> FWD
+    DEV -->|"CPU, B > 1 (threads)"| THR --> FWD
+    DEV -->|"GPU or B = 1 (vmap)"| VMAP --> FWD
     FWD --> BWD
 ```
 

@@ -71,3 +71,6 @@ copybutton_prompt_is_regexp = True
 
 autodoc_typehints = "description"
 autodoc_member_order = "bysource"
+
+mermaid_d3_zoom = True
+mermaid_fullscreen = True
