@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import dataclasses
-import time
 import typing
 
 import jax
 import jax.numpy as jnp
 
+from proxax import _loop
 from proxax import _typing
 from proxax import tree
 from proxax.oracle import block as block_mod
@@ -247,8 +247,8 @@ def _solve_block_with_halving(
       base.OracleCounts.zeros(),
       zero_int,
   )
-  lam_fin, z_t, w_t, _, _, cnt_t, in_t = jax.lax.while_loop(
-      _halve_cond, _halve_body, init_h
+  lam_fin, z_t, w_t, _, _, cnt_t, in_t = _loop.while_loop(
+      _halve_cond, _halve_body, init_h, jit=jit
   )
   return lam_fin, z_t, w_t, cnt_t, in_t
 
@@ -562,6 +562,10 @@ class PAdaptADMM:
         base.OracleCounts,
     ]
 
+    start_wall = (
+        _loop.start_clock(jit=jit) if time_limit is not None else 0.0
+    )
+
     def _run_stage(st: _StageState) -> _StageState:
       x_s0, p_s0, _, gamma_s0, c_cur, _, _, s_it, o_it, in_it, cnt_cur = st
 
@@ -691,7 +695,13 @@ class PAdaptADMM:
           in_it,
           cnt_cur,
       )
-      fin_in = jax.lax.while_loop(_in_cond, _in_body, init_in)
+      fin_in = _loop.while_loop(
+          _in_cond,
+          _in_body,
+          init_in,
+          jit=jit,
+          time_limit=_loop.remaining_time(jit, time_limit, start_wall),
+      )
       _, _, lam_s, z_s, q_s, r_s, _, _, _, _, _, _, o_fin, in_fin, cnt_fin = (
           fin_in
       )
@@ -732,38 +742,36 @@ class PAdaptADMM:
       done = (feas_s <= self.feas_tol) & (stat_s <= self.opt_tol)
       return (~done) & (s_it < self.max_stages)
 
-    t0 = time.perf_counter()
-    if jit and callback is None and time_limit is None:
-      final_stage = jax.lax.while_loop(_stage_cond, _run_stage, init_stage)
-      timed_out = False
-    else:
-      final_stage = init_stage
-      timed_out = False
-      while bool(_stage_cond(final_stage)):
-        if time_limit is not None and (time.perf_counter() - t0) >= time_limit:
-          timed_out = True
-          break
-        final_stage = _run_stage(final_stage)
-        if callback is not None:
-          callback(int(final_stage[7]), final_stage[6], final_stage[5])
+    cb = (
+        None
+        if callback is None
+        else lambda pair: callback(int(pair[0][7]), pair[0][6], pair[0][5])
+    )
+    final_stage, timed_out = _loop.while_loop(
+        lambda pair: _stage_cond(pair[0]),
+        lambda pair: (_run_stage(pair[0]), pair[1]),
+        (init_stage, jnp.asarray(False)),
+        jit=jit,
+        callback=cb,
+        time_limit=time_limit,
+        on_time_limit=lambda pair: (pair[0], jnp.asarray(True)),
+    )
 
     x_fin, p_fin, v_fin, _, _, feas_fin, stat_fin, _, o_fin, in_fin, cnt_fin = (
         final_stage
     )
     converged = (feas_fin <= self.feas_tol) & (stat_fin <= self.opt_tol)
-    if timed_out:
-      status = jnp.asarray(
-          base.SolveStatus.TIME_LIMIT_REACHED, dtype=jnp.int32
-      )
-    else:
-      status = jnp.where(
-          converged,
-          jnp.asarray(base.SolveStatus.CONVERGED, dtype=jnp.int32),
-          jnp.asarray(base.SolveStatus.MAX_ITER_REACHED, dtype=jnp.int32),
-      )
+    status = jnp.where(
+        timed_out,
+        jnp.asarray(base.SolveStatus.TIME_LIMIT_REACHED, dtype=jnp.int32),
+        jnp.where(
+            converged,
+            jnp.asarray(base.SolveStatus.CONVERGED, dtype=jnp.int32),
+            jnp.asarray(base.SolveStatus.MAX_ITER_REACHED, dtype=jnp.int32),
+        ),
+    )
 
     obj_val = problem.objective_value(x_fin)
-    del t0
     return base.Solution(
         x=x_fin,
         dual=p_fin,
