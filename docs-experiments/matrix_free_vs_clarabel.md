@@ -20,6 +20,16 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 uv run python -m benchmarks.external.matrix_f
 
 ## Results
 
+### Runtime Scaling Across Problem Families
+
+![Matrix-Free vs Clarabel Runtime Scaling](_static/plots/matrix_free_vs_clarabel_scaling.svg)
+
+### Speedup vs. Clarabel
+
+![Best Matrix-Free proxax Solver vs Clarabel Speedup](_static/plots/matrix_free_vs_clarabel_speedup.svg)
+
+### Full Results
+
 | Problem | Solver | Status | Outer Iters | `opt_res` | `feas_res` | Runtime (ms) | Speedup vs. Clarabel |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
 | `FactorQP-1000 (n=1000,r=20,m=20)` | `IAIPAL` | `CONVERGED` | 43 | `9.60e-07` | `3.13e-07` | **7.23** | **75.9×** |
