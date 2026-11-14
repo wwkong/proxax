@@ -204,7 +204,7 @@ class ADMM:
                 + tree.vdot(_g_i, dx)
                 + 0.5 * l_cur * tree.norm_sq(dx)
             )
-            tol_bt = 10.0 * tree.eps(dtype) * (1.0 + jnp.abs(_psi_cur))
+            tol_bt = tree.eps(dtype) * (1.0 + jnp.abs(_psi_cur))
             accepted = psi_cand <= rhs_val + tol_bt
             l_next = jnp.where(
                 accepted, l_cur, l_cur * self.backtrack_factor
