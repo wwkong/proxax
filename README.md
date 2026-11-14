@@ -172,7 +172,7 @@ If Proxax was helpful for a publication, please cite this repository:
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.3.4},
+  version = {0.3.5},
   year = {2026},
 }
 ```
