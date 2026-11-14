@@ -51,6 +51,16 @@ Comparisons against external optimization and differentiable-layer libraries
 
 Solver comparisons and Dolan–Moré performance profiles across `proxax` algorithms:
 
+### Executive Summary
+
+| Benchmark | Solvers Compared | Problem Regime | Headline Result | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [`PANOC` Ill-Conditioned & Exotic-Prox Benchmarks](panoc_benchmarks.md) | `PANOC`, `APD`, `AdapFISTA`, `ECG` | Lasso (`cond=100,1000`), Sparse Logistic, Spectrahedron, CappedSimplex, OSCAR | **6/6 converged**; lowest oracle evals on `Lasso (cond=1000)`, `Sparse Logistic`, `OSCAR` | `66` evals on `Lasso (cond=1000)` vs. `135` (`APD`) and `153` (`ECG`) |
+| [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md) | `PANOC-ALM`, `IALM (APD)`, `IAIPAL`, `QP-APD`, `QP-AIPP` | Constrained Lasso (`cond=100,1000`), Sector Portfolio, Constrained Sparse Logistic | **4/4 converged**; **4.8× fewer oracle evals** than `IALM (APD)` on `Lasso (cond=1000)` | `6,064` evals vs. `29,272` (`IALM (APD)`) and `83,083` (`QP-APD`) |
+| [Conic Optimization Benchmarks](conic_benchmarks.md) | `PANOC-ALM`, `IALM (APD)`, `QP-APD`, `QP-AIPP` | `ExpCone`, `Robust SOCP (cond=50)`, `Spectrahedron SDP`, `SOC Portfolio` | Only solver to converge on **4/4** conic problems | Solves `Robust SOCP` in **508** evals (`IALM (APD)` hits max iters) |
+
+### Reports
+
 * [`PANOC` Ill-Conditioned & Exotic-Prox Benchmarks](panoc_benchmarks.md)
 * [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md)
 * [Conic Optimization Benchmarks (`ExpCone`, `SOC`, `Spectrahedron`)](conic_benchmarks.md)
