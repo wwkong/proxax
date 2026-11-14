@@ -91,11 +91,13 @@ Accelerator (`vmap` / `jit` / GPU) throughput and batch-scaling studies:
 | :--- | :--- | :--- | :--- | :--- |
 | [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md) | `CPU sequential` vs. `CPU vmap` vs. `GPU vmap` | 2-block Box DQP ($n \in \{32, 128\}$, $K \in \{1, 8, 32\}$, `float32`) | `CPU sequential` fastest at $K \in \{8, 32\}$ (`32.07 ms/inst` at $n=32, K=8$) | `vmap` lockstep + RTX 3060 launch latency penalizes heterogeneous multi-stage ADMM |
 | [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md) | `jax.vmap(jax.value_and_grad)` throughput | `CappedSimplex` & `Simplex` (`PANOC`, $n=16$, $B \in \{1, \dots, 256\}$) | Scales from ~6k to **187.8k samples/sec** at $B=128$ on CPU | `0.682 ms/batch` (`CappedSimplex`) and `0.728 ms/batch` (`Simplex`) at $B=128$ |
+| [GPU Benchmarks (`RTX 3060` vs. CPU, `Optax`, `MPAX`)](gpu_benchmarks.md) | `GPU vmap` vs. `CPU threads`, `Optax` GPU, `MPAX` GPU | Batched SOCP/Saddle QP ($B \le 1024$), NC-C Min-Max ($n \le 256$), Maros–Mészáros | `PDHG (vmap)` beats `Clarabel` **1.84×** at $B=1024$; **2.7×–3.1× faster** than `Optax GDA` on GPU | `IALM (vmap)` scales **5.5×** from $B=1$ to $B=1024$ on RTX 3060 (`float64`) |
 
 ### Reports
 
 * [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
 * [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md)
+* [GPU Benchmarks (`NVIDIA RTX 3060` vs. CPU Baselines, `Optax`, and `MPAX`)](gpu_benchmarks.md)
 
 ## Literature Replications
 
@@ -163,6 +165,7 @@ conic_benchmarks
 
 padapt_vmap_gpu
 vmap_implicit_benchmarks
+gpu_benchmarks
 ```
 
 ```{toctree}

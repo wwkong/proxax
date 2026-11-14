@@ -95,7 +95,12 @@ def _run_scs_batch(
 
 
 def _bench_soc_batch(
-    batch_size: int, *, n: int = 64, tol: float = 1e-4, max_workers: int = 8
+    batch_size: int,
+    *,
+    n: int = 64,
+    tol: float = 1e-4,
+    max_workers: int = 8,
+    backend: str = "threads",
 ) -> list[harness.BenchmarkResult]:
   """Batched SOC Portfolio with varying linear returns `mu`."""
   rng = np.random.default_rng(42)
@@ -138,7 +143,7 @@ def _bench_soc_batch(
       solver=solver,
       opt_tol=tol,
       feas_tol=tol,
-      backend="threads",
+      backend=backend,
   )
   sols.stats.opt_residual.block_until_ready()
   compile_s = time.perf_counter() - t0
@@ -151,7 +156,7 @@ def _bench_soc_batch(
       solver=solver,
       opt_tol=tol,
       feas_tol=tol,
-      backend="threads",
+      backend=backend,
   )
   sols.stats.opt_residual.block_until_ready()
   run_s = time.perf_counter() - t1
@@ -181,7 +186,7 @@ def _bench_soc_batch(
       harness.BenchmarkResult(
           suite="batch_conic_minmax",
           problem_name=name,
-          solver_name="proxax-IALM (threads)",
+          solver_name=f"proxax-IALM ({backend})",
           dtype=dtype_str,
           status="CONVERGED",
           converged=True,
@@ -236,7 +241,12 @@ def _bench_soc_batch(
 
 
 def _bench_minmax_batch(
-    batch_size: int, *, n: int = 64, tol: float = 1e-4, max_workers: int = 8
+    batch_size: int,
+    *,
+    n: int = 64,
+    tol: float = 1e-4,
+    max_workers: int = 8,
+    backend: str = "threads",
 ) -> list[harness.BenchmarkResult]:
   """Batched regularized bilinear saddle-point QP (`Box x Simplex`)."""
   rng = np.random.default_rng(101)
@@ -285,7 +295,7 @@ def _bench_minmax_batch(
       params_j,
       solver=solver,
       opt_tol=tol,
-      backend="threads",
+      backend=backend,
   )
   sols.stats.opt_residual.block_until_ready()
   compile_s = time.perf_counter() - t0
@@ -297,7 +307,7 @@ def _bench_minmax_batch(
       params_j,
       solver=solver,
       opt_tol=tol,
-      backend="threads",
+      backend=backend,
   )
   sols.stats.opt_residual.block_until_ready()
   run_s = time.perf_counter() - t1
@@ -366,7 +376,7 @@ def _bench_minmax_batch(
       harness.BenchmarkResult(
           suite="batch_conic_minmax",
           problem_name=name,
-          solver_name="proxax-PDHG (threads)",
+          solver_name=f"proxax-PDHG ({backend})",
           dtype=dtype_str,
           status="CONVERGED",
           converged=True,
@@ -420,15 +430,20 @@ def _bench_minmax_batch(
   ]
 
 
-def run_suite(*, tol: float = 1e-4) -> list[harness.BenchmarkResult]:
-  """Runs batched SOCP and MinMax benchmarks for `B in {1, 16, 64}`."""
+def run_suite(
+    *,
+    tol: float = 1e-4,
+    backend: str = "threads",
+    batch_sizes: tuple[int, ...] = (1, 16, 64),
+) -> list[harness.BenchmarkResult]:
+  """Runs batched SOCP and MinMax benchmarks for `batch_sizes`."""
   results: list[harness.BenchmarkResult] = []
-  for b_sz in (1, 16, 64):
+  for b_sz in batch_sizes:
     print(f"[SOCP] B={b_sz}", file=sys.stderr, flush=True)
-    results.extend(_bench_soc_batch(b_sz, tol=tol))
-  for b_sz in (1, 16, 64):
+    results.extend(_bench_soc_batch(b_sz, tol=tol, backend=backend))
+  for b_sz in batch_sizes:
     print(f"[MinMax] B={b_sz}", file=sys.stderr, flush=True)
-    results.extend(_bench_minmax_batch(b_sz, tol=tol))
+    results.extend(_bench_minmax_batch(b_sz, tol=tol, backend=backend))
   return results
 
 
@@ -436,10 +451,18 @@ def main() -> None:
   """CLI entry point for batched conic & minmax benchmarks."""
   parser = argparse.ArgumentParser()
   parser.add_argument("--tol", type=float, default=1e-4)
+  parser.add_argument("--backend", type=str, default="threads")
+  parser.add_argument(
+      "--batch-sizes", type=int, nargs="+", default=[1, 16, 64]
+  )
   parser.add_argument("--json-out", type=pathlib.Path, default=None)
   args = parser.parse_args()
 
-  results = run_suite(tol=args.tol)
+  results = run_suite(
+      tol=args.tol,
+      backend=args.backend,
+      batch_sizes=tuple(args.batch_sizes),
+  )
   print(harness.format_markdown_table(results))
   if args.json_out is not None:
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
