@@ -107,7 +107,9 @@ def _qp_solvers(
 ) -> list[tuple[str, base.Solver]]:
   return [
       ("IALM", solvers.IALM(opt_tol=opt_tol, feas_tol=feas_tol)),
-      ("IAIPAL", solvers.IAIPAL(opt_tol=opt_tol, feas_tol=feas_tol)),
+      ("IAIPAL", solvers.IAIPAL(
+          opt_tol=opt_tol, feas_tol=feas_tol, max_outer_iters=20_000
+      )),
       ("QPAPD", solvers.QPAPD(opt_tol=opt_tol, feas_tol=feas_tol)),
       ("QPAIPP", solvers.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)),
       ("SProxALM", solvers.SProxALM(opt_tol=opt_tol, feas_tol=feas_tol)),
