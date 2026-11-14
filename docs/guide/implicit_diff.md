@@ -10,9 +10,17 @@ unrolling solver iterations.
 
 ## 1. Differentiating Through `px.solve` (`px.implicit_solve`)
 
-Pass a callable `problem_fn(params)` that builds a `CompositeProblem`,
-`BlockProblem`, or `MinMaxProblem` from any PyTree `params`, along with an
-initial guess `x0`:
+Given a parametric problem
+
+$$x^*(\theta) \in \arg\min_{x \in \mathcal{X}} \; f(x; \theta) + h(x; \theta) \quad \text{s.t.} \quad \mathcal{A}(x; \theta) \in \mathcal{C},$$
+
+pass a callable `problem_fn(params)` that builds a `CompositeProblem`,
+`BlockProblem`, or `MinMaxProblem` from any PyTree `params = θ`, along with an
+initial guess `x0`. For example, to differentiate the outer loss
+
+$$\mathcal{L}(\theta) = \frac{1}{2}\|x^*(\theta) - 0.5\|_2^2 \quad \text{where} \quad x^*(\theta) = \arg\min_{x \in [0, 1]^n} \; \frac{1}{2}\|x - \theta\|_2^2,$$
+
+write:
 
 ```python
 import jax
