@@ -49,21 +49,26 @@ def plot_maros_large(
   problems = [r["problem_name"] for r in rows if r["solver_name"] == "IALM"]
   short_names = [p.split(" ")[0] for p in problems]
   x = np.arange(len(problems))
-  width = 0.36
-
-  ialm_ms = [1e3 * float(by_key[(p, "IALM")]["run_s"]) for p in problems]
-  clar_ms = [1e3 * float(by_key[(p, "Clarabel")]["run_s"]) for p in problems]
-
-  ax0.bar(
-      x - width / 2,
-      ialm_ms,
-      width,
-      label="proxax-IALM (BCOO+Ruiz)",
-      color="#f38ba8",
+  has_iaipal = any(r["solver_name"] == "IAIPAL" for r in rows)
+  series = [
+      ("IALM", "proxax-IALM (BCOO+Ruiz)", "#f38ba8"),
+      *(
+          [("IAIPAL", "proxax-IAIPAL (BCOO+Ruiz)", "#fab387")]
+          if has_iaipal
+          else []
+      ),
+      ("Clarabel", "Clarabel (IPM)", "#94e2d5"),
+  ]
+  width = 0.26 if has_iaipal else 0.36
+  offsets = np.linspace(
+      -(len(series) - 1) * width / 2,
+      (len(series) - 1) * width / 2,
+      len(series),
   )
-  ax0.bar(
-      x + width / 2, clar_ms, width, label="Clarabel (IPM)", color="#94e2d5"
-  )
+
+  for offset, (sname, label, color) in zip(offsets, series, strict=True):
+    vals_ms = [1e3 * float(by_key[(p, sname)]["run_s"]) for p in problems]
+    ax0.bar(x + offset, vals_ms, width, label=label, color=color)
   ax0.set_yscale("log")
   ax0.set_xticks(x)
   ax0.set_xticklabels(short_names, rotation=28, ha="right")
@@ -72,23 +77,12 @@ def plot_maros_large(
   ax0.grid(True, axis="y", which="major")
   ax0.legend(loc="upper left", frameon=True)
 
-  ialm_feas = [
-      max(1e-16, float(by_key[(p, "IALM")]["feas_residual"])) for p in problems
-  ]
-  clar_feas = [
-      max(1e-16, float(by_key[(p, "Clarabel")]["feas_residual"]))
-      for p in problems
-  ]
-  ax1.bar(
-      x - width / 2,
-      ialm_feas,
-      width,
-      label="proxax-IALM (BCOO+Ruiz)",
-      color="#f38ba8",
-  )
-  ax1.bar(
-      x + width / 2, clar_feas, width, label="Clarabel (IPM)", color="#94e2d5"
-  )
+  for offset, (sname, label, color) in zip(offsets, series, strict=True):
+    feas = [
+        max(1e-16, float(by_key[(p, sname)]["feas_residual"]))
+        for p in problems
+    ]
+    ax1.bar(x + offset, feas, width, label=label, color=color)
   ax1.axhline(
       1e-6, color="#f9e2af", linestyle="--", linewidth=1.2, label="tol = 1e-6"
   )
