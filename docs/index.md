@@ -115,7 +115,7 @@ If Proxax was helpful for a publication, please cite this repository:
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.3.9},
+  version = {0.3.10},
   year = {2026},
 }
 ```
@@ -140,6 +140,7 @@ guide/prox_and_constraints
 guide/sparsity
 guide/optax_and_jax
 guide/batching_and_parallelism
+guide/gpu
 guide/implicit_diff
 guide/plotting
 ```

@@ -4,6 +4,12 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-11-14
+
+### Added
+- Added a [GPU & Accelerator Usage](docs/guide/gpu.md) User Guide page covering `jax[cuda12]` setup, XLA memory flags, `GPU vmap` vs. `CPU threads` guidance, and `float32`/`float64` trade-offs.
+- Added RTX 3060 GPU benchmarks (`batch_conic_minmax --backend vmap --batch-sizes 1..1024`, `minmax_nonconvex_concave` vs. `Optax` GPU, and `MPAX` GPU comparisons), [plot_gpu_benchmarks.py](benchmarks/external/plot_gpu_benchmarks.py), and [gpu_benchmarks.md](docs-experiments/gpu_benchmarks.md).
+
 ## [0.3.9] - 2026-11-14
 
 ### Added
