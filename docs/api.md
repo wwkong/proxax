@@ -11,7 +11,9 @@ introductions and basic examples, see {doc}`guide/solving_problems` and
 
 Core problem containers (`px.CompositeProblem`, `px.BlockProblem`,
 `px.BlockTerm`, `px.SpectralProblem`, `px.MinMaxProblem`), the unified
-`px.solve` entry point, implicit differentiation (`px.implicit_solve`), common return types (`px.Solution`,
+`px.solve` entry point, batched solvers (`px.batch_solve`,
+`px.batch_implicit_solve`), implicit differentiation (`px.implicit_solve`),
+common return types (`px.Solution`,
 `px.SolveStats`, `px.SolveStatus`, `px.StoppingConfig`, `px.KKTResiduals`),
 composable solver state trackers (`px.HistoryTracker`,
 `px.solvers.SolverTracker`, `px.solvers.ConstrainedTracker`,
@@ -22,6 +24,9 @@ composable solver state trackers (`px.HistoryTracker`,
    :members:
 
 .. automodule:: proxax.solve
+   :members:
+
+.. automodule:: proxax.batch
    :members:
 
 .. automodule:: proxax.implicit

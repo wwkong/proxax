@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from proxax import batch as _batch
 from proxax import certificates
 from proxax import constraints
 from proxax import implicit
@@ -33,6 +34,8 @@ Solver = solvers.Solver
 SpectralOracle = oracle.SpectralOracle
 SpectralProblem = oracle.SpectralProblem
 StoppingConfig = solvers.StoppingConfig
+batch_implicit_solve = _batch.batch_implicit_solve
+batch_solve = _batch.batch_solve
 implicit_solve = implicit.implicit_solve
 solve = _solve.solve
 
@@ -52,6 +55,8 @@ __all__ = [
     "SpectralProblem",
     "StoppingConfig",
     "__version__",
+    "batch_implicit_solve",
+    "batch_solve",
     "certificates",
     "constraints",
     "implicit",

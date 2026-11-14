@@ -194,6 +194,46 @@ print("Statuses:", batched_sol.status)          # shape (16,), all 0 (CONVERGED)
 print("Solutions shape:", batched_sol.x.shape)  # shape (16, 10)
 ```
 
+### `px.batch_solve` and `px.batch_implicit_solve` (`backend="auto" | "vmap" | "threads"`)
+
+For convenience—and especially on **CPU** where `jax.vmap` executes all `B`
+instances in lockstep up to $\max_i k_i$ iterations—Proxax provides
+`px.batch_solve` and `px.batch_implicit_solve`:
+
+```python
+def make_prob(c_vec: jax.Array) -> px.CompositeProblem:
+  return px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.dot(x, Q0 @ x) + jnp.dot(c_vec, x),
+      proximal=px.prox.Simplex(scale=1.0),
+  )
+
+# Forward-only batched solve (backend="auto" selects "threads" on CPU for B > 1, "vmap" on GPU/TPU)
+sols = px.batch_solve(make_prob, x0, c_batch, solver=solver, chunk_size=1)
+
+# Differentiable batched solve (forward via backend, implicit VJP via vmap)
+def loss_fn(theta: jax.Array) -> jax.Array:
+  xs = px.batch_implicit_solve(make_prob, x0, c_batch + theta[None, :], solver=solver)
+  return 0.5 * jnp.mean(jnp.sum((xs - x_target) ** 2, axis=-1))
+```
+
+**Choosing `backend` and `chunk_size`:**
+
+* **`backend="vmap"`:** Best on **GPU/TPU**, inside outer `jax.lax.scan`
+  training loops, or on CPU when iteration counts are tight and uniform across
+  the batch.
+* **`backend="threads"` (default on CPU when `B > 1`):** Compiles one
+  per-instance (or per-chunk) XLA executable and runs elements concurrently on
+  a persistent `ThreadPoolExecutor`, letting easy instances exit early instead
+  of waiting for the hardest element in the batch.
+* **`chunk_size` (`px.batch_solve`):** `chunk_size=1` minimizes straggler
+  lockstep on heterogeneous active-set problems; `chunk_size=4` (or `8`)
+  amortizes host-dispatch overhead on uniform CPU batches.
+* **Python training loops with `jax.jit` + `backend="threads"`:** If you wrap
+  `jax.value_and_grad(loss_fn)` in `jax.jit` inside a Python `for` loop (rather
+  than `jax.lax.scan` with `backend="vmap"`), call `grad.block_until_ready()`
+  before dispatching the next optimizer update so JAX's async CPU execution does
+  not overlap downstream kernels with `pure_callback` worker threads.
+
 ---
 
 ## 5. Implicit Differentiation (`px.implicit_solve`)
