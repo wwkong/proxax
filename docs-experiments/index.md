@@ -26,6 +26,8 @@ and constrained composite suites:
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
 * [Nonconvex CPU Benchmarks (`proxax` vs. `alpaqa`)](panoc_vs_alpaqa.md)
 * [Batched Differentiable Layers (`proxax` vs. `cvxpylayers`)](vmap_implicit_vs_cvxpylayers.md)
+* [Batched Convex Solves (`proxax` vs. `Clarabel`)](batch_vs_clarabel.md)
+* [Batched Nonconvex Solves (`proxax` vs. `alpaqa`)](batch_vs_alpaqa.md)
 
 ## Scaling Studies
 
@@ -58,6 +60,8 @@ maros_meszaros_medium
 matrix_free_vs_clarabel
 panoc_vs_alpaqa
 vmap_implicit_vs_cvxpylayers
+batch_vs_clarabel
+batch_vs_alpaqa
 ```
 
 ```{toctree}

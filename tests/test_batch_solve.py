@@ -40,7 +40,18 @@ def test_batch_solve_threads_matches_vmap() -> None:
       backend="threads",
       max_workers=4,
   )
+  sol_chunked = px.batch_solve(
+      prob_fn,
+      x0,
+      q_batch,
+      solver=PANOC(opt_tol=1e-6),
+      opt_tol=1e-6,
+      backend="threads",
+      max_workers=2,
+      chunk_size=4,
+  )
   assert jnp.allclose(sol_vmap.x, sol_threads.x, atol=1e-6)
+  assert jnp.allclose(sol_vmap.x, sol_chunked.x, atol=1e-6)
 
 
 def test_batch_implicit_solve_threads_matches_vmap() -> None:

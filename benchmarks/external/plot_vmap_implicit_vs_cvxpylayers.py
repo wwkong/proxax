@@ -113,6 +113,79 @@ def plot_scaling(out_path: Path) -> None:
   plt.close(fig)
 
 
+def plot_dolan_more_profile(out_path: Path) -> None:
+  """Generates a Mocha-themed Dolan-More runtime profile across all 12 cases."""
+  _apply_mocha_style()
+  fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
+
+  # All 12 (suite, B) cases: (vmap_ms, threads_ms, cvxpylayers_ms)
+  cases = [
+      (0.96, 1.64, 14.05),
+      (37.49, 9.01, 70.81),
+      (252.14, 42.93, 227.66),
+      (1108.99, 156.20, 806.73),
+      (0.80, 1.12, 26.29),
+      (8.47, 7.80, 114.52),
+      (37.84, 26.34, 344.08),
+      (193.69, 88.86, 1566.05),
+      (0.29, 0.69, 22.92),
+      (2.50, 6.29, 127.11),
+      (10.46, 26.27, 349.87),
+      (44.52, 87.87, 1574.06),
+  ]
+  series_raw = {
+      "proxax (auto: min of vmap/threads)": [min(v, t) for v, t, _ in cases],
+      "proxax (threads)": [t for _, t, _ in cases],
+      "proxax (vmap)": [v for v, _, _ in cases],
+      "cvxpylayers": [c for _, _, c in cases],
+  }
+  colors = {
+      "proxax (auto: min of vmap/threads)": "#a6e3a1",
+      "proxax (threads)": "#f9e2af",
+      "proxax (vmap)": "#89b4fa",
+      "cvxpylayers": "#94e2d5",
+  }
+
+  best = [min(v, t, c) for v, t, c in cases]
+  tau_max = 64.0
+  n_probs = len(cases)
+
+  for label, vals in series_raw.items():
+    ratios = sorted(max(v / b, 1.0) for v, b in zip(vals, best, strict=True))
+    xs = [1.0]
+    ys = [sum(1 for r in ratios if r <= 1.0) / n_probs]
+    for r in ratios:
+      if r > xs[-1]:
+        xs.append(r)
+        ys.append(sum(1 for rv in ratios if rv <= r) / n_probs)
+    if xs[-1] < tau_max:
+      xs.append(tau_max)
+      ys.append(ys[-1])
+    ax.step(
+        xs,
+        ys,
+        where="post",
+        linewidth=2.2,
+        color=colors[label],
+        label=label,
+    )
+
+  ax.set_xscale("log", base=2)
+  ax.set_xlim(1.0, tau_max)
+  ax.set_ylim(0.0, 1.05)
+  ax.set_xlabel(r"Performance Ratio $\tau$ (log$_2$ scale)")
+  ax.set_ylabel("Fraction of Problems Solved")
+  ax.set_title(
+      "Dolan-Moré Runtime Profile (12 Batched Layer Cases, CPU float64)"
+  )
+  ax.grid(True, which="both", alpha=0.55)
+  ax.legend(fontsize=9, loc="lower right")
+
+  out_path.parent.mkdir(parents=True, exist_ok=True)
+  fig.savefig(out_path, format="svg", bbox_inches="tight")
+  plt.close(fig)
+
+
 def main() -> None:
   """CLI entry point for generating Proxax vs cvxpylayers Mocha plots."""
   parser = argparse.ArgumentParser(description=__doc__)
@@ -124,6 +197,9 @@ def main() -> None:
   )
   args = parser.parse_args()
   plot_scaling(args.out_dir / "vmap_implicit_vs_cvxpylayers_scaling.svg")
+  plot_dolan_more_profile(
+      args.out_dir / "vmap_implicit_vs_cvxpylayers_profile.svg"
+  )
 
 
 if __name__ == "__main__":

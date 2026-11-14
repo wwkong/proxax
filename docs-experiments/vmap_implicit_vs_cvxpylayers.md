@@ -31,6 +31,10 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 PYTHONPATH=. .venv/bin/python benchmarks/exte
 
 ![Proxax vs cvxpylayers Batch Scaling](_static/plots/vmap_implicit_vs_cvxpylayers_scaling.svg)
 
+### Dolan–Moré Runtime Profile
+
+![Proxax vs cvxpylayers Dolan-Moré Profile](_static/plots/vmap_implicit_vs_cvxpylayers_profile.svg)
+
 ### Full Results (`tol = 1e-6`)
 
 | Suite | Problem | Solver | $B$ | Loss | Rel Grad Err | Compile (s) | Run (ms) | Speedup vs. `cvxpylayers` |

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import atexit
 import collections.abc
 import concurrent.futures
+import os
+import threading
 import typing
+import weakref
 
 import jax
 import jax.numpy as jnp
@@ -55,6 +59,100 @@ def _slice_pytree(tree_val: _typing.PyTree, idx: int) -> _typing.PyTree:
   return jax.tree.map(lambda a: a[idx], tree_val)
 
 
+def _slice_range_pytree(
+    tree_val: _typing.PyTree, start: int, end: int
+) -> _typing.PyTree:
+  """Extracts slice `start:end` along axis 0 from every leaf of `tree_val`."""
+  return jax.tree.map(lambda a: a[start:end], tree_val)
+
+
+_BATCH_SOLVE_CACHE: weakref.WeakKeyDictionary[
+    typing.Any, dict[tuple[typing.Any, ...], typing.Any]
+] = weakref.WeakKeyDictionary()
+
+_THREAD_POOL_LOCK = threading.Lock()
+_THREAD_POOL_CACHE: dict[int, concurrent.futures.ThreadPoolExecutor] = {}
+
+
+def _shutdown_thread_pools() -> None:
+  """Shuts down cached ThreadPoolExecutors cleanly at interpreter exit."""
+  with _THREAD_POOL_LOCK:
+    for pool in _THREAD_POOL_CACHE.values():
+      pool.shutdown(wait=False)
+    _THREAD_POOL_CACHE.clear()
+
+
+atexit.register(_shutdown_thread_pools)
+
+
+def _get_thread_pool(
+    max_workers: int | None, batch_size: int
+) -> concurrent.futures.ThreadPoolExecutor:
+  """Returns a persistent ThreadPoolExecutor sized for `batch_size`."""
+  workers = (
+      max_workers
+      if max_workers is not None
+      else min(batch_size, os.cpu_count() or 8)
+  )
+  workers = max(1, workers)
+  with _THREAD_POOL_LOCK:
+    pool = _THREAD_POOL_CACHE.get(workers)
+    if pool is None:
+      pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
+      _THREAD_POOL_CACHE[workers] = pool
+    return pool
+
+
+def _get_compiled_batch_runner(
+    problem_fn: collections.abc.Callable[[_typing.PyTree], AnyProblem],
+    *,
+    solver: typing.Any,
+    method: str | None,
+    opt_tol: float,
+    feas_tol: float,
+    time_limit: float | None,
+    mode: str,
+) -> typing.Any:
+  """Returns a cached JIT-compiled single or vmap runner for `problem_fn`."""
+  key = (
+      id(solver) if solver is not None else None,
+      method,
+      opt_tol,
+      feas_tol,
+      time_limit,
+      mode,
+  )
+  try:
+    per_fn = _BATCH_SOLVE_CACHE.setdefault(problem_fn, {})
+    if key in per_fn:
+      return per_fn[key]
+  except TypeError:
+    per_fn = None
+
+  def _solve_one(
+      x_init: _typing.PyTree, theta: _typing.PyTree
+  ) -> base.Solution:
+    return solve_mod.solve(
+        problem_fn(theta),
+        x_init,
+        solver=solver,
+        method=method,
+        opt_tol=opt_tol,
+        feas_tol=feas_tol,
+        jit=True,
+        time_limit=time_limit,
+    )
+
+  compiled = (
+      jax.jit(jax.vmap(_solve_one, in_axes=(None, 0)))
+      if mode == "vmap"
+      else jax.jit(_solve_one)
+  )
+  if per_fn is not None:
+    per_fn[key] = compiled
+  return compiled
+
+
 def batch_solve(
     problem_fn: collections.abc.Callable[[_typing.PyTree], AnyProblem],
     x0: _typing.PyTree,
@@ -67,6 +165,7 @@ def batch_solve(
     time_limit: float | None = None,
     backend: str = "auto",
     max_workers: int | None = None,
+    chunk_size: int = 1,
 ) -> base.Solution:
   """Solves a batch of parameterized problems via `vmap` or CPU threads.
 
@@ -84,39 +183,50 @@ def batch_solve(
       uses `'threads'` on CPU when `B > 1` (eliminating `vmap` lockstep tail
       latency) and `'vmap'` on GPU/TPU or `B == 1`.
     max_workers: Optional `ThreadPoolExecutor` worker count for `'threads'`.
+    chunk_size: Number of batch items per worker task for `'threads'`. Values
+      `> 1` run a `vmap` of size `chunk_size` on each thread, reducing host
+      dispatch overhead on uniform problems at the cost of intra-chunk lockstep.
 
   Returns:
     A batched `Solution` PyTree with leading axis `B`.
   """
+  if chunk_size <= 0:
+    raise ValueError("`chunk_size` must be a positive integer.")
   batch_size = _infer_batch_size(params_batch)
   resolved = _resolve_backend(backend, batch_size)
-
-  def _solve_one(theta: _typing.PyTree) -> base.Solution:
-    return solve_mod.solve(
-        problem_fn(theta),
-        x0,
-        solver=solver,
-        method=method,
-        opt_tol=opt_tol,
-        feas_tol=feas_tol,
-        jit=True,
-        time_limit=time_limit,
-    )
+  runner_mode = "vmap" if (resolved == "vmap" or chunk_size > 1) else "threads"
+  runner = _get_compiled_batch_runner(
+      problem_fn,
+      solver=solver,
+      method=method,
+      opt_tol=opt_tol,
+      feas_tol=feas_tol,
+      time_limit=time_limit,
+      mode=runner_mode,
+  )
 
   if resolved == "vmap":
+    return typing.cast(base.Solution, runner(x0, params_batch))
+
+  if chunk_size > 1:
+    chunks = [
+        _slice_range_pytree(params_batch, i, min(i + chunk_size, batch_size))
+        for i in range(0, batch_size, chunk_size)
+    ]
+    pool = _get_thread_pool(max_workers, len(chunks))
+    sols = list(pool.map(lambda ch: runner(x0, ch), chunks))
     return typing.cast(
         base.Solution,
-        jax.jit(jax.vmap(_solve_one))(params_batch),
+        jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *sols),
     )
 
-  jit_one = jax.jit(_solve_one)
-  with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-    sols = list(
-        pool.map(
-            lambda i: jit_one(_slice_pytree(params_batch, i)),
-            range(batch_size),
-        )
-    )
+  pool = _get_thread_pool(max_workers, batch_size)
+  sols = list(
+      pool.map(
+          lambda i: runner(x0, _slice_pytree(params_batch, i)),
+          range(batch_size),
+      )
+  )
   return typing.cast(
       base.Solution,
       jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), *sols),
@@ -223,15 +333,13 @@ def batch_implicit_solve(
   def _host_batch_fwd(
       pb: _typing.PyTree,
   ) -> tuple[_typing.PyTree, _typing.PyTree]:
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=max_workers
-    ) as pool:
-      outs = list(
-          pool.map(
-              lambda i: _one_fwd(_slice_pytree(pb, i)),
-              range(batch_size),
-          )
-      )
+    pool = _get_thread_pool(max_workers, batch_size)
+    outs = list(
+        pool.map(
+            lambda i: _one_fwd(_slice_pytree(pb, i)),
+            range(batch_size),
+        )
+    )
     return typing.cast(
         tuple[_typing.PyTree, _typing.PyTree],
         jax.tree.map(
