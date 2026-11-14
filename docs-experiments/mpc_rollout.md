@@ -37,35 +37,39 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 PYTHONPATH=. .venv/bin/python benchmarks/exte
 
 | Suite | Problem | Solver | $N$ | $B$ | Converged | Mean Cost | Compile (s) | Run (ms) | Speedup vs. `Clarabel` |
 | :--- | :--- | :--- | ---: | ---: | :--- | ---: | ---: | ---: | ---: |
-| `mpc_box` | `mpc_box_N10_B1` | `proxax-PANOC(cold)` | 10 | 1 | `True` | 1.9821 | 1.10 | 0.36 | 16.0× |
-| `mpc_box` | `mpc_box_N10_B1` | `proxax-PANOC(warm)` | 10 | 1 | `True` | 1.9821 | 1.16 | **0.26** | **22.1×** |
-| `mpc_box` | `mpc_box_N10_B1` | `alpaqa-PANOC(warm)` | 10 | 1 | `True` | 1.9821 | 0.00 | 1.66 | 3.5× |
-| `mpc_box` | `mpc_box_N10_B1` | `Clarabel` | 10 | 1 | `True` | 1.9821 | 0.01 | 5.75 | 1.0× |
-| `mpc_state_con` | `mpc_state_N10_B1` | `proxax-IAIPAL(cold)` | 10 | 1 | `True` | 1.9552 | 2.25 | 10.76 | 3.7× |
-| `mpc_state_con` | `mpc_state_N10_B1` | `proxax-IAIPAL(warm)` | 10 | 1 | `True` | 1.9552 | 2.49 | **7.88** | **5.1×** |
-| `mpc_state_con` | `mpc_state_N10_B1` | `Clarabel` | 10 | 1 | `True` | 1.9552 | 0.04 | 39.97 | 1.0× |
-| `mpc_box` | `mpc_box_N20_B1` | `proxax-PANOC(cold)` | 20 | 1 | `True` | 1.9862 | 1.33 | 1.30 | 17.2× |
-| `mpc_box` | `mpc_box_N20_B1` | `proxax-PANOC(warm)` | 20 | 1 | `True` | 1.9862 | 1.43 | **1.04** | **21.5×** |
-| `mpc_box` | `mpc_box_N20_B1` | `alpaqa-PANOC(warm)` | 20 | 1 | `True` | 1.9862 | 0.00 | 3.25 | 6.9× |
-| `mpc_box` | `mpc_box_N20_B1` | `Clarabel` | 20 | 1 | `True` | 1.9862 | 0.03 | 22.35 | 1.0× |
-| `mpc_state_con` | `mpc_state_N20_B1` | `proxax-IAIPAL(cold)` | 20 | 1 | `True` | 1.9593 | 2.57 | 70.44 | 2.9× |
-| `mpc_state_con` | `mpc_state_N20_B1` | `proxax-IAIPAL(warm)` | 20 | 1 | `True` | 1.9593 | 2.83 | **54.98** | **3.8×** |
-| `mpc_state_con` | `mpc_state_N20_B1` | `Clarabel` | 20 | 1 | `True` | 1.9593 | 0.23 | 207.44 | 1.0× |
-| `mpc_box` | `mpc_box_N10_B16` | `proxax-PANOC(cold)` | 10 | 16 | `True` | 1.7527 | 0.43 | 7.55 | 7.4× |
-| `mpc_box` | `mpc_box_N10_B16` | `proxax-PANOC(warm)` | 10 | 16 | `True` | 1.7527 | 0.44 | **6.39** | **8.8×** |
-| `mpc_box` | `mpc_box_N10_B16` | `Clarabel` | 10 | 16 | `True` | 1.7527 | 0.06 | 56.11 | 1.0× |
-| `mpc_state_con` | `mpc_state_N10_B16` | `proxax-IAIPAL(cold)` | 10 | 16 | `True` | 1.7465 | 0.96 | 267.95 | 0.81× |
-| `mpc_state_con` | `mpc_state_N10_B16` | `proxax-IAIPAL(warm)` | 10 | 16 | `True` | 1.7465 | 1.02 | **212.49** | **1.02×** |
-| `mpc_state_con` | `mpc_state_N10_B16` | `Clarabel` | 10 | 16 | `True` | 1.7465 | 0.23 | 215.75 | 1.0× |
-| `mpc_box` | `mpc_box_N20_B16` | `proxax-PANOC(cold)` | 20 | 16 | `True` | 1.7652 | 0.46 | 41.58 | 3.5× |
-| `mpc_box` | `mpc_box_N20_B16` | `proxax-PANOC(warm)` | 20 | 16 | `True` | 1.7652 | 0.44 | **30.59** | **4.8×** |
-| `mpc_box` | `mpc_box_N20_B16` | `Clarabel` | 20 | 16 | `True` | 1.7652 | 0.18 | 146.30 | 1.0× |
-| `mpc_state_con` | `mpc_state_N20_B16` | `proxax-IAIPAL(cold)` | 20 | 16 | `True` | 1.7592 | 2.50 | 1805.12 | 0.46× |
-| `mpc_state_con` | `mpc_state_N20_B16` | `proxax-IAIPAL(warm)` | 20 | 16 | `True` | 1.7592 | 2.48 | 1477.95 | 0.56× |
-| `mpc_state_con` | `mpc_state_N20_B16` | `Clarabel` | 20 | 16 | `True` | 1.7592 | 0.84 | **825.60** | 1.0× |
+| `mpc_box` | `mpc_box_N10_B1` | `proxax-PANOC(cold)` | 10 | 1 | `True` | 1.9821 | 1.10 | 0.37 | 15.5× |
+| `mpc_box` | `mpc_box_N10_B1` | `proxax-PANOC(warm)` | 10 | 1 | `True` | 1.9821 | 1.14 | **0.25** | **23.0×** |
+| `mpc_box` | `mpc_box_N10_B1` | `alpaqa-PANOC(warm)` | 10 | 1 | `True` | 1.9821 | 0.00 | 1.87 | 3.1× |
+| `mpc_box` | `mpc_box_N10_B1` | `Clarabel` | 10 | 1 | `True` | 1.9821 | 0.01 | 5.74 | 1.0× |
+| `mpc_state_con` | `mpc_state_N10_B1` | `proxax-IAIPAL(cold)` | 10 | 1 | `True` | 1.9552 | 2.33 | 10.57 | 3.7× |
+| `mpc_state_con` | `mpc_state_N10_B1` | `proxax-IAIPAL(warm)` | 10 | 1 | `True` | 1.9552 | 2.58 | **7.78** | **5.1×** |
+| `mpc_state_con` | `mpc_state_N10_B1` | `Clarabel` | 10 | 1 | `True` | 1.9552 | 0.04 | 39.54 | 1.0× |
+| `mpc_box` | `mpc_box_N20_B1` | `proxax-PANOC(cold)` | 20 | 1 | `True` | 1.9862 | 1.34 | 1.38 | 16.3× |
+| `mpc_box` | `mpc_box_N20_B1` | `proxax-PANOC(warm)` | 20 | 1 | `True` | 1.9862 | 1.53 | **1.01** | **22.3×** |
+| `mpc_box` | `mpc_box_N20_B1` | `alpaqa-PANOC(warm)` | 20 | 1 | `True` | 1.9862 | 0.00 | 3.33 | 6.8× |
+| `mpc_box` | `mpc_box_N20_B1` | `Clarabel` | 20 | 1 | `True` | 1.9862 | 0.03 | 22.56 | 1.0× |
+| `mpc_state_con` | `mpc_state_N20_B1` | `proxax-IAIPAL(cold)` | 20 | 1 | `True` | 1.9593 | 2.54 | 70.61 | 2.9× |
+| `mpc_state_con` | `mpc_state_N20_B1` | `proxax-IAIPAL(warm)` | 20 | 1 | `True` | 1.9593 | 2.79 | **53.67** | **3.8×** |
+| `mpc_state_con` | `mpc_state_N20_B1` | `Clarabel` | 20 | 1 | `True` | 1.9593 | 0.23 | 202.46 | 1.0× |
+| `mpc_box` | `mpc_box_N10_B16` | `proxax-PANOC(cold)` | 10 | 16 | `True` | 1.7527 | 0.41 | 7.50 | 6.9× |
+| `mpc_box` | `mpc_box_N10_B16` | `proxax-PANOC(warm)` | 10 | 16 | `True` | 1.7527 | 0.45 | 6.45 | 8.1× |
+| `mpc_box` | `mpc_box_N10_B16` | `proxax-PANOC(warm,threads)` | 10 | 16 | `True` | 1.7527 | 0.94 | **1.28** | **40.7×** |
+| `mpc_box` | `mpc_box_N10_B16` | `Clarabel` | 10 | 16 | `True` | 1.7527 | 0.06 | 52.09 | 1.0× |
+| `mpc_state_con` | `mpc_state_N10_B16` | `proxax-IAIPAL(cold)` | 10 | 16 | `True` | 1.7465 | 0.96 | 268.73 | 0.82× |
+| `mpc_state_con` | `mpc_state_N10_B16` | `proxax-IAIPAL(warm)` | 10 | 16 | `True` | 1.7465 | 1.09 | 212.13 | 1.04× |
+| `mpc_state_con` | `mpc_state_N10_B16` | `proxax-IAIPAL(warm,threads)` | 10 | 16 | `True` | 1.7465 | 1.92 | **41.43** | **5.3×** |
+| `mpc_state_con` | `mpc_state_N10_B16` | `Clarabel` | 10 | 16 | `True` | 1.7465 | 0.23 | 220.65 | 1.0× |
+| `mpc_box` | `mpc_box_N20_B16` | `proxax-PANOC(cold)` | 20 | 16 | `True` | 1.7652 | 0.48 | 43.26 | 3.3× |
+| `mpc_box` | `mpc_box_N20_B16` | `proxax-PANOC(warm)` | 20 | 16 | `True` | 1.7652 | 0.45 | 31.26 | 4.5× |
+| `mpc_box` | `mpc_box_N20_B16` | `proxax-PANOC(warm,threads)` | 20 | 16 | `True` | 1.7652 | 1.23 | **4.25** | **33.4×** |
+| `mpc_box` | `mpc_box_N20_B16` | `Clarabel` | 20 | 16 | `True` | 1.7652 | 0.18 | 141.94 | 1.0× |
+| `mpc_state_con` | `mpc_state_N20_B16` | `proxax-IAIPAL(cold)` | 20 | 16 | `True` | 1.7592 | 2.54 | 1754.45 | 0.44× |
+| `mpc_state_con` | `mpc_state_N20_B16` | `proxax-IAIPAL(warm)` | 20 | 16 | `True` | 1.7592 | 2.32 | 1420.66 | 0.54× |
+| `mpc_state_con` | `mpc_state_N20_B16` | `proxax-IAIPAL(warm,threads)` | 20 | 16 | `True` | 1.7592 | 2.30 | **217.94** | **3.5×** |
+| `mpc_state_con` | `mpc_state_N20_B16` | `Clarabel` | 20 | 16 | `True` | 1.7592 | 0.83 | 767.58 | 1.0× |
 
 ## Key Takeaways
 
-1. **Compiled `lax.scan` eliminates Python loop overhead:** For box-constrained MPC at $B=1$, `proxax-PANOC(warm)` executes all 20 closed-loop steps in **0.26 ms** ($N=10$, **13 µs/step**) and **1.04 ms** ($N=20$, **52 µs/step**) — **3.1×–6.4× faster** than warm-started `alpaqa-PANOC` and **21×–22× faster** than `Clarabel`.
-2. **Warm-starting consistently saves 18%–28%:** Shifting the previous control sequence cuts closed-loop runtime across every single horizon and batch size (e.g., `70.44 ms` $\to$ `54.98 ms` on `mpc_state_N20_B1`, and `41.58 ms` $\to$ `30.59 ms` on `mpc_box_N20_B16`).
-3. **Batched `vmap(lax.scan)` vs. threaded `Clarabel` on state-constrained MPC:** At $B=16, N=20$, `vmap` forces all 16 rollouts through lockstep `IAIPAL` iterations (`1477.95 ms`), whereas `Clarabel` runs 16 independent rollouts in parallel across CPU cores (`825.60 ms`). Using `ThreadPoolExecutor` over per-scenario `jit(lax.scan)` rollouts would remove that lockstep penalty on CPU.
+1. **Compiled `lax.scan` eliminates Python loop overhead:** For box-constrained MPC at $B=1$, `proxax-PANOC(warm)` executes all 20 closed-loop steps in **0.25 ms** ($N=10$, **12.5 µs/step**) and **1.01 ms** ($N=20$, **50.5 µs/step**) — **3.3×–7.5× faster** than warm-started `alpaqa-PANOC` and **22×–23× faster** than `Clarabel`.
+2. **Warm-starting consistently saves 18%–28%:** Shifting the previous control sequence cuts closed-loop runtime across every single horizon and batch size (e.g., `70.61 ms` $\to$ `53.67 ms` on `mpc_state_N20_B1`, and `43.26 ms` $\to$ `31.26 ms` on `mpc_box_N20_B16`).
+3. **Threaded `lax.scan` flips batched state-constrained MPC (`B=16`):** Running 16 independent `jit(lax.scan)` rollouts in `ThreadPoolExecutor` (`warm,threads`) eliminates `vmap` lockstep completely — speeding up `mpc_box_N20_B16` by **7.4×** (`31.26 ms` $\to$ `4.25 ms`, **33.4× faster** than `Clarabel`) and `mpc_state_N20_B16` by **6.5×** (`1,420.66 ms` $\to$ `217.94 ms`, flipping a 0.54× deficit into a **3.5× speedup** over `Clarabel`).

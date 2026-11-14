@@ -18,16 +18,20 @@ SOLVER_COLORS = {
     "alpaqa-PANOC(warm)": "#cba6f7",
     "proxax-PANOC(cold)": "#89b4fa",
     "proxax-PANOC(warm)": "#a6e3a1",
+    "proxax-PANOC(warm,threads)": "#fab387",
     "proxax-IAIPAL(cold)": "#f9e2af",
     "proxax-IAIPAL(warm)": "#a6e3a1",
+    "proxax-IAIPAL(warm,threads)": "#fab387",
 }
 SOLVER_MARKERS = {
     "Clarabel": "P",
     "alpaqa-PANOC(warm)": "^",
     "proxax-PANOC(cold)": "o",
     "proxax-PANOC(warm)": "s",
+    "proxax-PANOC(warm,threads)": "*",
     "proxax-IAIPAL(cold)": "D",
     "proxax-IAIPAL(warm)": "s",
+    "proxax-IAIPAL(warm,threads)": "*",
 }
 
 
@@ -62,18 +66,20 @@ def plot_scaling(out_path: Path) -> None:
       (
           "Box-Constrained MPC (20-Step Rollout)",
           {
-              "Clarabel": [5.75, 22.35, 56.11, 146.30],
-              "proxax-PANOC(cold)": [0.36, 1.30, 7.55, 41.58],
-              "proxax-PANOC(warm)": [0.26, 1.04, 6.39, 30.59],
+              "Clarabel": [5.74, 22.56, 52.09, 141.94],
+              "proxax-PANOC(cold)": [0.37, 1.38, 7.50, 43.26],
+              "proxax-PANOC(warm)": [0.25, 1.01, 6.45, 31.26],
+              "proxax-PANOC(warm,threads)": [0.25, 1.01, 1.28, 4.25],
           },
-          ([0, 1], [1.66, 3.25]),
+          ([0, 1], [1.87, 3.33]),
       ),
       (
           "State + Input Constrained MPC (20-Step Rollout)",
           {
-              "Clarabel": [39.97, 207.44, 215.75, 825.60],
-              "proxax-IAIPAL(cold)": [10.76, 70.44, 267.95, 1805.12],
-              "proxax-IAIPAL(warm)": [7.88, 54.98, 212.49, 1477.95],
+              "Clarabel": [39.54, 202.46, 220.65, 767.58],
+              "proxax-IAIPAL(cold)": [10.57, 70.61, 268.73, 1754.45],
+              "proxax-IAIPAL(warm)": [7.78, 53.67, 212.13, 1420.66],
+              "proxax-IAIPAL(warm,threads)": [7.78, 53.67, 41.43, 217.94],
           },
           None,
       ),
@@ -123,30 +129,32 @@ def plot_dolan_more_profile(out_path: Path) -> None:
   _apply_mocha_style()
   fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
 
-  # All 8 (suite, N, B) cases: (proxax_cold_ms, proxax_warm_ms, clarabel_ms)
+  # All 8 (suite, N, B) cases: (cold_ms, warm_vmap_ms, warm_threads_ms, clar_ms)
   cases = [
-      (0.36, 0.26, 5.75),
-      (1.30, 1.04, 22.35),
-      (7.55, 6.39, 56.11),
-      (41.58, 30.59, 146.30),
-      (10.76, 7.88, 39.97),
-      (70.44, 54.98, 207.44),
-      (267.95, 212.49, 215.75),
-      (1805.12, 1477.95, 825.60),
+      (0.37, 0.25, 0.25, 5.74),
+      (1.38, 1.01, 1.01, 22.56),
+      (7.50, 6.45, 1.28, 52.09),
+      (43.26, 31.26, 4.25, 141.94),
+      (10.57, 7.78, 7.78, 39.54),
+      (70.61, 53.67, 53.67, 202.46),
+      (268.73, 212.13, 41.43, 220.65),
+      (1754.45, 1420.66, 217.94, 767.58),
   ]
   series_raw = {
-      "proxax (warm lax.scan)": [w for _, w, _ in cases],
-      "proxax (cold lax.scan)": [c for c, _, _ in cases],
-      "Clarabel (Python loop)": [cl for _, _, cl in cases],
+      "proxax (warm, threads for B>1)": [wt for _, _, wt, _ in cases],
+      "proxax (warm, vmap)": [w for _, w, _, _ in cases],
+      "proxax (cold, vmap)": [c for c, _, _, _ in cases],
+      "Clarabel (Python loop)": [cl for _, _, _, cl in cases],
   }
   colors = {
-      "proxax (warm lax.scan)": "#a6e3a1",
-      "proxax (cold lax.scan)": "#89b4fa",
+      "proxax (warm, threads for B>1)": "#fab387",
+      "proxax (warm, vmap)": "#a6e3a1",
+      "proxax (cold, vmap)": "#89b4fa",
       "Clarabel (Python loop)": "#94e2d5",
   }
 
-  best = [min(c, w, cl) for c, w, cl in cases]
-  tau_max = 32.0
+  best = [min(c, w, wt, cl) for c, w, wt, cl in cases]
+  tau_max = 64.0
   n_probs = len(cases)
 
   for label, vals in series_raw.items():

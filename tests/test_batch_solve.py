@@ -103,3 +103,10 @@ def test_batch_implicit_solve_threads_matches_vmap() -> None:
   v2, g2 = jax.jit(jax.value_and_grad(loss_threads))(q_batch)
   assert jnp.allclose(v1, v2, atol=1e-5)
   assert jnp.allclose(g1, g2, atol=1e-4)
+
+  # Eager repeated calls exercise _BATCH_IMPLICIT_CACHE reuse across steps.
+  eager_vg = jax.value_and_grad(loss_threads)
+  for _ in range(2):
+    ve, ge = eager_vg(q_batch)
+    assert jnp.allclose(v1, ve, atol=1e-5)
+    assert jnp.allclose(g1, ge, atol=1e-4)

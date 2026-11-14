@@ -70,6 +70,10 @@ _BATCH_SOLVE_CACHE: weakref.WeakKeyDictionary[
     typing.Any, dict[tuple[typing.Any, ...], typing.Any]
 ] = weakref.WeakKeyDictionary()
 
+_BATCH_IMPLICIT_CACHE: weakref.WeakKeyDictionary[
+    typing.Any, dict[tuple[typing.Any, ...], typing.Any]
+] = weakref.WeakKeyDictionary()
+
 _THREAD_POOL_LOCK = threading.Lock()
 _THREAD_POOL_CACHE: dict[int, concurrent.futures.ThreadPoolExecutor] = {}
 
@@ -301,6 +305,32 @@ def batch_implicit_solve(
     )(params_batch)
 
   first_theta = _slice_pytree(params_batch, 0)
+  cache_key = (
+      id(solver) if solver is not None else None,
+      method,
+      opt_tol,
+      feas_tol,
+      step_size,
+      linear_solver,
+      linear_tol,
+      linear_maxiter,
+      damping,
+      return_dual,
+      batch_size,
+      max_workers,
+      tuple((tuple(a.shape), str(a.dtype)) for a in jax.tree.leaves(x0)),
+      tuple(
+          (tuple(a.shape), str(a.dtype)) for a in jax.tree.leaves(first_theta)
+      ),
+  )
+  try:
+    per_fn = _BATCH_IMPLICIT_CACHE.setdefault(problem_fn, {})
+    if cache_key in per_fn:
+      cached_fn = per_fn[cache_key]
+      return cached_fn(x0, params_batch)
+  except TypeError:
+    per_fn = None
+
   probe_prob = problem_fn(first_theta)
   is_minmax = isinstance(probe_prob, oracle.MinMaxProblem)
   is_block = isinstance(probe_prob, oracle.BlockProblem)
@@ -309,11 +339,12 @@ def batch_implicit_solve(
       and probe_prob.is_constrained
   )
 
-  @jax.jit
-  def _one_fwd(theta: _typing.PyTree) -> tuple[_typing.PyTree, _typing.PyTree]:
+  def _one_fwd(
+      x_init: _typing.PyTree, theta: _typing.PyTree
+  ) -> tuple[_typing.PyTree, _typing.PyTree]:
     sol = solve_mod.solve(
         problem_fn(theta),
-        x0,
+        x_init,
         solver=solver,
         method=method,
         opt_tol=opt_tol,
@@ -322,7 +353,8 @@ def batch_implicit_solve(
     )
     return sol.x, sol.dual
 
-  single_struct = jax.eval_shape(_one_fwd, first_theta)
+  compiled_fwd = jax.jit(_one_fwd).lower(x0, first_theta).compile()
+  single_struct = jax.eval_shape(_one_fwd, x0, first_theta)
   batch_struct = jax.tree.map(
       lambda s: jax.ShapeDtypeStruct(  # type: ignore[no-untyped-call]
           (batch_size, *s.shape), s.dtype
@@ -331,12 +363,12 @@ def batch_implicit_solve(
   )
 
   def _host_batch_fwd(
-      pb: _typing.PyTree,
+      x_init: _typing.PyTree, pb: _typing.PyTree
   ) -> tuple[_typing.PyTree, _typing.PyTree]:
     pool = _get_thread_pool(max_workers, batch_size)
     outs = list(
         pool.map(
-            lambda i: _one_fwd(_slice_pytree(pb, i)),
+            lambda i: compiled_fwd(x_init, _slice_pytree(pb, i)),
             range(batch_size),
         )
     )
@@ -348,24 +380,29 @@ def batch_implicit_solve(
     )
 
   @jax.custom_vjp
-  def _batched_fn(pb: _typing.PyTree) -> _typing.PyTree:
-    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, pb)
+  def _batched_fn(
+      x_init: _typing.PyTree, pb: _typing.PyTree
+  ) -> _typing.PyTree:
+    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, x_init, pb)
     return (x_b, p_b) if (return_dual and has_dual) else x_b
 
   def _fwd(
-      pb: _typing.PyTree,
+      x_init: _typing.PyTree, pb: _typing.PyTree
   ) -> tuple[
-      _typing.PyTree, tuple[_typing.PyTree, _typing.PyTree, _typing.PyTree]
+      _typing.PyTree,
+      tuple[_typing.PyTree, _typing.PyTree, _typing.PyTree, _typing.PyTree],
   ]:
-    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, pb)
+    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, x_init, pb)
     out = (x_b, p_b) if (return_dual and has_dual) else x_b
-    return out, (x_b, p_b, pb)
+    return out, (x_init, x_b, p_b, pb)
 
   def _bwd(
-      res: tuple[_typing.PyTree, _typing.PyTree, _typing.PyTree],
+      res: tuple[
+          _typing.PyTree, _typing.PyTree, _typing.PyTree, _typing.PyTree
+      ],
       g_out: _typing.PyTree,
-  ) -> tuple[_typing.PyTree]:
-    x_b, p_b, pb = res
+  ) -> tuple[None, _typing.PyTree]:
+    x_init, x_b, p_b, pb = res
     p_axis = None if p_b is None else 0
 
     def _adj_one(
@@ -376,7 +413,7 @@ def batch_implicit_solve(
     ) -> _typing.PyTree:
       return implicit_mod.implicit_vjp_from_solution(
           problem_fn,
-          x0,
+          x_init,
           xh,
           ph,
           th,
@@ -393,7 +430,9 @@ def batch_implicit_solve(
       )
 
     d_pb = jax.vmap(_adj_one, in_axes=(0, p_axis, 0, 0))(x_b, p_b, pb, g_out)
-    return (d_pb,)
+    return (None, d_pb)
 
   _batched_fn.defvjp(_fwd, _bwd)
-  return _batched_fn(params_batch)
+  if per_fn is not None:
+    per_fn[cache_key] = _batched_fn
+  return _batched_fn(x0, params_batch)

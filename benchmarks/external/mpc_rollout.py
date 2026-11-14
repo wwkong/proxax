@@ -182,6 +182,7 @@ def _solve_proxax_rollout(
     warm_start: bool,
     tol: float,
     repeats: int,
+    use_threads: bool = False,
 ) -> MpcResult:
   """Runs closed-loop MPC via compiled `jax.lax.scan` (vmap over batch)."""
   import jax
@@ -270,24 +271,53 @@ def _solve_proxax_rollout(
     )
     return final_cost, jnp.all(oks)
 
-  compiled_rollout = jax.jit(jax.vmap(_rollout_one))
+  if use_threads and case.batch_size > 1:
+    compiled_one = jax.jit(_rollout_one)
+    x0_list = [x0_b_j[i] for i in range(case.batch_size)]
+    pool = concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(case.batch_size, os.cpu_count() or 8)
+    )
 
-  def _run() -> tuple[jax.Array, jax.Array]:
-    costs, oks = compiled_rollout(x0_b_j)
-    costs.block_until_ready()
-    return costs, oks
+    def _run() -> tuple[jax.Array, jax.Array]:
+      outs = list(pool.map(compiled_one, x0_list))
+      costs_t = jnp.stack([c for c, _ in outs])
+      oks_t = jnp.stack([o for _, o in outs])
+      costs_t.block_until_ready()
+      return costs_t, oks_t
 
-  t0 = time.perf_counter()
-  costs, oks = _run()
-  compile_s = time.perf_counter() - t0
+    try:
+      t0 = time.perf_counter()
+      costs, oks = _run()
+      compile_s = time.perf_counter() - t0
 
-  run_times: list[float] = []
-  for _ in range(max(1, repeats)):
-    t1 = time.perf_counter()
+      run_times: list[float] = []
+      for _ in range(max(1, repeats)):
+        t1 = time.perf_counter()
+        costs, oks = _run()
+        run_times.append(time.perf_counter() - t1)
+    finally:
+      pool.shutdown(wait=True)
+  else:
+    compiled_rollout = jax.jit(jax.vmap(_rollout_one))
+
+    def _run() -> tuple[jax.Array, jax.Array]:
+      costs, oks = compiled_rollout(x0_b_j)
+      costs.block_until_ready()
+      return costs, oks
+
+    t0 = time.perf_counter()
     costs, oks = _run()
-    run_times.append(time.perf_counter() - t1)
+    compile_s = time.perf_counter() - t0
 
-  tag = "warm" if warm_start else "cold"
+    run_times = []
+    for _ in range(max(1, repeats)):
+      t1 = time.perf_counter()
+      costs, oks = _run()
+      run_times.append(time.perf_counter() - t1)
+
+  tag = "warm,threads" if (warm_start and use_threads) else (
+      "warm" if warm_start else "cold"
+  )
   base_name = "proxax-PANOC" if case.x_bound is None else "proxax-IAIPAL"
   return MpcResult(
       suite=case.suite,
@@ -605,6 +635,16 @@ def main() -> None:
             case, warm_start=True, tol=args.tol, repeats=args.repeats
         )
     )
+    if case.batch_size > 1:
+      results.append(
+          _solve_proxax_rollout(
+              case,
+              warm_start=True,
+              tol=args.tol,
+              repeats=args.repeats,
+              use_threads=True,
+          )
+      )
     if case.suite == "mpc_box" and case.batch_size == 1:
       results.append(
           _solve_alpaqa_rollout(
