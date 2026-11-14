@@ -19,10 +19,19 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MD = REPO_ROOT / "docs-experiments" / "maros_meszaros.md"
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
-SOLVER_ORDER = ["Clarabel", "IALM", "IAIPAL", "QPAPD", "QPAIPP", "SProxALM"]
+SOLVER_ORDER = [
+    "Clarabel",
+    "IALM",
+    "IALM (BCOO)",
+    "IAIPAL",
+    "QPAPD",
+    "QPAIPP",
+    "SProxALM",
+]
 SOLVER_COLORS = {
     "Clarabel": "#94e2d5",
     "IALM": "#89b4fa",
+    "IALM (BCOO)": "#f9e2af",
     "IAIPAL": "#a6e3a1",
     "QPAPD": "#fab387",
     "QPAIPP": "#cba6f7",
@@ -31,6 +40,7 @@ SOLVER_COLORS = {
 SOLVER_MARKERS = {
     "Clarabel": "P",
     "IALM": "o",
+    "IALM (BCOO)": "*",
     "IAIPAL": "s",
     "QPAPD": "^",
     "QPAIPP": "D",
