@@ -74,4 +74,4 @@ autodoc_member_order = "bysource"
 
 mermaid_d3_zoom = True
 mermaid_fullscreen = True
-mermaid_height = "700px"
+mermaid_height = "760px"

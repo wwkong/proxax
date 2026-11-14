@@ -16,12 +16,12 @@ certified solver engines, and the underlying `jax` / `optax` runtime substrate
 into four layers:
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 20, 'rankSpacing': 32, 'padding': 14}}}%%
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 18, 'rankSpacing': 28, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'secondaryColor': '#0f172a', 'tertiaryColor': '#1e293b', 'textColor': '#f8fafc', 'clusterBkg': 'rgba(15, 23, 42, 0.45)', 'clusterBorder': '#475569', 'edgeLabelBackground': '#0f172a'}}}%%
 flowchart TB
-    classDef user stroke:#3b82f6,stroke-width:2px
-    classDef model stroke:#10b981,stroke-width:2px
-    classDef solver stroke:#8b5cf6,stroke-width:2px
-    classDef substrate stroke:#f59e0b,stroke-width:2px
+    classDef user fill:#1e3a5f,stroke:#60a5fa,color:#f8fafc,stroke-width:2px
+    classDef model fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
+    classDef solver fill:#3b0764,stroke:#a78bfa,color:#f8fafc,stroke-width:2px
+    classDef substrate fill:#451a03,stroke:#fbbf24,color:#f8fafc,stroke-width:2px
 
     subgraph L1["1. User & Ecosystem"]
         direction TB
@@ -33,7 +33,7 @@ flowchart TB
         PX --> SOLVE & DIFF & OPTAX & PLOT
     end
 
-    subgraph L2["2. Problem & Operator Modeling"]
+    subgraph L2["2. Problem & Modeling"]
         direction TB
         PROB["problem<br/>CompositeProblem, LinearConstraint"]:::model
         ORA["oracle<br/>composite, spectral, minmax, block"]:::model
@@ -45,7 +45,7 @@ flowchart TB
         PREC ~~~ CONS
     end
 
-    subgraph L3["3. Solver & Certificate Engine"]
+    subgraph L3["3. Solvers & Certificates"]
         direction TB
         CON["solvers.constrained<br/>IALM, IAIPAL, SProxALM, QPAIPP"]:::solver
         UNC["solvers.unconstrained<br/>APD, PANOC, AIPP, ..."]:::solver
@@ -58,7 +58,7 @@ flowchart TB
         UNC & MM & BLK --> CERT & LOOP
     end
 
-    subgraph L4["4. JAX & Optax Substrate"]
+    subgraph L4["4. JAX & Optax"]
         direction LR
         JAX[("jax: jit, vmap, grad, custom_vjp, while_loop")]:::substrate
         OX[("optax: tree, projections, ExtraArgs")]:::substrate
@@ -66,10 +66,10 @@ flowchart TB
 
     L1 --> L2 --> L3 --> L4
 
-    style L1 fill:transparent,stroke:#3b82f6,stroke-width:1.5px
-    style L2 fill:transparent,stroke:#10b981,stroke-width:1.5px
-    style L3 fill:transparent,stroke:#8b5cf6,stroke-width:1.5px
-    style L4 fill:transparent,stroke:#f59e0b,stroke-width:1.5px
+    style L1 fill:rgba(30,58,95,0.2),stroke:#60a5fa,stroke-width:1.5px,color:#f8fafc
+    style L2 fill:rgba(6,78,59,0.2),stroke:#34d399,stroke-width:1.5px,color:#f8fafc
+    style L3 fill:rgba(59,7,100,0.2),stroke:#a78bfa,stroke-width:1.5px,color:#f8fafc
+    style L4 fill:rgba(69,26,3,0.2),stroke:#fbbf24,stroke-width:1.5px,color:#f8fafc
 ```
 
 ---
@@ -82,19 +82,20 @@ either to a compiled `jax.lax.while_loop` (`jit=True`) or a Python loop with
 wall-clock `time_limit` support (`jit=False`), and emits a certified `Solution`:
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 24, 'rankSpacing': 30, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'textColor': '#f8fafc', 'edgeLabelBackground': '#0f172a'}}}%%
 flowchart TB
-    classDef io stroke:#3b82f6,stroke-width:2px
-    classDef decision stroke:#f43f5e,stroke-width:2px
-    classDef engine stroke:#8b5cf6,stroke-width:2px
-    classDef cert stroke:#10b981,stroke-width:2px
+    classDef io fill:#1e3a5f,stroke:#60a5fa,color:#f8fafc,stroke-width:2px
+    classDef step fill:#1e293b,stroke:#94a3b8,color:#f8fafc,stroke-width:1.5px
+    classDef decision fill:#4c0519,stroke:#fb7185,color:#f8fafc,stroke-width:2px
+    classDef engine fill:#3b0764,stroke:#a78bfa,color:#f8fafc,stroke-width:2px
+    classDef cert fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
 
     IN(["px.solve(problem, x0,<br/>solver=..., jit=True)"]):::io
-    NORM["Normalize problem &<br/>bind LinearOperator to x0"]
-    DOM["Project x0 onto dom(h)<br/>via proximal.domain_project"]
+    NORM["Normalize problem &<br/>bind LinearOperator to x0"]:::step
+    DOM["Project x0 onto dom(h)<br/>via proximal.domain_project"]:::step
     DISP{"solver is None?"}:::decision
-    AUTO["Auto-select default solver<br/>by problem class & constraints"]
-    EXEC["Initialize SolverState"]
+    AUTO["Auto-select default solver<br/>by problem class & constraints"]:::step
+    EXEC["Initialize SolverState"]:::step
     JIT{"jit=True?"}:::decision
     XLA["jax.lax.while_loop<br/>(zero host-dispatch overhead)"]:::engine
     PY["Python loop via _loop.py<br/>(time_limit & callbacks)"]:::engine
@@ -119,14 +120,14 @@ set- and cone-constrained problems into smooth penalized or proximal-regularized
 subproblems without re-compiling XLA graphs across outer iterations:
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 24, 'rankSpacing': 30, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'textColor': '#f8fafc', 'edgeLabelBackground': '#0f172a'}}}%%
 flowchart TB
-    classDef prob stroke:#3b82f6,stroke-width:2px
-    classDef oracle stroke:#10b981,stroke-width:2px
-    classDef decision stroke:#f43f5e,stroke-width:2px
-    classDef inner stroke:#8b5cf6,stroke-width:2px
-    classDef outer stroke:#f59e0b,stroke-width:2px
-    classDef done stroke:#10b981,stroke-width:2px
+    classDef prob fill:#1e3a5f,stroke:#60a5fa,color:#f8fafc,stroke-width:2px
+    classDef oracle fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
+    classDef decision fill:#4c0519,stroke:#fb7185,color:#f8fafc,stroke-width:2px
+    classDef inner fill:#3b0764,stroke:#a78bfa,color:#f8fafc,stroke-width:2px
+    classDef outer fill:#451a03,stroke:#fbbf24,color:#f8fafc,stroke-width:2px
+    classDef done fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
 
     CP(["CompositeProblem<br/>min f(x) + h(x) s.t. A(x) in C"]):::prob
     PEN["PenalizedOracle<br/>(dynamic multiplier p_bar, penalty c)"]:::oracle
@@ -164,13 +165,13 @@ CPU and vectorized `jax.vmap` execution on GPU, while sharing a `custom_vjp`
 implicit-differentiation backward pass:
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 36}}}%%
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 24, 'rankSpacing': 30, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'textColor': '#f8fafc', 'edgeLabelBackground': '#0f172a'}}}%%
 flowchart TB
-    classDef io stroke:#3b82f6,stroke-width:2px
-    classDef decision stroke:#f43f5e,stroke-width:2px
-    classDef cpu stroke:#10b981,stroke-width:2px
-    classDef gpu stroke:#8b5cf6,stroke-width:2px
-    classDef bwd stroke:#f59e0b,stroke-width:2px
+    classDef io fill:#1e3a5f,stroke:#60a5fa,color:#f8fafc,stroke-width:2px
+    classDef decision fill:#4c0519,stroke:#fb7185,color:#f8fafc,stroke-width:2px
+    classDef cpu fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
+    classDef gpu fill:#3b0764,stroke:#a78bfa,color:#f8fafc,stroke-width:2px
+    classDef bwd fill:#451a03,stroke:#fbbf24,color:#f8fafc,stroke-width:2px
 
     B_IN(["px.batch_solve / batch_implicit_solve<br/>(x0_batch, params_batch, backend='auto')"]):::io
     DEV{"Device & batch size B?"}:::decision

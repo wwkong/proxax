@@ -125,36 +125,10 @@ th.px-sortable-th[data-sort-dir] .px-sort-indicator {
   color: var(--pst-color-primary);
 }
 
-/* Polished container framing & light/dark contrast for Mermaid diagrams */
+/* Polished container framing for Mermaid diagrams */
 .mermaid {
   border: 1px solid var(--pst-color-border);
   border-radius: 0.5rem;
   background-color: var(--pst-color-surface);
   margin: 1.25rem 0;
-}
-
-.mermaid .node rect,
-.mermaid .node polygon,
-.mermaid .node circle,
-.mermaid .node path {
-  fill: var(--pst-color-background) !important;
-}
-
-.mermaid .nodeLabel,
-.mermaid .edgeLabel,
-.mermaid .cluster-label span,
-.mermaid .cluster-label text,
-.mermaid .label {
-  color: var(--pst-color-text-base) !important;
-  fill: var(--pst-color-text-base) !important;
-}
-
-.mermaid .edgePath .path,
-.mermaid .flowchart-link {
-  stroke: var(--pst-color-text-muted) !important;
-}
-
-.mermaid .marker {
-  fill: var(--pst-color-text-muted) !important;
-  stroke: var(--pst-color-text-muted) !important;
 }
