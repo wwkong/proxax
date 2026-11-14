@@ -59,6 +59,7 @@ cuda13 = [
 dev = [
   "mypy>=1.11",
   "pytest>=8.0",
+  "pytest-xdist>=3.6",
   "ruff>=0.6",
 ]
 docs = [
