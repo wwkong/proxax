@@ -657,6 +657,13 @@ def animate_phase_trajectory(
     raise ValueError("`trajectories` must be non-empty.")
   if stride < 1:
     raise ValueError("`stride` must be >= 1.")
+  series = {
+      name: ([float(v) for v in xs], [float(v) for v in ys])
+      for name, (xs, ys) in trajectories.items()
+  }
+  max_len = max((len(xs) for xs, _ in series.values()), default=0)
+  if max_len == 0:
+    raise ValueError("All trajectories in `trajectories` are empty.")
   plt = _import_pyplot()
   try:
     from matplotlib import animation as mpl_anim  # noqa: PLC0415
@@ -665,14 +672,6 @@ def animate_phase_trajectory(
         "Animation requires `matplotlib.animation`. "
         "Install with `pip install proxax[plot]`."
     ) from exc
-
-  series = {
-      name: ([float(v) for v in xs], [float(v) for v in ys])
-      for name, (xs, ys) in trajectories.items()
-  }
-  max_len = max((len(xs) for xs, _ in series.values()), default=0)
-  if max_len == 0:
-    raise ValueError("All trajectories in `trajectories` are empty.")
   all_x = [x for xs, _ in series.values() for x in xs]
   all_y = [y for _, ys in series.values() for y in ys]
   if optimum is not None:

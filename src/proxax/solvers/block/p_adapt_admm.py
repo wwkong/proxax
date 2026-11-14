@@ -222,7 +222,9 @@ def _solve_block_with_halving(
     req_dec = ((tau_bar**2) / (2.0 * lam_cur)) * tree.norm_sq(dz) + (
         0.25 * c_val * tau_bar
     ) * tree.norm_sq(d_az)
-    dec_ok = (lc_y - lc_trial) >= req_dec - 1e-10 * (1.0 + jnp.abs(lc_y))
+    dec_ok = (lc_y - lc_trial) >= req_dec - tree.eps(dtype) * (
+        1.0 + jnp.abs(lc_y)
+    )
     ok = pf_ok & dec_ok
     lam_min = jnp.asarray(1e-8, dtype=dtype)
     lam_next = jnp.where(ok, lam_cur, jnp.maximum(0.5 * lam_cur, lam_min))
