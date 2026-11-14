@@ -16,7 +16,7 @@ certified solver engines, and the underlying `jax` / `optax` runtime substrate
 into four layers:
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 28, 'rankSpacing': 42}}}%%
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 24, 'rankSpacing': 40}}}%%
 flowchart TB
     classDef user stroke:#3b82f6,stroke-width:2px
     classDef model stroke:#10b981,stroke-width:2px
@@ -24,45 +24,52 @@ flowchart TB
     classDef substrate stroke:#f59e0b,stroke-width:2px
 
     subgraph L1["1. User & Ecosystem Layer"]
-        PX(["proxax.px<br/>curated facade"]):::user
-        SOLVE["solve / batch_solve<br/>single & batched entry"]:::user
-        DIFF["implicit_solve / layers<br/>differentiable opt"]:::user
-        OPTAX["optax_compat<br/>Optax transforms"]:::user
-        PLOT["plotting<br/>convergence & spectrum"]:::user
+        direction TB
+        PX(["proxax.px (curated facade)"]):::user
+        SOLVE["solve / batch_solve"]:::user
+        DIFF["implicit_solve / layers"]:::user
+        OPTAX["optax_compat"]:::user
+        PLOT["plotting"]:::user
+        PX --> SOLVE & DIFF & OPTAX & PLOT
     end
 
     subgraph L2["2. Problem & Operator Modeling Layer"]
+        direction TB
         PROB["problem<br/>CompositeProblem,<br/>LinearConstraint"]:::model
         ORA["oracle<br/>composite, spectral,<br/>minmax, block, terms"]:::model
+        PREC["precondition<br/>ruiz_equilibrate"]:::model
         PROX["prox<br/>norms, indicators,<br/>folded_concave, exotic"]:::model
         CONS["constraints<br/>sets, linear_op"]:::model
-        PREC["precondition<br/>ruiz_equilibrate"]:::model
+        PROB --> PROX & CONS
+        ORA --> PROX & CONS
+        PREC ~~~ CONS
     end
 
     subgraph L3["3. Solver & Certificate Engine Layer"]
-        UNC["solvers.unconstrained<br/>APD, PANOC, AIPP, ..."]:::solver
+        direction TB
         CON["solvers.constrained<br/>IALM, IAIPAL, SProxALM,<br/>QPAIPP, QPAPD"]:::solver
-        MM["solvers.minmax<br/>ExtraGradient, PDHG,<br/>ProxPoint"]:::solver
-        BLK["solvers.block<br/>ADMM, DPADMM,<br/>PAdaptADMM"]:::solver
+        UNC["solvers.unconstrained<br/>APD, PANOC, AIPP, ..."]:::solver
         INN["solvers.inner<br/>ACG, PFACG"]:::solver
+        MM["solvers.minmax<br/>ExtraGradient, PDHG, ProxPoint"]:::solver
+        BLK["solvers.block<br/>ADMM, DPADMM, PAdaptADMM"]:::solver
         CERT["certificates<br/>stationarity, minmax"]:::solver
         LOOP["_loop & tree<br/>while_loop & PyTree linalg"]:::solver
+        CON --> INN & UNC
+        UNC & MM & BLK --> CERT & LOOP
     end
 
     subgraph L4["4. JAX & Optax Runtime Substrate"]
+        direction LR
         JAX[("jax<br/>jit, vmap, grad, custom_vjp,<br/>linear_transpose, while_loop")]:::substrate
         OX[("optax<br/>optax.tree, projections,<br/>GradientTransformationExtraArgs")]:::substrate
     end
 
-    PX --> SOLVE & DIFF & OPTAX & PLOT
-    SOLVE & DIFF & OPTAX --> PROB & ORA & PREC
-    PROB --> PROX & CONS
-    ORA --> PROX & CONS
-    SOLVE --> UNC & CON & MM & BLK
-    CON --> INN & UNC
-    UNC & CON & MM & BLK --> CERT & LOOP
-    L2 --> JAX & OX
-    L3 --> JAX & OX
+    L1 --> L2 --> L3 --> L4
+
+    style L1 fill:transparent,stroke:#3b82f6,stroke-width:1.5px
+    style L2 fill:transparent,stroke:#10b981,stroke-width:1.5px
+    style L3 fill:transparent,stroke:#8b5cf6,stroke-width:1.5px
+    style L4 fill:transparent,stroke:#f59e0b,stroke-width:1.5px
 ```
 
 ---
