@@ -221,6 +221,44 @@ def _block_solution(sol: base.Solution) -> None:
       leaf.block_until_ready()
 
 
+def _hashable_key(
+    obj: typing.Any,
+    refs: list[typing.Any],
+) -> typing.Any:
+  """Builds a hashable cache key, pinning unhashable array ids in `refs`."""
+  try:
+    hash(obj)
+  except TypeError:
+    pass
+  else:
+    return obj
+
+  if hasattr(obj, "shape") and hasattr(obj, "dtype"):
+    refs.append(obj)
+    return ("__array__", id(obj), obj.shape, obj.dtype)
+  if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+    return (
+        type(obj),
+        tuple(
+            (f.name, _hashable_key(getattr(obj, f.name), refs))
+            for f in dataclasses.fields(obj)
+        ),
+    )
+  if isinstance(obj, (tuple, list)):
+    return (type(obj), tuple(_hashable_key(x, refs) for x in obj))
+  if isinstance(obj, dict):
+    return (
+        "__dict__",
+        tuple(
+            sorted(
+                (_hashable_key(k, refs), _hashable_key(v, refs))
+                for k, v in obj.items()
+            )
+        ),
+    )
+  raise TypeError(f"Unhashable object of type {type(obj).__name__}")
+
+
 def _run_compiled_or_direct(
     chosen: typing.Any,
     target: typing.Any,
@@ -236,15 +274,21 @@ def _run_compiled_or_direct(
       and jax_core.trace_ctx.is_top_level()
       and not _is_traced(x0)
   ):
+    refs: list[typing.Any] = []
     try:
-      cache_key = (chosen, target, time_limit, _x0_signature(x0))
+      cache_key = (
+          _hashable_key(chosen, refs),
+          _hashable_key(target, refs),
+          time_limit,
+          _x0_signature(x0),
+      )
       hash(cache_key)
     except TypeError:
       cache_key = None
 
     if cache_key is not None:
-      compiled = _COMPILED_SOLVE_CACHE.get(cache_key)
-      if compiled is None:
+      entry = _COMPILED_SOLVE_CACHE.get(cache_key)
+      if entry is None:
         solve_jit: typing.Any = jax.jit(
             lambda init: chosen.solve(
                 target,
@@ -255,10 +299,11 @@ def _run_compiled_or_direct(
             )
         )
         compiled = solve_jit.lower(x0).compile()
-        _COMPILED_SOLVE_CACHE[cache_key] = compiled
+        _COMPILED_SOLVE_CACHE[cache_key] = (compiled, tuple(refs))
         if len(_COMPILED_SOLVE_CACHE) > _COMPILED_CACHE_MAXSIZE:
           _COMPILED_SOLVE_CACHE.popitem(last=False)
       else:
+        compiled, _ = entry
         _COMPILED_SOLVE_CACHE.move_to_end(cache_key)
 
       t0 = time.perf_counter()
