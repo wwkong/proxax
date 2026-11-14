@@ -1,4 +1,4 @@
-# Problems, Solvers & `px.solve`
+# Problems & Solvers
 
 This guide walks through the day-to-day workflow of Proxax in plain English:
 importing the unified `px` namespace, building problems over arrays or nested
