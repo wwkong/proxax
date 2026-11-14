@@ -8,7 +8,9 @@ external standard problem collections across `float32` and `float64`.
 - **`benchmarks/internal/`**: Self-contained Proxax-native suites (`suites.py`,
   `run_all.py`) with zero external dependencies beyond `jax` and `optax`.
 - **`benchmarks/external/`**: External benchmark suites (e.g. `maros_meszaros.py`
-  for the Maros–Meszaros QP collection).
+  for the Maros–Meszaros QP collection) and `plot_*.py` SVG generators.
+- **`benchmarks/papers/`**: End-to-end paper reproduction runners
+  (`reproduce_mpc.py`).
 
 ## Running Internal Suites
 
@@ -39,3 +41,26 @@ Run a small curated subset of Maros–Meszaros QPs (downloads `.SIF` files into
 ```bash
 JAX_ENABLE_X64=1 uv run python -m benchmarks.external.maros_meszaros --max-dim 200 --limit 10
 ```
+
+## Reproducing Paper Benchmarks (`benchmarks/papers/`)
+
+`benchmarks/papers/reproduce_mpc.py` runs the CPU and GPU external benchmark
+suites and regenerates all Mocha-themed SVG plots in
+`docs-experiments/_static/plots/`:
+
+```bash
+# Preview all commands without executing
+uv run python -m benchmarks.papers.reproduce_mpc --dry-run
+
+# Run CPU suites and regenerate plots
+uv run python -m benchmarks.papers.reproduce_mpc --suite cpu
+
+# Run GPU suites and regenerate GPU plots (requires CUDA-enabled jaxlib)
+uv run python -m benchmarks.papers.reproduce_mpc --suite gpu
+
+# Run everything (CPU + GPU)
+uv run python -m benchmarks.papers.reproduce_mpc --suite all
+```
+
+Optional flags: `--json-dir` (default `/tmp/proxax_paper_results`),
+`--plots-dir` (default `docs-experiments/_static/plots`), and `--skip-plots`.
