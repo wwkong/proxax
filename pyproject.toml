@@ -121,5 +121,5 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["optax", "matplotlib", "matplotlib.*", "cycler", "clarabel", "scipy", "scipy.*", "alpaqa"]
+module = ["optax", "matplotlib", "matplotlib.*", "cycler", "clarabel", "scipy", "scipy.*", "alpaqa", "cvxpy", "cvxpylayers", "cvxpylayers.*"]
 ignore_missing_imports = true

@@ -25,6 +25,7 @@ and constrained composite suites:
 * [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md)
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
 * [Nonconvex CPU Benchmarks (`proxax` vs. `alpaqa`)](panoc_vs_alpaqa.md)
+* [Batched Differentiable Layers (`proxax` vs. `cvxpylayers`)](vmap_implicit_vs_cvxpylayers.md)
 
 ## Scaling Studies
 
@@ -56,6 +57,7 @@ maros_meszaros
 maros_meszaros_medium
 matrix_free_vs_clarabel
 panoc_vs_alpaqa
+vmap_implicit_vs_cvxpylayers
 ```
 
 ```{toctree}
