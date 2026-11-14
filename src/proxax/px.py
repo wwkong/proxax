@@ -16,7 +16,7 @@ from proxax import solvers
 from proxax import tree
 from proxax import typing
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 
 BlockProblem = oracle.BlockProblem
 BlockTerm = oracle.BlockTerm
