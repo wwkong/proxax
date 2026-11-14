@@ -29,6 +29,24 @@ JAX_ENABLE_X64=1 uv run python -m benchmarks.external.maros_meszaros --opt-tol 1
 | `QPAIPP` | 13 / 15 | 195.17 | 2294.20 |
 | `SProxALM` | 7 / 15 | 3.16 | 17.74 |
 
+## Plots
+
+### Dolan–Moré Performance Profiles
+
+![Maros-Meszaros Performance Profiles](_static/plots/maros_meszaros_profile.svg)
+
+`IALM` is the only solver to converge on all **15 / 15** problems, reaching 100% solved within a factor of $\approx 2.6\times$ of the fastest solver runtime. `IAIPAL` is the fastest solver on the largest share of problems ($\tau = 1$), especially on `DUAL1`–`DUAL4`, `LOTSCHD`, and `QAFIRO`, before plateauing at **12 / 15**.
+
+### Per-Problem Breakdown & Oracle Scaling
+
+![Maros-Meszaros Solver Breakdown](_static/plots/maros_meszaros_breakdown.svg)
+
+### Hardest Instance Trajectory (`QAFIRO`)
+
+![QAFIRO Convergence Trajectory](_static/plots/maros_meszaros_qafiro_trajectory.svg)
+
+On `QAFIRO` ($n=32, m=27$), `IAIPAL` and `IALM` both drive both residuals below $10^{-6}$ in $8.1 \times 10^3$ and $1.6 \times 10^4$ gradient evaluations, respectively, whereas `QPAPD` and `QPAIPP` satisfy feasibility early but stall near $\text{opt\_res} \approx 10^{-5}$ after millions of gradient evaluations.
+
 ### Full Results
 
 | Problem | Solver | Status | Outer | Inner | Grad Evals | `opt_res` | `feas_res` | Runtime (ms) |
