@@ -57,17 +57,24 @@ def _fetch_sif(
   return target
 
 
+def _scipy_to_bcoo(mat: typing.Any, dtype: typing.Any) -> jsparse.BCOO:
+  """Converts a SciPy sparse matrix to a JAX ``BCOO`` with target dtype."""
+  bcoo = jsparse.BCOO.from_scipy_sparse(mat)
+  return jsparse.BCOO((bcoo.data.astype(dtype), bcoo.indices), shape=bcoo.shape)
+
+
 def to_proxax_problem(
-    qp: qpsif.QPSIFProblem,
+    qp: qpsif.QPSIFProblem | qpsif.QPSIFSparseProblem,
     *,
     sparse: bool = False,
 ) -> tuple[px.CompositeProblem, jax.Array]:
   """Converts a ``QPSIFProblem`` to a Proxax ``CompositeProblem`` and ``x0``."""
   dtype = jnp.float64 if jax.config.jax_enable_x64 else jnp.float32
-  p_dense = jnp.asarray(qp.P, dtype=dtype)
-  p_mat: jax.Array | jsparse.BCOO = (
-      jsparse.BCOO.fromdense(p_dense) if sparse else p_dense
-  )
+  if isinstance(qp, qpsif.QPSIFSparseProblem):
+    p_mat: jax.Array | jsparse.BCOO = _scipy_to_bcoo(qp.P, dtype)
+  else:
+    p_dense = jnp.asarray(qp.P, dtype=dtype)
+    p_mat = jsparse.BCOO.fromdense(p_dense) if sparse else p_dense
   q_vec = jnp.asarray(qp.q, dtype=dtype)
 
   def _smooth(x: jax.Array) -> jax.Array:
@@ -82,10 +89,11 @@ def to_proxax_problem(
 
   constraints = None
   if qp.A.shape[0] > 0:
-    a_dense = jnp.asarray(qp.A, dtype=dtype)
-    a_mat: jax.Array | jsparse.BCOO = (
-        jsparse.BCOO.fromdense(a_dense) if sparse else a_dense
-    )
+    if isinstance(qp, qpsif.QPSIFSparseProblem):
+      a_mat: jax.Array | jsparse.BCOO = _scipy_to_bcoo(qp.A, dtype)
+    else:
+      a_dense = jnp.asarray(qp.A, dtype=dtype)
+      a_mat = jsparse.BCOO.fromdense(a_dense) if sparse else a_dense
     if bool(np.allclose(qp.l_con, qp.u_con, rtol=0.0, atol=1e-12)):
       constraints = px.constraints.equality(
           a_mat, rhs=jnp.asarray(qp.l_con, dtype=dtype)
@@ -154,7 +162,11 @@ def run_maros_meszaros(
         if data_dir is not None
         else _fetch_sif(name, cache_dir)
     )
-    qp = qpsif.load_qpsif(sif_path)
+    qp: qpsif.QPSIFProblem | qpsif.QPSIFSparseProblem = (
+        qpsif.load_qpsif_sparse(sif_path)
+        if sparse
+        else qpsif.load_qpsif(sif_path)
+    )
     n, m = qp.A.shape[1], qp.A.shape[0]
     if n > max_dim:
       continue
@@ -162,7 +174,10 @@ def run_maros_meszaros(
     eff_opt_tol = opt_tol
     eff_feas_tol = feas_tol
     if precondition:
-      qp, d_x, d_y, cost_scale = qpsif.ruiz_equilibrate(qp)
+      if isinstance(qp, qpsif.QPSIFSparseProblem):
+        qp, d_x, d_y, cost_scale = qpsif.ruiz_equilibrate_sparse(qp)
+      else:
+        qp, d_x, d_y, cost_scale = qpsif.ruiz_equilibrate(qp)
       if d_x.size > 0:
         eff_opt_tol = opt_tol * min(1.0, float(cost_scale * np.min(d_x)))
       if d_y.size > 0:
@@ -200,7 +215,7 @@ def run_maros_meszaros(
 
 
 def run_clarabel_baseline(
-    qp: qpsif.QPSIFProblem,
+    qp: qpsif.QPSIFProblem | qpsif.QPSIFSparseProblem,
     *,
     opt_tol: float,
     feas_tol: float,
@@ -211,59 +226,71 @@ def run_clarabel_baseline(
 
   n = qp.P.shape[0]
   m = qp.A.shape[0]
-  p_csc = sp.csc_matrix(np.triu(qp.P))
+  p_csc = (
+      sp.triu(qp.P, format="csc")
+      if isinstance(qp, qpsif.QPSIFSparseProblem)
+      else sp.csc_matrix(np.triu(qp.P))
+  )
+  a_csr = (
+      qp.A.tocsr()
+      if isinstance(qp, qpsif.QPSIFSparseProblem)
+      else sp.csr_matrix(qp.A)
+  )
   q_vec = np.asarray(qp.q, dtype=np.float64)
 
-  eq_a: list[np.ndarray] = []
-  eq_b: list[float] = []
-  ineq_a: list[np.ndarray] = []
-  ineq_b: list[float] = []
+  eq_con = (
+      np.isfinite(qp.l_con)
+      & np.isfinite(qp.u_con)
+      & (np.abs(qp.u_con - qp.l_con) <= 1e-12)
+  )
+  ub_con = (~eq_con) & np.isfinite(qp.u_con)
+  lb_con = (~eq_con) & np.isfinite(qp.l_con)
 
-  for i in range(m):
-    lc, uc = float(qp.l_con[i]), float(qp.u_con[i])
-    row = qp.A[i]
-    if np.isfinite(lc) and np.isfinite(uc) and abs(uc - lc) <= 1e-12:
-      eq_a.append(row)
-      eq_b.append(lc)
-    else:
-      if np.isfinite(uc):
-        ineq_a.append(row)
-        ineq_b.append(uc)
-      if np.isfinite(lc):
-        ineq_a.append(-row)
-        ineq_b.append(-lc)
+  eq_var = (
+      np.isfinite(qp.lb)
+      & np.isfinite(qp.ub)
+      & (np.abs(qp.ub - qp.lb) <= 1e-12)
+  )
+  ub_var = (~eq_var) & np.isfinite(qp.ub)
+  lb_var = (~eq_var) & np.isfinite(qp.lb)
 
-  for j in range(n):
-    lb, ub = float(qp.lb[j]), float(qp.ub[j])
-    if np.isfinite(lb) and np.isfinite(ub) and abs(ub - lb) <= 1e-12:
-      e = np.zeros(n)
-      e[j] = 1.0
-      eq_a.append(e)
-      eq_b.append(lb)
-    else:
-      if np.isfinite(ub):
-        e = np.zeros(n)
-        e[j] = 1.0
-        ineq_a.append(e)
-        ineq_b.append(ub)
-      if np.isfinite(lb):
-        e = np.zeros(n)
-        e[j] = -1.0
-        ineq_a.append(e)
-        ineq_b.append(-lb)
+  eye_n = sp.eye(n, format="csr", dtype=np.float64)
+  eq_mats, eq_rhs = [], []
+  if np.any(eq_con):
+    eq_mats.append(a_csr[eq_con])
+    eq_rhs.append(qp.l_con[eq_con])
+  if np.any(eq_var):
+    eq_mats.append(eye_n[eq_var])
+    eq_rhs.append(qp.lb[eq_var])
+
+  ineq_mats, ineq_rhs = [], []
+  if np.any(ub_con):
+    ineq_mats.append(a_csr[ub_con])
+    ineq_rhs.append(qp.u_con[ub_con])
+  if np.any(lb_con):
+    ineq_mats.append(-a_csr[lb_con])
+    ineq_rhs.append(-qp.l_con[lb_con])
+  if np.any(ub_var):
+    ineq_mats.append(eye_n[ub_var])
+    ineq_rhs.append(qp.ub[ub_var])
+  if np.any(lb_var):
+    ineq_mats.append(-eye_n[lb_var])
+    ineq_rhs.append(-qp.lb[lb_var])
 
   a_blocks, b_blocks, cones = [], [], []
-  if eq_a:
-    a_blocks.append(np.vstack(eq_a))
-    b_blocks.append(np.array(eq_b, dtype=np.float64))
-    cones.append(clarabel.ZeroConeT(len(eq_b)))
-  if ineq_a:
-    a_blocks.append(np.vstack(ineq_a))
-    b_blocks.append(np.array(ineq_b, dtype=np.float64))
-    cones.append(clarabel.NonnegativeConeT(len(ineq_b)))
+  if eq_mats:
+    b_eq = np.concatenate(eq_rhs)
+    a_blocks.append(sp.vstack(eq_mats, format="csc"))
+    b_blocks.append(b_eq)
+    cones.append(clarabel.ZeroConeT(int(b_eq.size)))
+  if ineq_mats:
+    b_ineq = np.concatenate(ineq_rhs)
+    a_blocks.append(sp.vstack(ineq_mats, format="csc"))
+    b_blocks.append(b_ineq)
+    cones.append(clarabel.NonnegativeConeT(int(b_ineq.size)))
 
   a_cl = (
-      sp.csc_matrix(np.vstack(a_blocks))
+      sp.vstack(a_blocks, format="csc")
       if a_blocks
       else sp.csc_matrix((0, n))
   )

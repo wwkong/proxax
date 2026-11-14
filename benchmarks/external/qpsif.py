@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+import typing
 
 import numpy as np
+import scipy.sparse as sp
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,6 +24,21 @@ class QPSIFProblem:
   q: np.ndarray
   r: float
   A: np.ndarray
+  l_con: np.ndarray
+  u_con: np.ndarray
+  lb: np.ndarray
+  ub: np.ndarray
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class QPSIFSparseProblem:
+  """Sparse ``scipy.sparse.csc_matrix`` representation of a QPSIF QP."""
+
+  name: str
+  P: typing.Any
+  q: np.ndarray
+  r: float
+  A: typing.Any
   l_con: np.ndarray
   u_con: np.ndarray
   lb: np.ndarray
@@ -83,8 +100,90 @@ def ruiz_equilibrate(
   return scaled_qp, d_x, d_y, c
 
 
-def load_qpsif(path: pathlib.Path) -> QPSIFProblem:
-  """Parses a ``.SIF`` file in QPSIF format into dense float64 arrays."""
+def ruiz_equilibrate_sparse(
+    qp: QPSIFSparseProblem,
+    num_iters: int = 10,
+) -> tuple[QPSIFSparseProblem, np.ndarray, np.ndarray, float]:
+  """Applies Modified Ruiz Equilibration to a ``QPSIFSparseProblem``."""
+  p_mat = qp.P.tocsc(copy=True)
+  q_vec = qp.q.copy()
+  a_mat = qp.A.tocsc(copy=True)
+  n = p_mat.shape[0]
+  m = a_mat.shape[0]
+  d_x = np.ones(n, dtype=np.float64)
+  d_y = np.ones(m, dtype=np.float64)
+  c = 1.0
+  for _ in range(num_iters):
+    norm_p = (
+        np.abs(p_mat).max(axis=1).toarray().ravel()
+        if n > 0
+        else np.zeros(0)
+    )
+    norm_at = (
+        np.abs(a_mat).max(axis=0).toarray().ravel()
+        if m > 0
+        else np.zeros(n)
+    )
+    rx = np.maximum(norm_p, norm_at)
+    sx = np.where(rx > 1e-12, 1.0 / np.sqrt(rx), 1.0)
+    sx = np.clip(sx, 1e-4, 1e4)
+    dx_op = sp.diags(sx)
+    p_mat = (dx_op @ p_mat @ dx_op).tocsc()
+    q_vec = sx * q_vec
+    d_x = d_x * sx
+    if m > 0:
+      a_mat = (a_mat @ dx_op).tocsc()
+      ry = np.abs(a_mat).max(axis=1).toarray().ravel()
+      sy = np.where(ry > 1e-12, 1.0 / np.sqrt(ry), 1.0)
+      sy = np.clip(sy, 1e-4, 1e4)
+      a_mat = (sp.diags(sy) @ a_mat).tocsc()
+      d_y = d_y * sy
+    mean_p = (
+        float(np.mean(np.abs(p_mat).max(axis=1).toarray().ravel()))
+        if n > 0
+        else 0.0
+    )
+    norm_q = float(np.max(np.abs(q_vec))) if n > 0 else 0.0
+    cost_scale = max(mean_p, norm_q, 1e-12)
+    gamma = float(np.clip(1.0 / cost_scale, 1e-4, 1e4))
+    p_mat = gamma * p_mat
+    q_vec = gamma * q_vec
+    c *= gamma
+
+  scaled_qp = QPSIFSparseProblem(
+      name=qp.name,
+      P=p_mat,
+      q=q_vec,
+      r=qp.r * c,
+      A=a_mat,
+      l_con=qp.l_con * d_y,
+      u_con=qp.u_con * d_y,
+      lb=qp.lb / d_x,
+      ub=qp.ub / d_x,
+  )
+  return scaled_qp, d_x, d_y, c
+
+
+def _parse_sif_core(
+    path: pathlib.Path,
+) -> tuple[
+    str,
+    int,
+    int,
+    np.ndarray,
+    float,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    list[int],
+    list[int],
+    list[float],
+    list[int],
+    list[int],
+    list[float],
+]:
+  """Parses a ``.SIF`` file into sparse COO index/value lists and vectors."""
   name = path.stem
   section = ""
   obj_row: str | None = None
@@ -203,21 +302,30 @@ def load_qpsif(path: pathlib.Path) -> QPSIFProblem:
 
   n = len(var_names)
   m = len(con_names)
-  P = np.zeros((n, n), dtype=np.float64)
   q = np.zeros((n,), dtype=np.float64)
-  A = np.zeros((m, n), dtype=np.float64)
+  a_rows: list[int] = []
+  a_cols: list[int] = []
+  a_vals: list[float] = []
+  p_rows: list[int] = []
+  p_cols: list[int] = []
+  p_vals: list[float] = []
 
   for j, rname, val in col_entries:
     if rname == obj_row:
       q[j] += val
     elif rname in con_idx:
-      A[con_idx[rname], j] += val
+      a_rows.append(con_idx[rname])
+      a_cols.append(j)
+      a_vals.append(val)
 
   for i, j, val in quad_entries:
-    P[i, j] += val
+    p_rows.append(i)
+    p_cols.append(j)
+    p_vals.append(val)
     if i != j:
-      P[j, i] += val
-  P = 0.5 * (P + P.T)
+      p_rows.append(j)
+      p_cols.append(i)
+      p_vals.append(val)
 
   r_const = -rhs_vals.get(obj_row, 0.0) if obj_row is not None else 0.0
 
@@ -267,7 +375,88 @@ def load_qpsif(path: pathlib.Path) -> QPSIFProblem:
     elif btype == "PL":
       ub[j] = np.inf
 
+  return (
+      name,
+      n,
+      m,
+      q,
+      r_const,
+      l_con,
+      u_con,
+      lb,
+      ub,
+      a_rows,
+      a_cols,
+      a_vals,
+      p_rows,
+      p_cols,
+      p_vals,
+  )
+
+
+def load_qpsif(path: pathlib.Path) -> QPSIFProblem:
+  """Parses a ``.SIF`` file in QPSIF format into dense float64 arrays."""
+  (
+      name,
+      n,
+      m,
+      q,
+      r_const,
+      l_con,
+      u_con,
+      lb,
+      ub,
+      a_rows,
+      a_cols,
+      a_vals,
+      p_rows,
+      p_cols,
+      p_vals,
+  ) = _parse_sif_core(path)
+  P = np.zeros((n, n), dtype=np.float64)
+  A = np.zeros((m, n), dtype=np.float64)
+  if a_rows:
+    np.add.at(A, (a_rows, a_cols), a_vals)
+  if p_rows:
+    np.add.at(P, (p_rows, p_cols), p_vals)
+  P = 0.5 * (P + P.T)
   return QPSIFProblem(
+      name=name,
+      P=P,
+      q=q,
+      r=r_const,
+      A=A,
+      l_con=l_con,
+      u_con=u_con,
+      lb=lb,
+      ub=ub,
+  )
+
+
+def load_qpsif_sparse(path: pathlib.Path) -> QPSIFSparseProblem:
+  """Parses a ``.SIF`` file into sparse ``scipy.sparse.csc_matrix`` arrays."""
+  (
+      name,
+      n,
+      m,
+      q,
+      r_const,
+      l_con,
+      u_con,
+      lb,
+      ub,
+      a_rows,
+      a_cols,
+      a_vals,
+      p_rows,
+      p_cols,
+      p_vals,
+  ) = _parse_sif_core(path)
+  P = sp.coo_matrix((p_vals, (p_rows, p_cols)), shape=(n, n), dtype=np.float64)
+  P = (0.5 * (P + P.T)).tocsc()
+  A = sp.coo_matrix((a_vals, (a_rows, a_cols)), shape=(m, n), dtype=np.float64)
+  A = A.tocsc()
+  return QPSIFSparseProblem(
       name=name,
       P=P,
       q=q,
