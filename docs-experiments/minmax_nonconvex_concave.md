@@ -33,29 +33,29 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 .venv/bin/python -m benchmarks.external.minma
 
 | Problem | Solver | Status | Objective | Opt Res | Grad Evals | Run (ms) |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: |
-| `NC-C QP (n=32, m_y=0.05)` | `ProxPointMinMax` | `CONVERGED` | -20.7787 | 8.88e-05 | 3,405 | 7.82 |
-| `NC-C QP (n=32, m_y=0.05)` | `ExtraGradient` | `CONVERGED` | -19.5098 | 8.81e-05 | 467 | 3.20 |
-| `NC-C QP (n=32, m_y=0.05)` | `PDHG` | `CONVERGED` | -19.7452 | 8.68e-05 | 546 | **1.56** |
-| `NC-C QP (n=32, m_y=0.05)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.3747 | 9.99e-05 | 1,798 | 3.44 |
-| `NC-C QP (n=32, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | -20.8202 | 9.19e-05 | 3,264 | 7.58 |
-| `NC-C QP (n=32, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -19.5546 | 9.83e-05 | 496 | 3.49 |
-| `NC-C QP (n=32, m_y=0.2)` | `PDHG` | `CONVERGED` | -19.7748 | 9.51e-05 | 546 | **1.15** |
-| `NC-C QP (n=32, m_y=0.2)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.7748 | 9.97e-05 | 2,124 | 3.48 |
-| `NC-C QP (n=32, m_y=1.0)` | `ProxPointMinMax` | `CONVERGED` | -20.9804 | 9.08e-05 | 3,162 | 10.06 |
-| `NC-C QP (n=32, m_y=1.0)` | `ExtraGradient` | `CONVERGED` | -19.7506 | 9.50e-05 | 382 | 3.16 |
-| `NC-C QP (n=32, m_y=1.0)` | `PDHG` | `CONVERGED` | -19.9065 | 6.04e-05 | 962 | **1.76** |
-| `NC-C QP (n=32, m_y=1.0)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.9065 | 9.93e-05 | 3,562 | 5.51 |
-| `NC-C QP (n=64, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | -40.7925 | 9.24e-05 | 2,652 | 12.83 |
-| `NC-C QP (n=64, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -39.8149 | 9.90e-05 | 384 | 4.14 |
-| `NC-C QP (n=64, m_y=0.2)` | `PDHG` | `CONVERGED` | -39.8149 | 6.95e-05 | 450 | **3.78** |
-| `NC-C QP (n=64, m_y=0.2)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -39.8149 | 9.95e-05 | 1,504 | 6.21 |
-| `NC-C QP (n=256, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | **-180.3306** | 9.75e-05 | 5,538 | 308.40 |
-| `NC-C QP (n=256, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -175.1123 | 9.86e-05 | 2,280 | 143.65 |
-| `NC-C QP (n=256, m_y=0.2)` | `PDHG` | `CONVERGED` | -175.1123 | 8.69e-05 | 3,298 | **95.37** |
-| `NC-C QP (n=256, m_y=0.2)` | `Optax GDA (lr=0.05)` | `MAX_ITERS` | -175.1121 | 4.45e-03 | 10,000 | 359.53 |
+| `NC-C QP (n=32, m_y=0.05)` | `ProxPointMinMax` | `CONVERGED` | -20.7787 | 8.88e-05 | 3,405 | 81.83 |
+| `NC-C QP (n=32, m_y=0.05)` | `ExtraGradient` | `CONVERGED` | -19.5098 | 8.81e-05 | 467 | 11.71 |
+| `NC-C QP (n=32, m_y=0.05)` | `PDHG` | `CONVERGED` | -19.7452 | 8.68e-05 | 546 | **2.63** |
+| `NC-C QP (n=32, m_y=0.05)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.3747 | 9.99e-05 | 1,798 | 3.01 |
+| `NC-C QP (n=32, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | -20.8202 | 9.19e-05 | 3,264 | 81.39 |
+| `NC-C QP (n=32, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -19.5546 | 9.83e-05 | 496 | 12.42 |
+| `NC-C QP (n=32, m_y=0.2)` | `PDHG` | `CONVERGED` | -19.7748 | 9.51e-05 | 546 | **2.83** |
+| `NC-C QP (n=32, m_y=0.2)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.7748 | 9.97e-05 | 2,124 | 3.34 |
+| `NC-C QP (n=32, m_y=1.0)` | `ProxPointMinMax` | `CONVERGED` | -20.9804 | 9.08e-05 | 3,162 | 79.56 |
+| `NC-C QP (n=32, m_y=1.0)` | `ExtraGradient` | `CONVERGED` | -19.7506 | 9.50e-05 | 382 | 9.84 |
+| `NC-C QP (n=32, m_y=1.0)` | `PDHG` | `CONVERGED` | -19.9065 | 6.04e-05 | 962 | **4.65** |
+| `NC-C QP (n=32, m_y=1.0)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -19.9065 | 9.93e-05 | 3,562 | 5.61 |
+| `NC-C QP (n=64, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | -40.7925 | 9.24e-05 | 2,652 | 77.99 |
+| `NC-C QP (n=64, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -39.8149 | 9.90e-05 | 384 | 13.48 |
+| `NC-C QP (n=64, m_y=0.2)` | `PDHG` | `CONVERGED` | -39.8149 | 6.95e-05 | 450 | **3.10** |
+| `NC-C QP (n=64, m_y=0.2)` | `Optax GDA (lr=0.05)` | `CONVERGED` | -39.8149 | 9.95e-05 | 1,504 | 5.87 |
+| `NC-C QP (n=256, m_y=0.2)` | `ProxPointMinMax` | `CONVERGED` | **-180.3306** | 9.75e-05 | 5,538 | 474.63 |
+| `NC-C QP (n=256, m_y=0.2)` | `ExtraGradient` | `CONVERGED` | -175.1123 | 9.86e-05 | 2,280 | 190.26 |
+| `NC-C QP (n=256, m_y=0.2)` | `PDHG` | `CONVERGED` | -175.1123 | 8.69e-05 | 3,298 | **91.90** |
+| `NC-C QP (n=256, m_y=0.2)` | `Optax GDA (lr=0.05)` | `MAX_ITERS` | -175.1121 | 4.45e-03 | 10,000 | 322.17 |
 
 ## Key Observations
 
-1. **`PDHG` and `ExtraGradient` are 2.5×–3.8× faster than `Optax GDA`:** `PDHG` converges on every problem in **1.15–95.37 ms**, whereas `Optax GDA` requires **3.3×–4.4×** more gradient evaluations on `n=32..64` and hits `MAX_ITERS` (`10,000` gradient evals, `opt_res = 4.45e-3`) at `n=256`.
+1. **`PDHG` is 1.1×–3.5× faster than `Optax GDA`:** `PDHG` converges on every problem in **2.63–91.90 ms**, whereas `Optax GDA` requires **3.3×–3.9×** more gradient evaluations on `n=32..64` and hits `MAX_ITERS` (`10,000` gradient evals, `opt_res = 4.45e-3`) at `n=256`.
 2. **`ProxPointMinMax` finds strictly better stationary points:** On every problem, `ProxPointMinMax` converges to a lower minimax objective (`-20.82` vs. `-19.77` at `n=32`, `-180.33` vs. `-175.11` at `n=256`) by solving regularized proximal subproblems rather than taking raw local GDA steps.
 3. **`ExtraGradient` uses the fewest gradient evaluations** (`382–2,280` across all 5 runs), making it attractive when gradient evaluations dominate runtime.

@@ -22,32 +22,32 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 .venv/bin/python -m benchmarks.external.maros
 
 | Problem | Solver | Status | Objective | Opt Res | Feas Res | Compile (s) | Run (ms) |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `CVXQP1_M (n=1000,m=500)` | `IALM` | `TIME_LIMIT_REACHED` | 1076418.7528 | 3.85e-08 | 5.33e-01 | 11.09 | 10,359.88 |
-| `CVXQP1_M (n=1000,m=500)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 1087573.3597 | 7.97e+00 | 7.40e-13 | 10.86 | 10,404.04 |
-| `CVXQP2_M (n=1000,m=250)` | `IALM` | `CONVERGED` | 820155.4306 | 1.02e-08 | 6.80e-07 | 5.22 | 4,659.53 |
-| `CVXQP2_M (n=1000,m=250)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 820155.6243 | 3.76e-01 | 2.95e-13 | 10.66 | 10,102.55 |
-| `CVXQP3_M (n=1000,m=750)` | `IALM` | `TIME_LIMIT_REACHED` | 1137570.3106 | 6.52e-04 | 1.28e+00 | 11.01 | 10,453.48 |
-| `CVXQP3_M (n=1000,m=750)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 1140875.2186 | 1.02e+01 | 1.26e+00 | 10.97 | 10,426.37 |
-| `MOSARQP1 (n=2500,m=700)` | `IALM` | `CONVERGED` | -337.5896 | 1.34e-07 | 3.38e-07 | 2.09 | 1,514.84 |
-| `MOSARQP1 (n=2500,m=700)` | `IAIPAL` | `CONVERGED` | -337.5896 | 1.35e-07 | 1.36e-07 | 0.67 | 90.13 |
-| `STCQP1 (n=4097,m=2052)` | `IALM` | `TIME_LIMIT_REACHED` | 154238.5169 | 8.24e-08 | 2.78e+00 | 10.83 | 10,275.81 |
-| `STCQP1 (n=4097,m=2052)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 155143.6204 | 2.35e-01 | 1.18e-12 | 12.99 | 12,319.61 |
-| `STCQP2 (n=4097,m=2052)` | `IALM` | `TIME_LIMIT_REACHED` | 22149.2638 | 8.14e-08 | 1.55e+00 | 13.49 | 12,590.68 |
-| `STCQP2 (n=4097,m=2052)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 22327.3602 | 1.69e-01 | 9.68e-13 | 10.77 | 13,569.43 |
-| `CONT-050 (n=2597,m=2401)` | `IALM` | `TIME_LIMIT_REACHED` | -8757.1507 | 5.17e-02 | 4.09e-02 | 11.20 | 10,589.79 |
-| `CONT-050 (n=2597,m=2401)` | `IAIPAL` | `TIME_LIMIT_REACHED` | -8679.3507 | 8.34e-02 | 2.54e-07 | 11.25 | 10,735.01 |
-| `CONT-100 (n=10197,m=9801)` | `IALM` | `TIME_LIMIT_REACHED` | -35895.9504 | 9.95e-07 | 3.58e-01 | 12.66 | 11,810.52 |
-| `CONT-100 (n=10197,m=9801)` | `IAIPAL` | `TIME_LIMIT_REACHED` | -35930.3437 | 6.69e-01 | 5.06e-01 | 10.84 | 10,194.06 |
-| `CVXQP1_M (n=1000,m=500)` | `Clarabel` | `CONVERGED` | 1087511.6255 | 3.89e-16 | 4.71e-11 | 0.00 | **279.23** |
-| `CVXQP2_M (n=1000,m=250)` | `Clarabel` | `CONVERGED` | 820155.4413 | 4.79e-16 | 4.16e-15 | 0.00 | **277.43** |
-| `CVXQP3_M (n=1000,m=750)` | `Clarabel` | `CONVERGED` | 1362828.7480 | 4.19e-16 | 1.94e-12 | 0.00 | **487.49** |
-| `MOSARQP1 (n=2500,m=700)` | `Clarabel` | `CONVERGED` | -952.8753 | 8.88e-11 | 5.26e-11 | 0.00 | **8.10** |
-| `STCQP1 (n=4097,m=2052)` | `Clarabel` | `CONVERGED` | 155143.5652 | 3.30e-15 | 3.69e-11 | 0.00 | **658.79** |
-| `STCQP2 (n=4097,m=2052)` | `Clarabel` | `CONVERGED` | 22327.3147 | 1.73e-15 | 3.07e-16 | 0.00 | **1,526.56** |
-| `CONT-050 (n=2597,m=2401)` | `Clarabel` | `CONVERGED` | -4.5639 | 1.88e-18 | 2.74e-11 | 0.00 | **39.25** |
-| `CONT-100 (n=10197,m=9801)` | `Clarabel` | `CONVERGED` | -4.6444 | 2.16e-18 | 1.39e-10 | 0.00 | **923.81** |
+| `CVXQP1_M (n=1000,m=500)` | `IALM` | `TIME_LIMIT_REACHED` | 1076418.7520 | 4.69e-05 | 5.33e-01 | 10.56 | 10,019.55 |
+| `CVXQP1_M (n=1000,m=500)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 1082113.7590 | 2.91e-03 | 2.49e-01 | 10.48 | 10,000.69 |
+| `CVXQP2_M (n=1000,m=250)` | `IALM` | `CONVERGED` | 820155.4306 | 1.02e-08 | 6.80e-07 | 5.84 | 5,315.26 |
+| `CVXQP2_M (n=1000,m=250)` | `IAIPAL` | `CONVERGED` | 820155.4310 | 1.02e-08 | 7.07e-08 | 1.18 | 665.53 |
+| `CVXQP3_M (n=1000,m=750)` | `IALM` | `TIME_LIMIT_REACHED` | 1129653.1832 | 1.02e-08 | 1.45e+00 | 10.53 | 10,032.65 |
+| `CVXQP3_M (n=1000,m=750)` | `IAIPAL` | `TIME_LIMIT_REACHED` | 1138858.9598 | 0.00e+00 | 1.27e+00 | 10.52 | 10,035.11 |
+| `MOSARQP1 (n=2500,m=700)` | `IALM` | `CONVERGED` | -337.5896 | 1.34e-07 | 3.38e-07 | 2.17 | 1,628.59 |
+| `MOSARQP1 (n=2500,m=700)` | `IAIPAL` | `CONVERGED` | -337.5896 | 1.35e-07 | 1.36e-07 | 0.64 | 117.91 |
+| `STCQP1 (n=4097,m=2052)` | `IALM` | `TIME_LIMIT_REACHED` | 154238.5169 | 5.83e-07 | 2.78e+00 | 10.81 | 10,117.78 |
+| `STCQP1 (n=4097,m=2052)` | `IAIPAL` | `CONVERGED` | 155143.5547 | 7.87e-08 | 1.35e-07 | 2.35 | 1,718.37 |
+| `STCQP2 (n=4097,m=2052)` | `IALM` | `TIME_LIMIT_REACHED` | 22149.1613 | 2.83e-02 | 1.55e+00 | 10.90 | 10,266.96 |
+| `STCQP2 (n=4097,m=2052)` | `IAIPAL` | `CONVERGED` | 22327.3133 | 8.26e-08 | 2.28e-07 | 4.99 | 4,318.03 |
+| `CONT-050 (n=2597,m=2401)` | `IALM` | `TIME_LIMIT_REACHED` | -8760.5379 | 5.77e-04 | 4.66e-02 | 10.60 | 10,084.17 |
+| `CONT-050 (n=2597,m=2401)` | `IAIPAL` | `TIME_LIMIT_REACHED` | -8748.1685 | 5.56e-04 | 3.20e-02 | 10.52 | 10,000.73 |
+| `CONT-100 (n=10197,m=9801)` | `IALM` | `TIME_LIMIT_REACHED` | -35956.6704 | 3.23e-02 | 5.63e-01 | 10.68 | 10,187.58 |
+| `CONT-100 (n=10197,m=9801)` | `IAIPAL` | `TIME_LIMIT_REACHED` | -35735.4566 | 1.36e-03 | 4.96e-02 | 10.67 | 10,001.50 |
+| `CVXQP1_M (n=1000,m=500)` | `Clarabel` | `CONVERGED` | 1087511.6255 | 3.89e-16 | 4.71e-11 | 0.00 | **276.53** |
+| `CVXQP2_M (n=1000,m=250)` | `Clarabel` | `CONVERGED` | 820155.4413 | 4.79e-16 | 4.16e-15 | 0.00 | **272.73** |
+| `CVXQP3_M (n=1000,m=750)` | `Clarabel` | `CONVERGED` | 1362828.7480 | 4.19e-16 | 1.94e-12 | 0.00 | **475.69** |
+| `MOSARQP1 (n=2500,m=700)` | `Clarabel` | `CONVERGED` | -952.8753 | 8.88e-11 | 5.26e-11 | 0.00 | **8.32** |
+| `STCQP1 (n=4097,m=2052)` | `Clarabel` | `CONVERGED` | 155143.5652 | 3.30e-15 | 3.69e-11 | 0.00 | **640.87** |
+| `STCQP2 (n=4097,m=2052)` | `Clarabel` | `CONVERGED` | 22327.3147 | 1.73e-15 | 3.07e-16 | 0.00 | **1,486.43** |
+| `CONT-050 (n=2597,m=2401)` | `Clarabel` | `CONVERGED` | -4.5639 | 1.88e-18 | 2.74e-11 | 0.00 | **39.39** |
+| `CONT-100 (n=10197,m=9801)` | `Clarabel` | `CONVERGED` | -4.6444 | 2.16e-18 | 1.39e-10 | 0.00 | **941.81** |
 
 ## Key Observations
 
-1. **Sparse direct IPM (`Clarabel`) dominates large ill-conditioned QPs:** `Clarabel` solves **8/8** instances in **8.10–1,526.56 ms**, whereas first-order `IALM` converges on **2/8** (`CVXQP2_M` in `4,659.53 ms`, `MOSARQP1` in `1,514.84 ms`) and `IAIPAL` converges on **1/8** (`MOSARQP1` in `90.13 ms` — **16.8× faster** than `IALM`).
-2. **Complementary residual profiles (`IALM` vs. `IAIPAL`):** `IALM` drives stationarity to `<= 1e-6` on **6/8** problems (`3.85e-8`–`9.95e-7`) while feasibility lags (`4.09e-2`–`2.78e+0`); conversely, `IAIPAL` drives primal feasibility to `<= 2.54e-7` on **6/8** problems (`2.95e-13`–`2.54e-7`) while stationarity lags (`8.34e-2`–`1.02e+1`) within the `10 s` CPU budget.
+1. **Sparse direct IPM (`Clarabel`) dominates large ill-conditioned QPs:** `Clarabel` solves **8/8** instances in **8.32–1,486.43 ms**, whereas first-order `IAIPAL` converges on **4/8** (`CVXQP2_M` in `665.53 ms` — **8.0× faster** than `IALM` at `5,315.26 ms`, `MOSARQP1` in `117.91 ms` — **13.8× faster** than `IALM`, `STCQP1` in `1,718.37 ms`, `STCQP2` in `4,318.03 ms`) and `IALM` converges on **2/8**.
+2. **Stationarity vs. feasibility on timeouts:** On the remaining `10 s` timeouts (`CVXQP1_M`, `CVXQP3_M`, `CONT-050`, `CONT-100`), `IALM` and `IAIPAL` drive stationarity to `<= 1.36e-3` (and `<= 4.69e-5` on `CVXQP1_M`/`CVXQP3_M`), while primal feasibility (`4.66e-2`–`1.45e+0`) remains the bottleneck.
