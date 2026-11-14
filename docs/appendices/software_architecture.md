@@ -16,7 +16,7 @@ certified solver engines, and the underlying `jax` / `optax` runtime substrate
 into four layers:
 
 ```{mermaid}
-%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 18, 'rankSpacing': 28, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'secondaryColor': '#0f172a', 'tertiaryColor': '#1e293b', 'textColor': '#f8fafc', 'clusterBkg': 'rgba(15, 23, 42, 0.45)', 'clusterBorder': '#475569', 'edgeLabelBackground': '#0f172a'}}}%%
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 18, 'rankSpacing': 28, 'padding': 12}, 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryColor': '#1e293b', 'primaryTextColor': '#f8fafc', 'primaryBorderColor': '#60a5fa', 'lineColor': '#94a3b8', 'secondaryColor': '#0f172a', 'tertiaryColor': '#1e293b', 'textColor': '#f8fafc', 'clusterBkg': '#0f172a', 'clusterBorder': '#475569', 'edgeLabelBackground': '#0f172a'}}}%%
 flowchart TB
     classDef user fill:#1e3a5f,stroke:#60a5fa,color:#f8fafc,stroke-width:2px
     classDef model fill:#064e3b,stroke:#34d399,color:#f8fafc,stroke-width:2px
@@ -66,10 +66,10 @@ flowchart TB
 
     L1 --> L2 --> L3 --> L4
 
-    style L1 fill:rgba(30,58,95,0.2),stroke:#60a5fa,stroke-width:1.5px,color:#f8fafc
-    style L2 fill:rgba(6,78,59,0.2),stroke:#34d399,stroke-width:1.5px,color:#f8fafc
-    style L3 fill:rgba(59,7,100,0.2),stroke:#a78bfa,stroke-width:1.5px,color:#f8fafc
-    style L4 fill:rgba(69,26,3,0.2),stroke:#fbbf24,stroke-width:1.5px,color:#f8fafc
+    style L1 fill:#0f172a,stroke:#60a5fa,stroke-width:1.5px,color:#f8fafc
+    style L2 fill:#0f172a,stroke:#34d399,stroke-width:1.5px,color:#f8fafc
+    style L3 fill:#0f172a,stroke:#a78bfa,stroke-width:1.5px,color:#f8fafc
+    style L4 fill:#0f172a,stroke:#fbbf24,stroke-width:1.5px,color:#f8fafc
 ```
 
 ---
