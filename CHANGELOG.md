@@ -4,6 +4,16 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-11-14
+
+### Added
+- Added `ProductConstraint` support to `px.ruiz_equilibrate` (equilibrating each constituent constraint block) and `precondition=True` support to `px.batch_solve`.
+- Added `scs>=3.2` and `cvxpy>=1.6` to `[project.optional-dependencies].benchmarks` in `pyproject.toml`.
+- Added external benchmark suites, Mocha-themed SVG plots, and `docs-experiments/` reports comparing Proxax against `Clarabel`, `SCS` (direct/indirect), `CVXPY`, and `Optax` across conic programs, convex-concave & nonconvex-concave min-max, `SpectralProblem`, `BlockProblem`, batched conic/min-max (`px.batch_solve`), and large-scale Maros–Mészáros sparse QPs (`maros_meszaros_large`).
+
+### Fixed
+- Relaxed `test_ruiz_equilibrate_sparse_bcoo_matches_dense` float32 comparison tolerance in `tests/test_precondition.py` for Python 3.11 / CI compatibility.
+
 ## [0.3.7] - 2026-11-14
 
 ### Added
