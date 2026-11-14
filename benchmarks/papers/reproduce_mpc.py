@@ -5,13 +5,13 @@ Runs the core CPU and GPU external benchmark suites, writes JSON artifacts to
 
 Examples:
   # Preview all commands without executing
-  python -m benchmarks.reproduce_paper --dry-run
+  python -m benchmarks.papers.reproduce_mpc --dry-run
 
   # Reproduce CPU suites and plots
-  python -m benchmarks.reproduce_paper --suite cpu
+  python -m benchmarks.papers.reproduce_mpc --suite cpu
 
   # Reproduce GPU suites and plots (requires CUDA-enabled jaxlib)
-  python -m benchmarks.reproduce_paper --suite gpu
+  python -m benchmarks.papers.reproduce_mpc --suite gpu
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import pathlib
 import subprocess
 import sys
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 DEFAULT_JSON_DIR = pathlib.Path("/tmp/proxax_paper_results")
 
