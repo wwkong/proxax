@@ -23,7 +23,9 @@ Comparisons against external optimization and differentiable-layer libraries
 
 | Benchmark | Baseline | Problem Regime | Headline Result (`proxax` vs. Baseline) | Notes / Limits |
 | :--- | :--- | :--- | :--- | :--- |
-| [Large-Scale Matrix-Free Operators](large_matrix_free.md) | `Clarabel` | 1D Circulant LASSO & 2D FFT Deblur ($n \le 65{,}536$) | **20.9×–2,388× faster** (`352 ms` at $n=65{,}536$) | `Clarabel` hits KKT fill-in wall ($>225\text{ s}$) at $n \ge 16{,}384$ on 2D deblur |
+| [Large-Scale Matrix-Free Operators](large_matrix_free
+sparse_bcoo_vs_clarabel.md) | `Clarabel` | 1D Circulant LASSO & 2D FFT Deblur ($n \le 65{,}536$) | **20.9×–2,388× faster** (`352 ms` at $n=65{,}536$) | `Clarabel` hits KKT fill-in wall ($>225\text{ s}$) at $n \ge 16{,}384$ on 2D deblur |
+| [Large-Scale Sparse `BCOO` Benchmarks](sparse_bcoo_vs_clarabel.md) | `Clarabel` | Sparse QP & Sparse Logistic Regression ($n \le 4{,}000$, $1\%$ nnz) | **6.3×–8.7×** (`sparse_logreg`), **1.52×** (`sparse_qp_n4000`) | `BCOO` is **5.2×–21.7× faster** than dense `jax.Array` in `proxax` |
 | [Matrix-Free CPU Benchmarks](matrix_free_vs_clarabel.md) | `Clarabel` | Factor QPs ($n \le 3{,}000$), LogReg-Simplex, Dense QP | **75.9×–326.7×** (`FactorQP`), **1.2×–4.0×** (`LogReg`), **4.1×** (`DenseQP-1000`) | `DenseQP-1500` (`18 MB`) spills CPU L3 cache ($>10\text{ s}$ vs. `Clarabel` `1.10 s`) |
 | [Batched Differentiable Layers](vmap_implicit_vs_cvxpylayers.md) | `cvxpylayers` | Forward + implicit VJP ($B \in \{1, 16, 64, 256\}$) | **5.16×–79.03× faster** (wins **12/12**) | Rel. $\ell_2$ grad diff `1.08e-6`–`1.07e-5` |
 | [End-to-End Differentiable Training Loop](diff_training_loop.md) | `cvxpylayers` | 50-step Adam loop ($B \in \{16, 64\}$) | **15.19×–22.46× faster** with `threads` (`168–691 ms`) | `0.57–1.14 s` compile; `jit-scan` **1.8×–15.1× faster** |
@@ -36,7 +38,9 @@ Comparisons against external optimization and differentiable-layer libraries
 
 ### Reports
 
-* [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free.md)
+* [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free
+sparse_bcoo_vs_clarabel.md)
+* [Large-Scale Sparse `BCOO` Benchmarks (`proxax` vs. `Clarabel`)](sparse_bcoo_vs_clarabel.md)
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
 * [Batched Differentiable Layers (`proxax` vs. `cvxpylayers`)](vmap_implicit_vs_cvxpylayers.md)
 * [End-to-End Differentiable Training Loop (`proxax` vs. `cvxpylayers`)](diff_training_loop.md)
@@ -111,6 +115,7 @@ Reproductions of published benchmark tables using `proxax`:
 :caption: External Benchmarks
 
 large_matrix_free
+sparse_bcoo_vs_clarabel
 matrix_free_vs_clarabel
 vmap_implicit_vs_cvxpylayers
 diff_training_loop

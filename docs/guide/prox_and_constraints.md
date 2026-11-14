@@ -99,8 +99,8 @@ Indicator operators enforce $x \in K$ strictly at every step:
 ### Convenience Constraint Builders
 
 Every builder in `px.constraints` takes a **linear operator** (a 2D `jax.Array`
-matrix `A`, `px.constraints.identity`, or any linear Python function `lin_fn`)
-and target bounds:
+matrix `A`, a `jax.experimental.sparse.BCOO` sparse matrix, `px.constraints.identity`,
+or any linear Python function `lin_fn`) and target bounds:
 
 ```python
 import jax.numpy as jnp
@@ -125,6 +125,11 @@ c_box = px.constraints.box(a_mat, lower=-1.0, upper=1.0)
 c_soc = px.constraints.in_set(
     px.constraints.identity, px.constraints.SecondOrderCone()
 )
+
+# 6. Sparse BCOO matrix constraint: A_sparse @ x <= b
+from jax.experimental import sparse
+a_bcoo = sparse.BCOO.fromdense(a_mat)
+c_sparse = px.constraints.less_equal(a_bcoo, rhs=b_vec)
 ```
 
 ### Matrix-Free PyTree Linear Operators
