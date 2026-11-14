@@ -65,16 +65,16 @@ class PreconditionedProblem:
   problem: problem_mod.CompositeProblem
   x0: jax.Array
   d_x: jax.Array
-  d_y: jax.Array | None
-  cost_scale: float
-  opt_tol_factor: float
-  feas_tol_factor: float
+  d_y: _typing.PyTree | None
+  cost_scale: _typing.Scalar
+  opt_tol_factor: _typing.Scalar
+  feas_tol_factor: _typing.Scalar
 
-  def scale_opt_tol(self, opt_tol: float) -> float:
+  def scale_opt_tol(self, opt_tol: _typing.Scalar) -> _typing.Scalar:
     """Scales `opt_tol` so scaled convergence certifies original `opt_tol`."""
     return opt_tol * self.opt_tol_factor
 
-  def scale_feas_tol(self, feas_tol: float) -> float:
+  def scale_feas_tol(self, feas_tol: _typing.Scalar) -> _typing.Scalar:
     """Scales `feas_tol` so scaled convergence certifies original `feas_tol`."""
     return feas_tol * self.feas_tol_factor
 
@@ -85,7 +85,16 @@ class PreconditionedProblem:
     dual_orig: _typing.PyTree | None = sol.dual
     if sol.dual is not None:
       if self.d_y is not None:
-        dual_orig = (self.d_y * jnp.asarray(sol.dual)) / self.cost_scale
+        dual_orig = jax.tree.map(
+            lambda p, dy: (
+                (dy * jnp.asarray(p)) / self.cost_scale
+                if dy is not None
+                else jnp.asarray(p) / self.cost_scale
+            ),
+            sol.dual,
+            self.d_y,
+            is_leaf=lambda node: node is None,
+        )
       else:
         dual_orig = jax.tree.map(lambda p: p / self.cost_scale, sol.dual)
     obj_orig = sol.stats.obj_val / self.cost_scale
@@ -145,7 +154,7 @@ def _can_scale_prox_diagonally(prox_op: typing.Any) -> bool:
 def _scale_prox(
     prox_op: typing.Any,
     d_x: jax.Array,
-    cost_scale: float,
+    cost_scale: _typing.Scalar,
 ) -> typing.Any:
   if isinstance(prox_op, prox_base.Zero | indicators.NonNegative):
     return prox_op
@@ -183,6 +192,18 @@ def _scale_target_set(
   return None
 
 
+def _is_scalable_set_constraint(
+    node: typing.Any,
+    dtype: typing.Any,
+) -> bool:
+  return (
+      isinstance(node, linear_op.SetConstraint)
+      and isinstance(node.operator, linear_op.MatrixLinearOperator)
+      and _scale_target_set(node.target_set, jnp.ones((1,), dtype=dtype))
+      is not None
+  )
+
+
 def ruiz_equilibrate(
     problem: problem_mod.CompositeProblem,
     x0: jax.Array,
@@ -195,7 +216,9 @@ def ruiz_equilibrate(
   """Applies Modified Ruiz Equilibration to a 1D `CompositeProblem`.
 
   Supports both dense `jax.Array` and sparse `jax.experimental.sparse.BCOO`
-  constraint and Hessian matrices without densification.
+  constraint and Hessian matrices without densification, as well as single
+  `SetConstraint`s and `ProductConstraint` (`dict` / `tuple` / `list`)
+  combinations.
 
   Args:
     problem: Composite problem `min f(x) + h(x) s.t. A x in C`.
@@ -216,64 +239,76 @@ def ruiz_equilibrate(
   n = x0_arr.shape[0]
   dtype = x0_arr.dtype
 
-  a_mat: jax.Array | jsparse.BCOO | None = None
-  set_c: linear_op.SetConstraint | None = None
-  if isinstance(problem.constraints, linear_op.SetConstraint) and isinstance(
-      problem.constraints.operator, linear_op.MatrixLinearOperator
-  ):
-    cand_set = problem.constraints.target_set
-    if _scale_target_set(cand_set, jnp.ones((1,), dtype=dtype)) is not None:
-      set_c = problem.constraints
-      a_mat = problem.constraints.operator.matrix
+  is_product = isinstance(problem.constraints, linear_op.ProductConstraint)
+  if is_product:
+    assert isinstance(problem.constraints, linear_op.ProductConstraint)
+    c_leaves, c_treedef = jax.tree.flatten(
+        problem.constraints.constraints,
+        is_leaf=linear_op._is_constraint,
+    )
+  elif problem.constraints is not None:
+    c_leaves, c_treedef = [problem.constraints], None
+  else:
+    c_leaves, c_treedef = [], None
+
+  scalable_indices = [
+      i for i, c in enumerate(c_leaves) if _is_scalable_set_constraint(c, dtype)
+  ]
+  a_curs: list[jax.Array | jsparse.BCOO] = [
+      c_leaves[i].operator.matrix for i in scalable_indices
+  ]
+  dy_curs: list[jax.Array] = [
+      jnp.ones((a.shape[0],), dtype=dtype) for a in a_curs
+  ]
 
   allow_dx = _can_scale_prox_diagonally(problem.proximal)
   p_cur = hessian
-  a_cur = a_mat
-  m = a_cur.shape[0] if a_cur is not None else 0
-
   d_x = jnp.ones((n,), dtype=dtype)
-  d_y = jnp.ones((m,), dtype=dtype) if a_cur is not None else None
   _, grad_x0 = problem.oracle.smooth_value_and_grad(x0_arr)
   grad_cur = jnp.asarray(grad_x0, dtype=dtype)
-  cost_scale = 1.0
+  cost_scale: jax.Array = jnp.asarray(1.0, dtype=dtype)
+  ones_n = jnp.ones((n,), dtype=dtype)
 
   for _ in range(num_iters):
     if allow_dx:
-      norm_p = (
+      rx = (
           _row_max_abs(p_cur, axis=1, length=n)
           if p_cur is not None
           else jnp.zeros((n,), dtype=dtype)
       )
-      norm_at = (
-          _row_max_abs(a_cur, axis=0, length=n)
-          if a_cur is not None and m > 0
-          else jnp.zeros((n,), dtype=dtype)
-      )
-      rx = jnp.maximum(norm_p, norm_at)
+      for a_mat in a_curs:
+        if a_mat.shape[0] > 0:
+          rx = jnp.maximum(rx, _row_max_abs(a_mat, axis=0, length=n))
       sx = jnp.where(rx > 1e-12, 1.0 / jnp.sqrt(rx), 1.0)
       sx = jnp.clip(sx, min_scale, max_scale)
       d_x = d_x * sx
       grad_cur = sx * grad_cur
       if p_cur is not None:
         p_cur = _scale_matrix(p_cur, sx, sx)
-      if a_cur is not None:
-        a_cur = _scale_matrix(a_cur, jnp.ones((m,), dtype=dtype), sx)
+      a_curs = [
+          _scale_matrix(a_mat, jnp.ones((a_mat.shape[0],), dtype=dtype), sx)
+          for a_mat in a_curs
+      ]
 
-    if a_cur is not None and m > 0 and d_y is not None:
-      ry = _row_max_abs(a_cur, axis=1, length=m)
-      sy = jnp.where(ry > 1e-12, 1.0 / jnp.sqrt(ry), 1.0)
-      sy = jnp.clip(sy, min_scale, max_scale)
-      d_y = d_y * sy
-      a_cur = _scale_matrix(a_cur, sy, jnp.ones((n,), dtype=dtype))
+    for k, a_mat in enumerate(a_curs):
+      m_k = a_mat.shape[0]
+      if m_k > 0:
+        ry = _row_max_abs(a_mat, axis=1, length=m_k)
+        sy = jnp.where(ry > 1e-12, 1.0 / jnp.sqrt(ry), 1.0)
+        sy = jnp.clip(sy, min_scale, max_scale)
+        dy_curs[k] = dy_curs[k] * sy
+        a_curs[k] = _scale_matrix(a_mat, sy, ones_n)
 
     mean_p = (
-        float(jnp.mean(_row_max_abs(p_cur, axis=1, length=n)))
+        jnp.mean(_row_max_abs(p_cur, axis=1, length=n))
         if p_cur is not None
-        else 0.0
+        else jnp.asarray(0.0, dtype=dtype)
     )
-    norm_g = float(jnp.max(jnp.abs(grad_cur))) if n > 0 else 0.0
-    denom = max(mean_p, norm_g, 1e-12)
-    gamma = float(jnp.clip(1.0 / denom, min_scale, max_scale))
+    norm_g = (
+        jnp.max(jnp.abs(grad_cur)) if n > 0 else jnp.asarray(0.0, dtype=dtype)
+    )
+    denom = jnp.maximum(jnp.maximum(mean_p, norm_g), 1e-12)
+    gamma = jnp.clip(1.0 / denom, min_scale, max_scale)
     if p_cur is not None:
       p_cur = (
           jsparse.BCOO((gamma * p_cur.data, p_cur.indices), shape=p_cur.shape)
@@ -281,7 +316,7 @@ def ruiz_equilibrate(
           else gamma * p_cur
       )
     grad_cur = gamma * grad_cur
-    cost_scale *= gamma
+    cost_scale = cost_scale * gamma
 
   base_smooth = typing.cast(terms.SmoothObjective, problem.smooth)
 
@@ -295,29 +330,52 @@ def ruiz_equilibrate(
       else problem.proximal
   )
 
-  scaled_constraints = problem.constraints
-  if set_c is not None and a_cur is not None and d_y is not None:
-    scaled_set = _scale_target_set(set_c.target_set, d_y)
+  scaled_leaves = list(c_leaves)
+  dy_leaves: list[jax.Array | None] = [None] * len(c_leaves)
+  for pos, leaf_idx in enumerate(scalable_indices):
+    orig_c = c_leaves[leaf_idx]
+    scaled_set = _scale_target_set(orig_c.target_set, dy_curs[pos])
     assert scaled_set is not None
-    scaled_constraints = linear_op.SetConstraint(
-        operator=linear_op.MatrixLinearOperator(matrix=a_cur),
+    scaled_leaves[leaf_idx] = linear_op.SetConstraint(
+        operator=linear_op.MatrixLinearOperator(matrix=a_curs[pos]),
         target_set=scaled_set,
     )
+    dy_leaves[leaf_idx] = dy_curs[pos]
+
+  if is_product:
+    assert c_treedef is not None
+    scaled_constraints: typing.Any = linear_op.ProductConstraint(
+        constraints=jax.tree.unflatten(c_treedef, scaled_leaves)
+    )
+    d_y_tree: _typing.PyTree | None = (
+        jax.tree.unflatten(c_treedef, dy_leaves) if scalable_indices else None
+    )
+  elif scalable_indices:
+    scaled_constraints = scaled_leaves[0]
+    d_y_tree = dy_leaves[0]
+  else:
+    scaled_constraints = problem.constraints
+    d_y_tree = None
 
   scaled_problem = problem_mod.CompositeProblem(
       smooth=terms.as_smooth_term(_scaled_smooth),
       proximal=scaled_prox,
       constraints=scaled_constraints,
   )
-  opt_factor = min(1.0, cost_scale * float(jnp.min(d_x))) if n > 0 else 1.0
-  feas_factor = (
-      min(1.0, float(jnp.min(d_y))) if d_y is not None and m > 0 else 1.0
+  opt_factor = (
+      jnp.minimum(1.0, cost_scale * jnp.min(d_x))
+      if n > 0
+      else jnp.asarray(1.0, dtype=dtype)
   )
+  feas_factor = jnp.asarray(1.0, dtype=dtype)
+  for dy in dy_curs:
+    if dy.shape[0] > 0:
+      feas_factor = jnp.minimum(feas_factor, jnp.min(dy))
   return PreconditionedProblem(
       problem=scaled_problem,
       x0=x0_arr / d_x,
       d_x=d_x,
-      d_y=d_y,
+      d_y=d_y_tree,
       cost_scale=cost_scale,
       opt_tol_factor=opt_factor,
       feas_tol_factor=feas_factor,
@@ -339,8 +397,18 @@ def solve_preconditioned(
 ) -> base.Solution:
   """Equilibrates `problem` with Ruiz scaling, solves, and unscales."""
   pre = ruiz_equilibrate(problem, x0, hessian=hessian, num_iters=num_iters)
-  eff_opt_tol = pre.scale_opt_tol(opt_tol)
-  eff_feas_tol = pre.scale_feas_tol(feas_tol)
+  eff_opt_raw = pre.scale_opt_tol(opt_tol)
+  eff_feas_raw = pre.scale_feas_tol(feas_tol)
+  eff_opt_tol = (
+      opt_tol
+      if isinstance(eff_opt_raw, jax.core.Tracer)
+      else float(eff_opt_raw)
+  )
+  eff_feas_tol = (
+      feas_tol
+      if isinstance(eff_feas_raw, jax.core.Tracer)
+      else float(eff_feas_raw)
+  )
   if solver is not None:
     sol = solve_mod.solve(
         pre.problem,

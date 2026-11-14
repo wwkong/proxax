@@ -19,6 +19,7 @@ import proxax.solve as solve_mod
 from proxax import _typing
 from proxax import implicit as implicit_mod
 from proxax import oracle
+from proxax import precondition as precondition_mod
 from proxax import problem as problem_mod
 from proxax.solvers import base
 
@@ -126,6 +127,7 @@ def _get_compiled_batch_runner(
     feas_tol: float,
     time_limit: float | None,
     mode: str,
+    precondition: bool = False,
 ) -> typing.Any:
   """Returns a cached JIT-compiled single or vmap runner for `problem_fn`."""
   key = (
@@ -135,6 +137,7 @@ def _get_compiled_batch_runner(
       feas_tol,
       time_limit,
       mode,
+      precondition,
   )
   try:
     per_fn = _BATCH_SOLVE_CACHE.setdefault(problem_fn, {})
@@ -146,8 +149,20 @@ def _get_compiled_batch_runner(
   def _solve_one(
       x_init: _typing.PyTree, theta: _typing.PyTree
   ) -> base.Solution:
+    prob = problem_fn(theta)
+    if precondition:
+      return precondition_mod.solve_preconditioned(
+          typing.cast(problem_mod.CompositeProblem, prob),
+          typing.cast(jax.Array, x_init),
+          solver=solver,
+          method=method,
+          opt_tol=opt_tol,
+          feas_tol=feas_tol,
+          jit=True,
+          time_limit=time_limit,
+      )
     return solve_mod.solve(
-        problem_fn(theta),
+        prob,
         x_init,
         solver=solver,
         method=method,
@@ -180,6 +195,7 @@ def batch_solve(
     backend: str = "auto",
     max_workers: int | None = None,
     chunk_size: int = 1,
+    precondition: bool = False,
 ) -> base.Solution:
   """Solves a batch of parameterized problems via `vmap` or CPU threads.
 
@@ -200,6 +216,8 @@ def batch_solve(
     chunk_size: Number of batch items per worker task for `'threads'`. Values
       `> 1` run a `vmap` of size `chunk_size` on each thread, reducing host
       dispatch overhead on uniform problems at the cost of intra-chunk lockstep.
+    precondition: If `True`, applies Modified Ruiz Equilibration
+      (`px.solve_preconditioned`) to each `CompositeProblem` in the batch.
 
   Returns:
     A batched `Solution` PyTree with leading axis `B`.
@@ -217,6 +235,7 @@ def batch_solve(
       feas_tol=feas_tol,
       time_limit=time_limit,
       mode=runner_mode,
+      precondition=precondition,
   )
 
   if resolved == "vmap":
