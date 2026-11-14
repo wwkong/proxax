@@ -371,3 +371,47 @@ print("Grad / prox evals:    ", int(sol.stats.grad_evals), int(sol.stats.prox_ev
 kkt = problem.evaluate_residuals(sol.x, sol.subgrad, norm_kind="l2")
 print("Verified stationarity:", float(kkt.stationarity_norm))
 ```
+
+---
+
+## 4. Preconditioning (Modified Ruiz Equilibration)
+
+When variable scales or constraint rows span several orders of magnitude,
+`px.solve_preconditioned` applies **Modified Ruiz Equilibration** ($x = D_x
+\tilde{x}$, dual $p = \frac{1}{c} D_y \tilde{p}$), rescales `opt_tol` and
+`feas_tol` so convergence in scaled space certifies your original tolerances,
+and unscales the returned `Solution`:
+
+```python
+import jax.numpy as jnp
+from proxax import px
+
+p_mat = jnp.diag(jnp.array([2.0, 2e6, 2e-4, 5000.0]))
+q_vec = jnp.array([-2.0, -2e3, 1e-2, -100.0])
+a_mat = jnp.array([[1.0, 1e3, 0.0, 10.0], [0.0, 100.0, 1e-2, 5.0]])
+b_vec = jnp.array([2.0, 1.0])
+
+problem = px.CompositeProblem(
+    smooth=lambda x: 0.5 * jnp.dot(x, p_mat @ x) + jnp.dot(q_vec, x),
+    proximal=px.prox.NonNegative(),
+    constraints=px.constraints.less_equal(a_mat, rhs=b_vec),
+)
+
+sol = px.solve_preconditioned(
+    problem,
+    jnp.zeros(4),
+    method="ialm",
+    opt_tol=1e-5,
+    feas_tol=1e-5,
+    hessian=p_mat,  # optional dense or BCOO matrix
+)
+```
+
+- **Sparse `BCOO` support:** If `problem.constraints` and `hessian` use
+  `jax.experimental.sparse.BCOO`, `px.ruiz_equilibrate` and
+  `px.solve_preconditioned` rescale the nonzero entries directly without
+  densifying.
+- **Manual workflow:** Call `pre = px.ruiz_equilibrate(problem, x0, ...)` to
+  inspect `pre.d_x`, `pre.d_y`, and `pre.cost_scale`, pass
+  `opt_tol=pre.scale_opt_tol(tol)` and `feas_tol=pre.scale_feas_tol(tol)` to
+  `px.solve(...)`, and map back via `pre.unscale(sol)`.
