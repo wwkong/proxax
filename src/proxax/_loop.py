@@ -118,32 +118,42 @@ def while_loop(
       start_time = read_clock()
       limit_arr = jnp.asarray(time_limit, dtype=jnp.float32)
 
-      def _timed_cond(carry: tuple[StateT, jax.Array]) -> jax.Array:
-        st, timed_out = carry
+      def _timed_cond(
+          carry: tuple[StateT, jax.Array, jax.Array],
+      ) -> jax.Array:
+        st, timed_out, _ = carry
         return (~timed_out) & cond_fun(st)
 
       def _timed_body(
-          carry: tuple[StateT, jax.Array],
-      ) -> tuple[StateT, jax.Array]:
-        st, _ = carry
-        now_out = (read_clock() - start_time) >= limit_arr
+          carry: tuple[StateT, jax.Array, jax.Array],
+      ) -> tuple[StateT, jax.Array, jax.Array]:
+        st, _, step_idx = carry
+        # For budgets > 0.1s, amortize host io_callback overhead every 16 steps.
+        should_check = (limit_arr <= 0.1) | ((step_idx & 15) == 0)
+        now_out = jax.lax.cond(
+            should_check,
+            lambda _: (read_clock() - start_time) >= limit_arr,
+            lambda _: jnp.asarray(False),
+            operand=None,
+        )
         return typing.cast(
-            tuple[StateT, jax.Array],
+            tuple[StateT, jax.Array, jax.Array],
             jax.lax.cond(
                 now_out,
                 lambda s: (
                     on_time_limit(s) if on_time_limit is not None else s,
                     jnp.asarray(True),
+                    step_idx + 1,
                 ),
-                lambda s: (step_fn(s), jnp.asarray(False)),
+                lambda s: (step_fn(s), jnp.asarray(False), step_idx + 1),
                 st,
             ),
         )
 
-      final_state, _ = jax.lax.while_loop(
+      final_state, _, _ = jax.lax.while_loop(
           _timed_cond,
           _timed_body,
-          (init_val, jnp.asarray(False)),
+          (init_val, jnp.asarray(False), jnp.asarray(0, dtype=jnp.int32)),
       )
       return final_state
 

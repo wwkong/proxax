@@ -300,13 +300,6 @@ class IALM:
         max_outer_iters=self.max_subproblem_iters,
         max_inner_iters=self.max_inner_iters,
     )
-    panoc_solver = panoc_mod.PANOC(
-        opt_tol=self.opt_tol,
-        rel_opt_tol=0.0,
-        norm_kind=self.norm_kind,
-        lipschitz_init=self.lipschitz_init,
-        max_iters=self.max_subproblem_iters,
-    )
     aipp_solver = aipp_mod.AIPP(
         opt_tol=self.opt_tol,
         rel_opt_tol=0.0,

@@ -24,6 +24,7 @@ and constrained composite suites:
 * [Maros–Meszaros QP Benchmarks](maros_meszaros.md)
 * [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md)
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
+* [Nonconvex CPU Benchmarks (`proxax` vs. `alpaqa`)](panoc_vs_alpaqa.md)
 
 ## Scaling Studies
 
@@ -54,6 +55,7 @@ conic_benchmarks
 maros_meszaros
 maros_meszaros_medium
 matrix_free_vs_clarabel
+panoc_vs_alpaqa
 ```
 
 ```{toctree}
