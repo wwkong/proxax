@@ -107,10 +107,17 @@ th.px-sortable-th:hover {
   background-color: var(--pst-color-surface);
 }
 
+th.px-sortable-th > p {
+  display: inline;
+  margin: 0;
+}
+
 .px-sort-indicator {
   font-size: 0.78em;
   opacity: 0.55;
-  margin-left: 0.2rem;
+  margin-left: 0.4rem;
+  float: right;
+  line-height: inherit;
 }
 
 th.px-sortable-th[data-sort-dir] .px-sort-indicator {
