@@ -381,11 +381,53 @@ def batch_implicit_solve(
         ),
     )
 
+  def _run_fwd_dispatch(
+      x_init: _typing.PyTree, pb: _typing.PyTree
+  ) -> tuple[_typing.PyTree, _typing.PyTree]:
+    if any(
+        isinstance(leaf, jax.core.Tracer)
+        for leaf in jax.tree.leaves((x_init, pb))
+    ):
+      return typing.cast(
+          tuple[_typing.PyTree, _typing.PyTree],
+          jax.pure_callback(_host_batch_fwd, batch_struct, x_init, pb),
+      )
+    x_np, p_np = _host_batch_fwd(x_init, pb)
+    return jax.tree.map(jnp.asarray, x_np), jax.tree.map(jnp.asarray, p_np)
+
+  def _adj_one(
+      x_init: _typing.PyTree,
+      xh: _typing.PyTree,
+      ph: _typing.PyTree,
+      th: _typing.PyTree,
+      go: _typing.PyTree,
+  ) -> _typing.PyTree:
+    return implicit_mod.implicit_vjp_from_solution(
+        problem_fn,
+        x_init,
+        xh,
+        ph,
+        th,
+        go,
+        is_minmax=is_minmax,
+        is_block=is_block,
+        has_dual=has_dual,
+        step_size=step_size,
+        linear_solver=linear_solver,
+        linear_tol=linear_tol,
+        linear_maxiter=linear_maxiter,
+        damping=damping,
+        return_dual=return_dual,
+    )
+
+  p_axis = 0 if has_dual else None
+  _vmap_bwd = jax.jit(jax.vmap(_adj_one, in_axes=(None, 0, p_axis, 0, 0)))
+
   @jax.custom_vjp
   def _batched_fn(
       x_init: _typing.PyTree, pb: _typing.PyTree
   ) -> _typing.PyTree:
-    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, x_init, pb)
+    x_b, p_b = _run_fwd_dispatch(x_init, pb)
     return (x_b, p_b) if (return_dual and has_dual) else x_b
 
   def _fwd(
@@ -394,7 +436,7 @@ def batch_implicit_solve(
       _typing.PyTree,
       tuple[_typing.PyTree, _typing.PyTree, _typing.PyTree, _typing.PyTree],
   ]:
-    x_b, p_b = jax.pure_callback(_host_batch_fwd, batch_struct, x_init, pb)
+    x_b, p_b = _run_fwd_dispatch(x_init, pb)
     out = (x_b, p_b) if (return_dual and has_dual) else x_b
     return out, (x_init, x_b, p_b, pb)
 
@@ -405,33 +447,7 @@ def batch_implicit_solve(
       g_out: _typing.PyTree,
   ) -> tuple[None, _typing.PyTree]:
     x_init, x_b, p_b, pb = res
-    p_axis = None if p_b is None else 0
-
-    def _adj_one(
-        xh: _typing.PyTree,
-        ph: _typing.PyTree,
-        th: _typing.PyTree,
-        go: _typing.PyTree,
-    ) -> _typing.PyTree:
-      return implicit_mod.implicit_vjp_from_solution(
-          problem_fn,
-          x_init,
-          xh,
-          ph,
-          th,
-          go,
-          is_minmax=is_minmax,
-          is_block=is_block,
-          has_dual=has_dual,
-          step_size=step_size,
-          linear_solver=linear_solver,
-          linear_tol=linear_tol,
-          linear_maxiter=linear_maxiter,
-          damping=damping,
-          return_dual=return_dual,
-      )
-
-    d_pb = jax.vmap(_adj_one, in_axes=(0, p_axis, 0, 0))(x_b, p_b, pb, g_out)
+    d_pb = _vmap_bwd(x_init, x_b, p_b, pb, g_out)
     return (None, d_pb)
 
   _batched_fn.defvjp(_fwd, _bwd)

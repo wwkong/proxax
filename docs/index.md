@@ -160,4 +160,5 @@ Experiments <https://proxax.readthedocs.io/projects/experiments/en/latest/>
 Appendix A: Literature & Theory <appendices/literature_and_theory>
 appendices/nc_opt_comparison
 appendices/oracles_and_certificates
+appendices/implementation_optimizations
 ```
