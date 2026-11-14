@@ -28,6 +28,61 @@ class QPSIFProblem:
   ub: np.ndarray
 
 
+def ruiz_equilibrate(
+    qp: QPSIFProblem,
+    num_iters: int = 10,
+) -> tuple[QPSIFProblem, np.ndarray, np.ndarray, float]:
+  """Applies Modified Ruiz Equilibration to a ``QPSIFProblem``.
+
+  Returns ``(scaled_qp, d_x, d_y, cost_scale)`` where ``x = d_x * x_scaled``
+  and dual ``y = y_scaled / (cost_scale * d_y)``.
+  """
+  p_mat = qp.P.copy()
+  q_vec = qp.q.copy()
+  a_mat = qp.A.copy()
+  n = p_mat.shape[0]
+  m = a_mat.shape[0]
+  d_x = np.ones(n, dtype=np.float64)
+  d_y = np.ones(m, dtype=np.float64)
+  c = 1.0
+  for _ in range(num_iters):
+    norm_p = np.max(np.abs(p_mat), axis=1) if n > 0 else np.zeros(0)
+    norm_at = np.max(np.abs(a_mat), axis=0) if m > 0 else np.zeros(n)
+    rx = np.maximum(norm_p, norm_at)
+    sx = np.where(rx > 1e-12, 1.0 / np.sqrt(rx), 1.0)
+    sx = np.clip(sx, 1e-4, 1e4)
+    p_mat = (sx[:, None] * p_mat) * sx[None, :]
+    q_vec = sx * q_vec
+    d_x = d_x * sx
+    if m > 0:
+      a_mat = a_mat * sx[None, :]
+      ry = np.max(np.abs(a_mat), axis=1)
+      sy = np.where(ry > 1e-12, 1.0 / np.sqrt(ry), 1.0)
+      sy = np.clip(sy, 1e-4, 1e4)
+      a_mat = sy[:, None] * a_mat
+      d_y = d_y * sy
+    mean_p = float(np.mean(np.max(np.abs(p_mat), axis=1))) if n > 0 else 0.0
+    norm_q = float(np.max(np.abs(q_vec))) if n > 0 else 0.0
+    cost_scale = max(mean_p, norm_q, 1e-12)
+    gamma = float(np.clip(1.0 / cost_scale, 1e-4, 1e4))
+    p_mat = gamma * p_mat
+    q_vec = gamma * q_vec
+    c *= gamma
+
+  scaled_qp = QPSIFProblem(
+      name=qp.name,
+      P=p_mat,
+      q=q_vec,
+      r=qp.r * c,
+      A=a_mat,
+      l_con=qp.l_con * d_y,
+      u_con=qp.u_con * d_y,
+      lb=qp.lb / d_x,
+      ub=qp.ub / d_x,
+  )
+  return scaled_qp, d_x, d_y, c
+
+
 def load_qpsif(path: pathlib.Path) -> QPSIFProblem:
   """Parses a ``.SIF`` file in QPSIF format into dense float64 arrays."""
   name = path.stem

@@ -28,6 +28,18 @@ JAX_ENABLE_X64=1 uv run python -m benchmarks.external.maros_meszaros_medium --op
 | `IAIPAL` | 10 / 23 | 2782.37 | 10091.54 |
 | `SProxALM` | 4 / 23 | 506.09 | 2655.18 |
 
+### Modified Ruiz Preconditioning (`IALM` + `IAIPAL`, Original-Space Tolerances)
+
+Running with `--precondition` (Modified Ruiz Equilibration, scaling tolerances by `min(1, c * min(d_x))` and `min(1, min(d_y))` to certify `1e-6` in original coordinates):
+
+| Solver | Converged | Avg Runtime (ms) | Max Runtime (ms) |
+| :--- | ---: | ---: | ---: |
+| `IALM` (Ruiz + orig-tol) | 18 / 23 | 2562.24 | 10036.62 |
+| `IAIPAL` (Ruiz + orig-tol) | 5 / 23 | 2323.04 | 10044.88 |
+
+* **`IALM` highlights:** Solves `PRIMALC1` (`1,594.60 ms` vs. `>10 s` timeout / `157 s` without limit), `PRIMALC2` (`328.33 ms` vs. `>10 s`), and `PRIMALC5` (`385.62 ms` vs. `>10 s`), and speeds up `DUALC2` (`14.69 ms` vs. `55.22 ms`), `DUALC8` (`7.31 ms` vs. `99.93 ms`), and `MOSARQP2` (`1,953.82 ms` vs. `3,058.77 ms`).
+* **`IAIPAL` note:** Solves `DPKLO1`, `GENHS28`, `GOULDQP3`, `HS35MOD`, `ZECEVIC2` with Ruiz scaling, whereas unpreconditioned `IAIPAL` solves more problems (`10 / 23`) overall.
+
 ## Plots
 
 ### Dolan–Moré Performance Profiles

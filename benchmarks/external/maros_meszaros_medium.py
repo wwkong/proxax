@@ -62,9 +62,14 @@ def main() -> int:
   parser.add_argument("--feas-tol", type=float, default=1e-6)
   parser.add_argument("--time-limit", type=float, default=10.0)
   parser.add_argument(
+      "--precondition",
+      action="store_true",
+      help="Apply Modified Ruiz Equilibration before solving.",
+  )
+  parser.add_argument(
       "--solvers",
       nargs="+",
-      default=["IALM", "IAIPAL", "SProxALM"],
+      default=["IALM", "IAIPAL"],
       help="Proxax solver names to run.",
   )
   parser.add_argument(
@@ -84,6 +89,7 @@ def main() -> int:
       feas_tol=args.feas_tol,
       solver_names=tuple(args.solvers),
       time_limit=args.time_limit,
+      precondition=args.precondition,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (

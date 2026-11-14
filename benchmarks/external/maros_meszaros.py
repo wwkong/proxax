@@ -124,6 +124,7 @@ def run_maros_meszaros(
     feas_tol: float = 1e-4,
     solver_names: tuple[str, ...] | None = None,
     time_limit: float | None = None,
+    precondition: bool = False,
 ) -> list[harness.BenchmarkResult]:
   """Runs Proxax constrained solvers on a curated Maros-Meszaros QP subset."""
   cache_dir = (
@@ -146,11 +147,19 @@ def run_maros_meszaros(
     if n > max_dim:
       continue
     ran += 1
+    eff_opt_tol = opt_tol
+    eff_feas_tol = feas_tol
+    if precondition:
+      qp, d_x, d_y, cost_scale = qpsif.ruiz_equilibrate(qp)
+      if d_x.size > 0:
+        eff_opt_tol = opt_tol * min(1.0, float(cost_scale * np.min(d_x)))
+      if d_y.size > 0:
+        eff_feas_tol = feas_tol * min(1.0, float(np.min(d_y)))
     prob, x0 = to_proxax_problem(qp)
     solvers_list = (
-        [("APD", solvers.APD(opt_tol=opt_tol))]
+        [("APD", solvers.APD(opt_tol=eff_opt_tol))]
         if prob.constraints is None
-        else _qp_solvers(opt_tol, feas_tol)
+        else _qp_solvers(eff_opt_tol, eff_feas_tol)
     )
     if solver_names is not None:
       allowed = set(solver_names)
@@ -163,8 +172,8 @@ def run_maros_meszaros(
           prob=prob,
           x0=x0,
           solver=solver,
-          opt_tol=opt_tol,
-          feas_tol=None if prob.constraints is None else feas_tol,
+          opt_tol=eff_opt_tol,
+          feas_tol=None if prob.constraints is None else eff_feas_tol,
           time_limit=time_limit,
       )
       results.append(res)
@@ -307,6 +316,17 @@ def main() -> int:
   parser.add_argument("--feas-tol", type=float, default=1e-4)
   parser.add_argument("--time-limit", type=float, default=None)
   parser.add_argument(
+      "--solvers",
+      nargs="+",
+      default=None,
+      help="Optional subset of Proxax solver names to run.",
+  )
+  parser.add_argument(
+      "--precondition",
+      action="store_true",
+      help="Apply Modified Ruiz Equilibration before solving.",
+  )
+  parser.add_argument(
       "--clarabel",
       action="store_true",
       help="Also run Clarabel as an IPM baseline reference.",
@@ -321,7 +341,9 @@ def main() -> int:
       limit=args.limit,
       opt_tol=args.opt_tol,
       feas_tol=args.feas_tol,
+      solver_names=None if args.solvers is None else tuple(args.solvers),
       time_limit=args.time_limit,
+      precondition=args.precondition,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (
