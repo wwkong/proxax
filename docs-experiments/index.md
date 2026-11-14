@@ -38,8 +38,7 @@ sparse_bcoo_vs_clarabel.md) | `Clarabel` | 1D Circulant LASSO & 2D FFT Deblur ($
 
 ### Reports
 
-* [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free
-sparse_bcoo_vs_clarabel.md)
+* [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free.md)
 * [Large-Scale Sparse `BCOO` Benchmarks (`proxax` vs. `Clarabel`)](sparse_bcoo_vs_clarabel.md)
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
 * [Batched Differentiable Layers (`proxax` vs. `cvxpylayers`)](vmap_implicit_vs_cvxpylayers.md)
