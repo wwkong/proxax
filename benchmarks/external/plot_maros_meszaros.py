@@ -19,8 +19,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MD = REPO_ROOT / "docs-experiments" / "maros_meszaros.md"
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
-SOLVER_ORDER = ["IALM", "IAIPAL", "QPAPD", "QPAIPP", "SProxALM"]
+SOLVER_ORDER = ["Clarabel", "IALM", "IAIPAL", "QPAPD", "QPAIPP", "SProxALM"]
 SOLVER_COLORS = {
+    "Clarabel": "#94e2d5",
     "IALM": "#89b4fa",
     "IAIPAL": "#a6e3a1",
     "QPAPD": "#fab387",
@@ -28,6 +29,7 @@ SOLVER_COLORS = {
     "SProxALM": "#f38ba8",
 }
 SOLVER_MARKERS = {
+    "Clarabel": "P",
     "IALM": "o",
     "IAIPAL": "s",
     "QPAPD": "^",
@@ -113,18 +115,31 @@ def load_json_results(json_path: Path) -> list[dict[str, Any]]:
     return data
 
 
+def _active_solvers(
+    rows: list[dict[str, Any]], include_clarabel: bool = True
+) -> list[str]:
+    present = {r["solver"] for r in rows}
+    return [
+        s
+        for s in SOLVER_ORDER
+        if s in present and (include_clarabel or s != "Clarabel")
+    ]
+
+
 def _dolan_more_curve(
     rows: list[dict[str, Any]],
     problems: list[str],
+    solvers: list[str],
     metric_key: str,
     tau_max: float,
 ) -> dict[str, tuple[list[float], list[float]]]:
     """Compute Dolan-More step curves (taus, solved_fractions) per solver."""
     by_prob: dict[str, dict[str, dict[str, Any]]] = {p: {} for p in problems}
     for r in rows:
-        by_prob[r["problem"]][r["solver"]] = r
+        if r["solver"] in solvers:
+            by_prob[r["problem"]][r["solver"]] = r
 
-    ratios: dict[str, list[float]] = {s: [] for s in SOLVER_ORDER}
+    ratios: dict[str, list[float]] = {s: [] for s in solvers}
     for p in problems:
         converged_vals = [
             float(r[metric_key])
@@ -132,7 +147,7 @@ def _dolan_more_curve(
             if r["status"] == "CONVERGED"
         ]
         best = max(min(converged_vals), 1e-12) if converged_vals else 1.0
-        for s in SOLVER_ORDER:
+        for s in solvers:
             r = by_prob[p].get(s)
             if r is not None and r["status"] == "CONVERGED":
                 ratios[s].append(max(float(r[metric_key]) / best, 1.0))
@@ -141,7 +156,7 @@ def _dolan_more_curve(
 
     n_probs = len(problems)
     curves: dict[str, tuple[list[float], list[float]]] = {}
-    for s in SOLVER_ORDER:
+    for s in solvers:
         finite = sorted(v for v in ratios[s] if math.isfinite(v))
         xs = [1.0]
         ys = [sum(1 for v in finite if v <= 1.0) / n_probs]
@@ -162,28 +177,36 @@ def plot_performance_profiles(
     """Plot runtime and gradient-eval Dolan-More performance profiles."""
     problems = list(dict.fromkeys(r["problem"] for r in rows))
     tau_max = 1e4
+    rt_solvers = _active_solvers(rows, include_clarabel=True)
+    fo_solvers = _active_solvers(rows, include_clarabel=False)
 
-    runtime_curves = _dolan_more_curve(rows, problems, "runtime_ms", tau_max)
-    grad_curves = _dolan_more_curve(rows, problems, "grad_evals", tau_max)
+    runtime_curves = _dolan_more_curve(
+        rows, problems, rt_solvers, "runtime_ms", tau_max
+    )
+    grad_curves = _dolan_more_curve(
+        rows, problems, fo_solvers, "grad_evals", tau_max
+    )
 
     fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.2), constrained_layout=True)
     panels = [
         (
             axes[0],
             runtime_curves,
+            rt_solvers,
             "Steady-State Runtime Profile",
             r"Runtime factor $\tau$",
         ),
         (
             axes[1],
             grad_curves,
-            "Gradient Evaluations Profile",
+            fo_solvers,
+            "Gradient Evaluations Profile (First-Order)",
             r"Oracle eval factor $\tau$",
         ),
     ]
 
-    for ax, curves, title, xlabel in panels:
-        for s in SOLVER_ORDER:
+    for ax, curves, solvers, title, xlabel in panels:
+        for s in solvers:
             xs, ys = curves[s]
             ax.step(
                 xs,
@@ -235,8 +258,10 @@ def plot_breakdown(rows: list[dict[str, Any]], out_path: Path) -> None:
     )
 
     ax_left = axes[0]
-    for idx, s in enumerate(SOLVER_ORDER):
-        offset = (idx - 2) * 0.11
+    rt_solvers = _active_solvers(rows, include_clarabel=True)
+    mid = (len(rt_solvers) - 1) / 2.0
+    for idx, s in enumerate(rt_solvers):
+        offset = (idx - mid) * 0.095
         conv_x, conv_y = [], []
         fail_x, fail_y = [], []
         for p_idx, p in enumerate(problems):
@@ -280,12 +305,12 @@ def plot_breakdown(rows: list[dict[str, Any]], out_path: Path) -> None:
     ax_left.set_xlabel("Steady-state runtime (ms)")
     ax_left.set_title("Per-Problem Runtime (solid = converged, X = max iter)")
     ax_left.xaxis.set_major_formatter(mticker.ScalarFormatter())
-    ax_left.set_xticks([0.2, 1, 10, 100, 1000])
-    ax_left.set_xticklabels(["0.2", "1", "10", "100", "1000"])
+    ax_left.set_xticks([0.01, 0.1, 1, 10, 100, 1000])
+    ax_left.set_xticklabels(["0.01", "0.1", "1", "10", "100", "1000"])
     ax_left.legend(frameon=False, loc="lower right", ncol=2)
 
     ax_right = axes[1]
-    for s in SOLVER_ORDER:
+    for s in _active_solvers(rows, include_clarabel=False):
         pts = [
             r
             for r in rows

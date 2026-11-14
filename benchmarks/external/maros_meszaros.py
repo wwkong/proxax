@@ -172,6 +172,107 @@ def run_maros_meszaros(
   return results
 
 
+def run_clarabel_baseline(
+    qp: qpsif.QPSIFProblem,
+    *,
+    opt_tol: float,
+    feas_tol: float,
+) -> harness.BenchmarkResult:
+  """Runs Clarabel on a ``QPSIFProblem`` as an IPM baseline."""
+  import clarabel
+  import scipy.sparse as sp
+
+  n = qp.P.shape[0]
+  m = qp.A.shape[0]
+  p_csc = sp.csc_matrix(np.triu(qp.P))
+  q_vec = np.asarray(qp.q, dtype=np.float64)
+
+  eq_a: list[np.ndarray] = []
+  eq_b: list[float] = []
+  ineq_a: list[np.ndarray] = []
+  ineq_b: list[float] = []
+
+  for i in range(m):
+    lc, uc = float(qp.l_con[i]), float(qp.u_con[i])
+    row = qp.A[i]
+    if np.isfinite(lc) and np.isfinite(uc) and abs(uc - lc) <= 1e-12:
+      eq_a.append(row)
+      eq_b.append(lc)
+    else:
+      if np.isfinite(uc):
+        ineq_a.append(row)
+        ineq_b.append(uc)
+      if np.isfinite(lc):
+        ineq_a.append(-row)
+        ineq_b.append(-lc)
+
+  for j in range(n):
+    lb, ub = float(qp.lb[j]), float(qp.ub[j])
+    if np.isfinite(lb) and np.isfinite(ub) and abs(ub - lb) <= 1e-12:
+      e = np.zeros(n)
+      e[j] = 1.0
+      eq_a.append(e)
+      eq_b.append(lb)
+    else:
+      if np.isfinite(ub):
+        e = np.zeros(n)
+        e[j] = 1.0
+        ineq_a.append(e)
+        ineq_b.append(ub)
+      if np.isfinite(lb):
+        e = np.zeros(n)
+        e[j] = -1.0
+        ineq_a.append(e)
+        ineq_b.append(-lb)
+
+  a_blocks, b_blocks, cones = [], [], []
+  if eq_a:
+    a_blocks.append(np.vstack(eq_a))
+    b_blocks.append(np.array(eq_b, dtype=np.float64))
+    cones.append(clarabel.ZeroConeT(len(eq_b)))
+  if ineq_a:
+    a_blocks.append(np.vstack(ineq_a))
+    b_blocks.append(np.array(ineq_b, dtype=np.float64))
+    cones.append(clarabel.NonnegativeConeT(len(ineq_b)))
+
+  a_cl = (
+      sp.csc_matrix(np.vstack(a_blocks))
+      if a_blocks
+      else sp.csc_matrix((0, n))
+  )
+  b_cl = np.concatenate(b_blocks) if b_blocks else np.zeros(0, dtype=np.float64)
+
+  settings = clarabel.DefaultSettings()
+  settings.verbose = False
+  settings.tol_gap_abs = opt_tol
+  settings.tol_gap_rel = opt_tol
+  settings.tol_feas = feas_tol
+
+  times: list[float] = []
+  sol = None
+  for run_idx in range(6):
+    solver = clarabel.DefaultSolver(p_csc, q_vec, a_cl, b_cl, cones, settings)
+    sol = solver.solve()
+    if run_idx > 0:
+      times.append(float(sol.solve_time))
+
+  assert sol is not None
+  status = "CONVERGED" if str(sol.status) == "Solved" else str(sol.status)
+  return harness.BenchmarkResult(
+      suite="maros_meszaros",
+      problem_name=f"{qp.name} (n={n},m={m})",
+      solver_name="Clarabel",
+      status=status,
+      outer_iters=int(sol.iterations),
+      inner_iters=0,
+      grad_evals=0,
+      opt_residual=float(sol.r_dual),
+      feas_residual=float(sol.r_prim),
+      compile_s=0.0,
+      run_s=float(np.median(times)),
+  )
+
+
 def main() -> int:
   """CLI entrypoint for the Maros-Meszaros QP benchmark suite."""
   parser = argparse.ArgumentParser(
@@ -193,6 +294,11 @@ def main() -> int:
   parser.add_argument("--limit", type=int, default=None)
   parser.add_argument("--opt-tol", type=float, default=1e-4)
   parser.add_argument("--feas-tol", type=float, default=1e-4)
+  parser.add_argument(
+      "--clarabel",
+      action="store_true",
+      help="Also run Clarabel as an IPM baseline reference.",
+  )
   parser.add_argument("--json-out", type=pathlib.Path, default=None)
   args = parser.parse_args()
 
@@ -204,6 +310,25 @@ def main() -> int:
       opt_tol=args.opt_tol,
       feas_tol=args.feas_tol,
   )
+  if args.clarabel:
+    cache_dir = args.data_dir or (
+        pathlib.Path.home() / ".cache" / "proxax" / "maros_meszaros"
+    )
+    for name in args.problems[: args.limit]:
+      qp = qpsif.load_qpsif(_fetch_sif(name, cache_dir))
+      if qp.P.shape[0] > args.max_dim:
+        continue
+      res = run_clarabel_baseline(
+          qp, opt_tol=args.opt_tol, feas_tol=args.feas_tol
+      )
+      results.append(res)
+      print(
+          f"{res.problem_name:<24s} | {res.solver_name:<9s} | "
+          f"{res.status:<17s} | iters={res.outer_iters:>4d} | "
+          f"opt={res.opt_residual:.2e} | feas={res.feas_residual:.2e} | "
+          f"{res.run_s * 1000:>7.2f}ms",
+          flush=True,
+      )
   if args.json_out is not None:
     args.json_out.write_text(
         json.dumps([dataclasses.asdict(r) for r in results], indent=2),
