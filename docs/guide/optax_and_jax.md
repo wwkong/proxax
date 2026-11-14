@@ -196,62 +196,8 @@ print("Solutions shape:", batched_sol.x.shape)  # shape (16, 10)
 
 ---
 
-## 5. Implicit Differentiation Through `px.solve` (`px.implicit_solve`)
+## 5. Implicit Differentiation (`px.implicit_solve`)
 
-When an optimization problem depends on differentiable hyperparameters or
-upstream neural-network outputs $\theta$, `px.implicit_solve` differentiates
-through the optimal solution $x^*(\theta)$ via the implicit function theorem
-(using matrix-free `gmres`, `cg`, or `bicgstab` on the fixed-point or KKT
-linear system, rather than unrolling inner solver iterations):
-
-```python
-import jax
-import jax.numpy as jnp
-from proxax import px
-
-def problem_fn(theta: jax.Array) -> px.CompositeProblem:
-  return px.CompositeProblem(
-      smooth=lambda x: 0.5 * jnp.sum((x - theta) ** 2),
-      proximal=px.prox.Box(0.0, 1.0),
-  )
-
-def outer_loss(theta: jax.Array) -> jax.Array:
-  x_star = px.implicit_solve(
-      problem_fn,
-      jnp.zeros_like(theta),
-      theta,
-      method="apd",
-      opt_tol=1e-6,
-  )
-  return 0.5 * jnp.sum((x_star - 0.5) ** 2)
-
-theta0 = jnp.array([-0.5, 0.3, 1.5])
-grad_theta = jax.grad(outer_loss)(theta0)
-```
-
-For constrained `CompositeProblem` and `BlockProblem` instances, pass
-`return_dual=True` if you also need the optimal dual multiplier $p^*(\theta)$ in
-downstream losses. `px.implicit_solve` also supports `MinMaxProblem` (returned
-as `(x_hat, y_hat)`).
-
-For a complete bilevel Elastic-Net tuning loop combining `px.implicit_solve`
-with `optax.adam`, see `examples/bilevel_optax.py` (as well as
-`examples/implicit_solve.py`, `examples/diff_capped_simplex.py`, and
-`examples/nn_structured_layer.py` for end-to-end batched `jax.vmap` neural
-layers):
-
-For 1-line neural network integration, use the drop-in wrappers in
-`px.layers` (`ProxLayer`, `CappedSimplexLayer`, `SimplexLayer`, `BoxLayer`,
-and `QPLayer`), which expose both `__call__(scores)` and `.batched(scores_batch)`
-(via `jax.vmap`):
-
-```python
-layer = px.layers.CappedSimplexLayer(scale=2.0, upper=1.0)
-probs = jax.jit(layer.batched)(logits)  # shape (batch, dim)
-```
-
-```bash
-uv run python examples/bilevel_optax.py
-```
-
-![Bilevel Elastic-Net Tuning via px.implicit_solve + Optax Adam](../_static/plots/bilevel_optax.svg)
+To differentiate through `px.solve` inside `jax.grad` / Optax training loops
+(including constrained KKT differentiation, `return_dual=True`, Krylov linear
+solver options, and drop-in `px.layers`), see {doc}`implicit_diff`.
