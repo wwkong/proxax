@@ -41,5 +41,5 @@ Based on our [GPU benchmarks](https://proxax.readthedocs.io/projects/experiments
 
 ## Choosing `float32` vs. `float64` on GPU
 
-- **`float32` (default):** Full tensor/FP32 throughput on all GPUs; well-suited for `1e-3`–`1e-4` tolerances, `QPLayer`, and ML training loops.
-- **`float64` (`JAX_ENABLE_X64=1`):** Needed for tight tolerances (`<= 1e-6`) or ill-conditioned QPs, at the cost of reduced throughput on consumer GeForce GPUs.
+- **`float32` (default):** Full tensor/FP32 throughput on all GPUs (`3.2x` faster than `float64` on dense `n=256` min-max `PDHG`); well-suited for `1e-3`–`1e-4` tolerances on single/dense problems and ML training loops. Note that in `vmap` batches (`B >= 16`), if any single instance stalls near `float32` rounding noise, `vmap` executes all instances in lockstep up to `max_iters`.
+- **`float64` (`JAX_ENABLE_X64=1`):** Needed for tight tolerances (`<= 1e-6`), ill-conditioned QPs, and reliable convergence across large `vmap` batches (`B >= 16`), at the cost of reduced raw FP64 throughput on consumer GeForce GPUs.

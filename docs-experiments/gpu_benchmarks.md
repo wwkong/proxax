@@ -32,15 +32,15 @@ XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_ENABLE_X64=1 .venv/bin/python -m benchma
 | `Batched Saddle QP (n=64)` | 256 | **156.64** | **112.30** | 245.00 | **63.15** |
 | `Batched Saddle QP (n=64)` | 1024 | **512.81** | **448.08** | 945.17 | **232.97** |
 
-### 2. Nonconvex-Concave Min-Max on GPU (Proxax GPU vs. `Optax` GPU)
+### 2. Nonconvex-Concave Min-Max on GPU (`float64` & `float32`, Proxax GPU vs. `Optax` GPU)
 
-| Problem | `PDHG` (GPU, ms) | `ExtraGradient` (GPU, ms) | `ProxPointMinMax` (GPU, ms) | `Optax GDA` (GPU, ms) |
-| :--- | ---: | ---: | ---: | ---: |
-| `NC-C QP (n=32, m_y=0.05)` | **31.65** | 82.97 | 408.28 | 91.71 |
-| `NC-C QP (n=32, m_y=0.2)` | **33.19** | 90.66 | 357.45 | 102.68 |
-| `NC-C QP (n=32, m_y=1.0)` | 85.67 | **84.00** | 387.84 | 233.49 |
-| `NC-C QP (n=64, m_y=0.2)` | **48.65** | 104.87 | 508.75 | 137.42 |
-| `NC-C QP (n=256, m_y=0.2)` | **229.46** | 482.86 | 790.53 | 729.49 (`MAX_ITERS`) |
+| Problem | `PDHG` (`f64`, ms) | `PDHG` (`f32`, ms) | `ExtraGrad` (`f32`, ms) | `Optax GDA` (`f64`, ms) | `Optax GDA` (`f32`, ms) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| `NC-C QP (n=32, m_y=0.05)` | 31.65 | **24.16** | 64.99 | 91.71 | 44.95 |
+| `NC-C QP (n=32, m_y=0.2)` | 33.19 | **25.27** | 63.57 | 102.68 | 48.26 |
+| `NC-C QP (n=32, m_y=1.0)` | 85.67 | **48.45** | 98.11 | 233.49 | 122.96 |
+| `NC-C QP (n=64, m_y=0.2)` | 48.65 | 50.74 | 110.19 | 137.42 | 131.44 |
+| `NC-C QP (n=256, m_y=0.2)` | 229.46 | **72.57** | 119.01 | 729.49 (`MAX_ITERS`) | 265.86 |
 
 ### 3. Sparse QPs & Spectral Ops on RTX 3060 (`float64`) vs. `MPAX` / CPU
 
@@ -51,4 +51,13 @@ XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_ENABLE_X64=1 .venv/bin/python -m benchma
 
 1. **Sublinear `vmap` GPU scaling:** `proxax-IALM (vmap)` on `Batched SOCP (n=64)` scales only **5.5×** in runtime from `B=1` to `B=1024` (`131.88 ms -> 730.31 ms`), while CPU `Clarabel` scales **410×** and `SCS` scales **313×**. On `Batched Saddle QP`, `proxax-PDHG (vmap)` beats `Clarabel (threads)` by **1.56×** at `B=256` and **1.84×** at `B=1024`.
 2. **Proxax GPU beats `Optax` GPU on nonconvex-concave min-max:** `PDHG` runs **2.7×–3.1× faster** than `Optax GDA` across `n=32..64` and converges at `n=256` (`229.46 ms`) where `Optax GDA` fails to reach `1e-4` within 10,000 steps.
-3. **Consumer GPU FP64 bottleneck:** On the GeForce RTX 3060 (1/64 FP64 throughput), sequential small-matrix SVDs and `float64` `BCOO` scattered matvecs are slower than multi-core CPU; GPU wins when work is **batched (`vmap`)** or **dense (`n >= 256`)**.
+3. **Consumer GPU FP64 vs. `float32` `vmap` lockstep:** On the RTX 3060 (`1/64` FP64 rate), switching to `float32` speeds up dense `n=256` `PDHG` by **3.16×** (`229.46 ms -> 72.57 ms`) and `Batched Saddle QP (B=1)` (`12.24 ms -> 8.71 ms`). However, for `vmap` batches (`B >= 16` at `tol=1e-3`), `float32` rounding noise can stall a single instance and force the entire `vmap` batch to run to `max_iters` in lockstep (`1,058–6,935 ms`), so `float64` (`JAX_ENABLE_X64=1`) is much more reliable for tight-tolerance `vmap` batches.
+
+## Solver Regime Summary
+
+| Problem Regime | Recommended Choice | Observed Advantage |
+| :--- | :--- | :--- |
+| Batched conic / saddle QPs (`B >= 64`) | `proxax.batch_solve` (`threads` / `vmap`) | Sublinear batch scaling (**5.5×** for `1024×` batch on GPU SOCP); beats `Clarabel` **1.56×–2.09×** on Saddle QP |
+| Nonconvex-concave min-max (GPU) | `proxax` `PDHG` / `ExtraGradient` | **2.7×–3.7× faster** than `Optax GDA`; converges at `n=256` where `Optax` stalls |
+| Spectral & multi-block splitting (CPU) | `DAICG`/`IAICG`, `ADMM` | **7.1×–58.2×** faster than `Clarabel` on `SpectralProblem`; **2.9×–7.2×** faster on `BlockProblem` |
+| Single large ill-conditioned sparse QPs (`1e-6`) | `Clarabel` (sparse direct IPM) | Solves **8/8** `maros_meszaros_large` QPs in `8.1–1,527 ms` on CPU |
