@@ -61,4 +61,4 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 uv run python -m benchmarks.external.matrix_f
 
 - **Structured operators (`FactorQP`):** `IAIPAL` solves `n=3000` in **13.40 ms** vs. `Clarabel`'s **4,378.19 ms** (**326.7× faster**) because matrix-free $O(nr)$ matvecs avoid $O(n^3)$ KKT factorizations.
 - **Non-quadratic objectives (`LogReg-Simplex`):** `IALM` solves all three sizes in **2–3 outer iterations**, beating `Clarabel`'s exponential-cone reformulation by **1.2×–4.0×** without adding slack variables.
-- **Dense unstructured QPs (`DenseQP`):** `IAIPAL` is **4.1× faster** than `Clarabel` at `n=1000` (**115.07 ms** vs. **470.00 ms**), while at `n=1500` dense CPU matvecs inside the inner loops hit the 10 s limit before `Clarabel` (`1103.15 ms`).
+- **Dense unstructured QPs (`DenseQP`):** `IAIPAL` is **4.1× faster** than `Clarabel` at `n=1000` (**115.07 ms** vs. **470.00 ms**), while at `n=1500` (`18 MB` in `float64` vs. `8 MB` at `n=1000`) the dense Hessian spills out of CPU L3 cache: `proxax` streams `18 MB` from main memory on every inner `DGEMV` step and hits the 10 s limit, whereas `Clarabel` solves in **13** cache-blocked BLAS-3 KKT factorizations (**1103.15 ms**).
