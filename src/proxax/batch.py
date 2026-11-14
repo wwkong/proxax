@@ -412,7 +412,7 @@ def batch_implicit_solve(
       th: _typing.PyTree,
       go: _typing.PyTree,
   ) -> _typing.PyTree:
-    return implicit_mod.implicit_vjp_from_solution(
+    d_th = implicit_mod.implicit_vjp_from_solution(
         problem_fn,
         x_init,
         xh,
@@ -428,6 +428,13 @@ def batch_implicit_solve(
         linear_maxiter=linear_maxiter,
         damping=damping,
         return_dual=return_dual,
+    )
+    # Unwrap BCOO cotangents before vmap unbatching (float0 indices fail
+    # BCOO.__init__).
+    return jax.tree.map(
+        lambda d: d.data if isinstance(d, jsparse.BCOO) else d,
+        d_th,
+        is_leaf=_is_bcoo_or_leaf,
     )
 
   p_axis = 0 if has_dual else None
@@ -457,7 +464,20 @@ def batch_implicit_solve(
       g_out: _typing.PyTree,
   ) -> tuple[None, _typing.PyTree]:
     x_init, x_b, p_b, pb = res
-    d_pb = _vmap_bwd(x_init, x_b, p_b, pb, g_out)
+    d_pb_raw = _vmap_bwd(x_init, x_b, p_b, pb, g_out)
+    d_pb = jax.tree.map(
+        lambda orig, d: (
+            jax.tree.unflatten(
+                jax.tree.structure(orig),
+                [d, np.zeros(orig.indices.shape, dtype=jax.dtypes.float0)],
+            )
+            if isinstance(orig, jsparse.BCOO)
+            else d
+        ),
+        pb,
+        d_pb_raw,
+        is_leaf=_is_bcoo_or_leaf,
+    )
     return (None, d_pb)
 
   _batched_fn.defvjp(_fwd, _bwd)

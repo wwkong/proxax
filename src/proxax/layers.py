@@ -7,6 +7,7 @@ import typing
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import sparse as jsparse
 
 from proxax import _typing
 from proxax import implicit
@@ -147,7 +148,7 @@ class QPLayer:
   implicit differentiation with respect to `(c, A, b)`.
   """
 
-  Q: jax.Array
+  Q: jax.Array | jsparse.BCOO
   proximal: typing.Any = dataclasses.field(default_factory=prox_mod.Zero)
   method: str = "panoc_alm"
   opt_tol: float = 1e-5
@@ -159,7 +160,7 @@ class QPLayer:
   def __call__(
       self,
       c: jax.Array,
-      A: jax.Array,
+      A: jax.Array | jsparse.BCOO,
       b: jax.Array,
       x0: jax.Array | None = None,
   ) -> jax.Array:
@@ -168,7 +169,7 @@ class QPLayer:
     prox_op = self.proximal
 
     def _prob(
-        params: tuple[jax.Array, jax.Array, jax.Array],
+        params: tuple[jax.Array, jax.Array | jsparse.BCOO, jax.Array],
     ) -> problem_mod.CompositeProblem:
       c_p, A_p, b_p = params
 

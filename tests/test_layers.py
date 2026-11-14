@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import sparse as jsparse
 
 from proxax import px
 
@@ -48,3 +49,33 @@ def test_box_and_qp_layers() -> None:
   g_b = jax.grad(_qp_loss)(b)
   assert jnp.isfinite(g_b[0])
   assert jnp.abs(g_b[0]) > 0.1
+
+
+def test_qp_layer_bcoo() -> None:
+  """`QPLayer` supports `BCOO` `Q` and `A` matrices with implicit gradients."""
+  q_dense = jnp.diag(jnp.array([2.0, 3.0, 4.0, 5.0]))
+  a_dense = jnp.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]])
+  q_bcoo = jsparse.BCOO.fromdense(q_dense)
+  a_bcoo = jsparse.BCOO.fromdense(a_dense)
+  c = jnp.array([-1.0, -2.0, -1.0, -2.0])
+  b = jnp.array([1.0, 1.0])
+
+  qp_dense = px.layers.QPLayer(Q=q_dense, opt_tol=1e-6, feas_tol=1e-6)
+  qp_sparse = px.layers.QPLayer(Q=q_bcoo, opt_tol=1e-6, feas_tol=1e-6)
+
+  gc_d, gb_d = jax.grad(
+      lambda c_, b_: 0.5 * jnp.sum(qp_dense(c_, a_dense, b_) ** 2),
+      argnums=(0, 1),
+  )(c, b)
+  gc_s, gb_s = jax.grad(
+      lambda c_, b_: 0.5 * jnp.sum(qp_sparse(c_, a_bcoo, b_) ** 2),
+      argnums=(0, 1),
+  )(c, b)
+  assert jnp.allclose(gc_d, gc_s, atol=1e-4)
+  assert jnp.allclose(gb_d, gb_s, atol=1e-4)
+
+  ga = jax.grad(
+      lambda a_: 0.5 * jnp.sum(qp_sparse(c, a_, b) ** 2),
+      allow_int=True,
+  )(a_bcoo)
+  assert jnp.all(jnp.isfinite(ga.data))
