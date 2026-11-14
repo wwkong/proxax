@@ -69,12 +69,34 @@ Solver comparisons and Dolan–Moré performance profiles across `proxax` algori
 
 Accelerator (`vmap` / `jit` / GPU) throughput and batch-scaling studies:
 
+### Executive Summary
+
+| Study | Focus | Setup | Headline Result | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md) | `CPU sequential` vs. `CPU vmap` vs. `GPU vmap` | 2-block Box DQP ($n \in \{32, 128\}$, $K \in \{1, 8, 32\}$, `float32`) | `CPU sequential` fastest at $K \in \{8, 32\}$ (`32.07 ms/inst` at $n=32, K=8$) | `vmap` lockstep + RTX 3060 launch latency penalizes heterogeneous multi-stage ADMM |
+| [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md) | `jax.vmap(jax.value_and_grad)` throughput | `CappedSimplex` & `Simplex` (`PANOC`, $n=16$, $B \in \{1, \dots, 256\}$) | Scales from ~6k to **187.8k samples/sec** at $B=128$ on CPU | `0.682 ms/batch` (`CappedSimplex`) and `0.728 ms/batch` (`Simplex`) at $B=128$ |
+
+### Reports
+
 * [`PAdaptADMM` CPU/GPU & `jax.vmap` Scaling Study](padapt_vmap_gpu.md)
 * [Batched Differentiable Layers (`jax.vmap` + `implicit_solve`)](vmap_implicit_benchmarks.md)
 
 ## Literature Replications
 
 Reproductions of published benchmark tables using `proxax`:
+
+### Executive Summary
+
+| Study | Reference | Solvers Compared | Problem Regime | Headline Result |
+| :--- | :--- | :--- | :--- | :--- |
+| [Table 1 Distributed QPs](maia2026_table1_dqp.md) | Maia et al. (2026) | `PAdaptADMM-prac`, `PAdaptADMM-theo`, `DPADMM`, `ADMM` | Nonconvex $\ell_1$-ball DQP ($B \le 16$, $Bn \le 256$) | `DPADMM` most robust (**7/8** converged); adaptive $\tau$ bisection cuts `PAdaptADMM` grads by **2.5×–19.6×** |
+| [Curvature-Free Nonconvex QPs](kong2024_spectrahedron.md) | Kong (SIOPT 2024) | `APD`, `AdapAPG`, `PANOC`, `AIPP`, `AG` | `Spectrahedron QP` (`10x10`), `Simplex QP` (`n=40`), $\kappa \le 500$ | **5/5** converge across all $\kappa$; `APD` beats fixed-curvature `AIPP` **~2–3×** ($\kappa \le 250$), `PANOC` best at $\kappa=500$ |
+| [ALM vs. Quadratic Penalty on NCO](kong2023_alm_vs_qp.md) | Kong et al. (2023) | `IALM (APD/PANOC)`, `SProxALM`, `QP-APD`, `QP-AIPP` | Constrained QP (`n=24, m=4`), $k$-Fantope SPCA (`8x8, k=2`) | ALM scales **2–3×** across $\varepsilon \in [10^{-2}, 3\times 10^{-4}]$; `QP-AIPP` blows up **160×** and hits `MAX_ITER` |
+| [Multi-Block Nonconvex Splitting](kong2024_dpadmm.md) | Kong & Monteiro (SIOPT 2024) | `DPADMM`, `PAdaptADMM`, `ADMM` | Rank-deficient 3-block QP ($r \in \{1, 2, 4, 6\}$) | `DPADMM` converges on **all 4** ranks (including $r=1, 2, 4$); `PAdaptADMM` & fixed `ADMM` stall on rank/full-rank regimes |
+| [Nonconvex Spectral Optimization](kong2022_spectral.md) | Kong & Monteiro (COAP 2022) | `DAICG (monotone/nonmonotone)`, `IAICG` | `20x20` rank-3 log-sum matrix completion ($p \in [30\%, 75\%]$) | `DAICG` converges at $p \ge 45\%$ (`3,286–7,468` evals); **4.1× fewer** evals than `IAICG` at $p=75\%$ |
+| [Nonconvex-Concave Min-Max](kong2021_minmax.md) | Kong & Monteiro (SIOPT 2021) | `ProxPointMinMax`, `ExtraGradient`, `PDHG` | `16x16` box/simplex min-max QP ($m_y \in [0.05, 1.0]$) | All 3 converge in $<1\text{ s}$; `PDHG`/`ExtraGradient` use **8–12× fewer** evals, `ProxPointMinMax` finds lower objective |
+
+### Reports
 
 * [`PAdaptADMM` CPU Benchmarks (Maia et al., 2026 — Table 1 DQP)](maia2026_table1_dqp.md)
 * [Curvature-Free Nonconvex QPs (Kong, SIOPT 2024)](kong2024_spectrahedron.md)

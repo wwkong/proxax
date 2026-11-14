@@ -138,6 +138,7 @@ foundations/oracles
 guide/solving_problems
 guide/prox_and_constraints
 guide/optax_and_jax
+guide/batching_and_parallelism
 guide/implicit_diff
 guide/plotting
 ```
