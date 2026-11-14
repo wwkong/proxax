@@ -23,6 +23,7 @@ and constrained composite suites:
 * [Conic Optimization Benchmarks (`ExpCone`, `SOC`, `Spectrahedron`)](conic_benchmarks.md)
 * [Maros–Meszaros QP Benchmarks](maros_meszaros.md)
 * [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md)
+* [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
 
 ## Scaling Studies
 
@@ -52,6 +53,7 @@ panoc_alm_benchmarks
 conic_benchmarks
 maros_meszaros
 maros_meszaros_medium
+matrix_free_vs_clarabel
 ```
 
 ```{toctree}
