@@ -42,6 +42,20 @@ Note: At a 10 s time limit, `IALM` also converges on `PRIMALC8` (`18 / 23`), and
 * **`IALM` highlights:** Solves `PRIMALC1` (`1,594.60 ms` vs. `>10 s` timeout / `157 s` without limit), `PRIMALC2` (`328.33 ms` vs. `>10 s`), and `PRIMALC5` (`385.62 ms` vs. `>10 s`), and speeds up `DUALC2` (`14.69 ms` vs. `55.22 ms`), `DUALC8` (`7.31 ms` vs. `99.93 ms`), and `MOSARQP2` (`1,953.82 ms` vs. `3,058.77 ms`).
 * **`IAIPAL` note:** Solves `DPKLO1`, `GENHS28`, `GOULDQP3`, `HS35MOD`, `ZECEVIC2` with Ruiz scaling, whereas unpreconditioned `IAIPAL` solves more problems (`10 / 23`) overall.
 
+### Sparse `BCOO` Representation (`--sparse`, `IALM` + Ruiz, 5 s limit)
+
+Passing `--sparse` represents $P$ and $A$ with `jax.experimental.sparse.BCOO` instead of dense arrays. On the larger sparse QPs ($n \ge 230$), `BCOO` substantially reduces both solve and XLA compile times (while dense BLAS remains faster on tiny $n \le 10$ problems where `BCOO` dispatch overhead dominates):
+
+| Problem | Dense (`run_s` / `compile_s`) | `BCOO` (`run_s` / `compile_s`) | Speedup |
+| :--- | ---: | ---: | ---: |
+| `MOSARQP2 (n=900, m=600)` | `2051.8 ms` (`3.21 s`) | **`81.5 ms`** (`0.65 s`) | **25.17×** |
+| `PRIMAL2 (n=649, m=96)` | `372.6 ms` (`1.32 s`) | **`108.4 ms`** (`0.67 s`) | **3.44×** |
+| `PRIMAL3 (n=745, m=111)` | `439.9 ms` (`1.39 s`) | **`234.9 ms`** (`0.82 s`) | **1.87×** |
+| `PRIMALC5 (n=287, m=8)` | `378.2 ms` | **`278.1 ms`** | **1.36×** |
+| `PRIMALC2 (n=231, m=7)` | `337.8 ms` | **`256.9 ms`** | **1.31×** |
+
+Overall in 5 s, `IALM` converges on **17 / 23** (`dense`) vs. **16 / 23** (`BCOO`, where tiny `DUALC1` at `n=9, m=215` hits the 5 s limit due to sparse-kernel overhead). On `GOULDQP2` and `GOULDQP3` (`n=699, m=349`), `BCOO` completes **18** and **13** outer iterations in 5 s vs. **2** for dense.
+
 ## Plots
 
 ### Dolan–Moré Performance Profiles
