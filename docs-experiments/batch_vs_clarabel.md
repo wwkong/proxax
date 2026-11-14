@@ -63,3 +63,8 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 PYTHONPATH=. .venv/bin/python benchmarks/exte
 1. **Matrix-free + proximal structure dominates even when `Clarabel` uses threads:** `proxax` is **73×–120× faster** than threaded `Clarabel` on the factor-model QP and **30×–337× faster** on simplex-constrained logistic regression.
 2. **`threads` eliminates lockstep overhead on CPU:** At $B=64$, `proxax-IAIPAL(threads)` (`25.49 ms`) is **3.4× faster** than `vmap` (`87.33 ms`), and `proxax-PANOC(threads)` (`32.48 ms`) is **12.7× faster** than `vmap` (`413.27 ms`) because each batch element exits early upon reaching `tol = 1e-6`.
 3. **Sublinear batch scaling:** With `px.batch_solve(..., backend="threads")`, solving 64 problems takes only **8.5×–17.6×** the $B=1$ runtime (`3.80 ms` $\to$ `32.48 ms` on logistic regression; `1.45 ms` $\to$ `25.49 ms` on factor QP).
+
+## Appendix: Execution & Thread-Pool Details
+
+* **Persistent thread pool & cached runner:** `px.batch_solve(..., backend="threads")` compiles a single `jax.jit(_solve_one)` executable (cached per `problem_fn` in `_BATCH_SOLVE_CACHE`) and dispatches chunks across a persistent `ThreadPoolExecutor` (`_get_thread_pool`), avoiding per-call thread creation and recompilation.
+* **Lockstep vs. dispatch trade-off:** On CPU, `backend="vmap"` runs all `B` instances in lockstep up to $\max_i k_i$ iterations, whereas `backend="threads"` lets each element or chunk exit early at its own iteration count $k_i$. Use `chunk_size=1` for high-variance active-set problems and `chunk_size > 1` (e.g., `4`) when iteration counts are uniform and host-dispatch overhead dominates.

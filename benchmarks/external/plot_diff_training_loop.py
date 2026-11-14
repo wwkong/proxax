@@ -16,10 +16,12 @@ DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 SOLVER_COLORS = {
     "cvxpylayers": "#94e2d5",
     "proxax(jit-scan)": "#a6e3a1",
+    "proxax(threads)": "#89b4fa",
 }
 SOLVER_MARKERS = {
     "cvxpylayers": "P",
     "proxax(jit-scan)": "o",
+    "proxax(threads)": "D",
 }
 
 
@@ -52,15 +54,17 @@ def plot_scaling(out_path: Path) -> None:
       (
           "Batched QP Layer (n=50, m=25, 50 Adam Steps)",
           {
-              "cvxpylayers": [3278.00, 10186.31],
-              "proxax(jit-scan)": [1167.81, 5799.51],
+              "cvxpylayers": [3270.79, 10498.29],
+              "proxax(jit-scan)": [1164.90, 5784.87],
+              "proxax(threads)": [189.04, 691.31],
           },
       ),
       (
           "Batched Simplex Layer (n=100, 50 Adam Steps)",
           {
-              "cvxpylayers": [3874.90, 12438.61],
-              "proxax(jit-scan)": [248.91, 1197.68],
+              "cvxpylayers": [3776.53, 12400.86],
+              "proxax(jit-scan)": [250.13, 1196.43],
+              "proxax(threads)": [168.18, 581.59],
           },
       ),
   ]
@@ -101,23 +105,25 @@ def plot_dolan_more_profile(out_path: Path) -> None:
   _apply_mocha_style()
   fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
 
-  # (proxax_ms, cvxpylayers_ms)
+  # (proxax_threads_ms, proxax_jit_scan_ms, cvxpylayers_ms)
   cases = [
-      (1167.81, 3278.00),
-      (248.91, 3874.90),
-      (5799.51, 10186.31),
-      (1197.68, 12438.61),
+      (189.04, 1164.90, 3270.79),
+      (168.18, 250.13, 3776.53),
+      (691.31, 5784.87, 10498.29),
+      (581.59, 1196.43, 12400.86),
   ]
   series_raw = {
-      "proxax (jit-scan)": [p for p, _ in cases],
-      "cvxpylayers (eager Python)": [c for _, c in cases],
+      "proxax (threads)": [t for t, _, _ in cases],
+      "proxax (jit-scan)": [p for _, p, _ in cases],
+      "cvxpylayers (eager Python)": [c for _, _, c in cases],
   }
   colors = {
+      "proxax (threads)": "#89b4fa",
       "proxax (jit-scan)": "#a6e3a1",
       "cvxpylayers (eager Python)": "#94e2d5",
   }
 
-  best = [min(p, c) for p, c in cases]
+  best = [min(t, p, c) for t, p, c in cases]
   tau_max = 32.0
   n_probs = len(cases)
 

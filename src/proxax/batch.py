@@ -365,10 +365,12 @@ def batch_implicit_solve(
   def _host_batch_fwd(
       x_init: _typing.PyTree, pb: _typing.PyTree
   ) -> tuple[_typing.PyTree, _typing.PyTree]:
+    x_init_np = jax.tree.map(np.asarray, x_init)
+    pb_np = jax.tree.map(np.asarray, pb)
     pool = _get_thread_pool(max_workers, batch_size)
     outs = list(
         pool.map(
-            lambda i: compiled_fwd(x_init, _slice_pytree(pb, i)),
+            lambda i: compiled_fwd(x_init_np, _slice_pytree(pb_np, i)),
             range(batch_size),
         )
     )

@@ -233,6 +233,7 @@ def _solve_proxax_train(
       v_s = jnp.zeros_like(th)
       for s in range(1, case.steps + 1):
         _, g = jit_val_and_grad(th)
+        g.block_until_ready()
         th, m_s, v_s = adam_update(
             th, m_s, v_s, g, jnp.asarray(float(s), dtype=jnp.float64)
         )
@@ -471,6 +472,11 @@ def main() -> None:
     results.append(
         _solve_proxax_train(
             case, mode="jit_scan", tol=args.tol, repeats=args.repeats
+        )
+    )
+    results.append(
+        _solve_proxax_train(
+            case, mode="threads", tol=args.tol, repeats=args.repeats
         )
     )
     results.append(

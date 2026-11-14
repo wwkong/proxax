@@ -82,3 +82,9 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 PYTHONPATH=. .venv/bin/python benchmarks/exte
 * **Threadpool eliminates `vmap` tail latency on CPU (`qp_layer`, `simplex_layer`):** On `qp_layer` at $B=256$, `proxax-IALM(threads)` drops runtime from `1108.99 ms` (`vmap`) to `156.20 ms` (**7.10×** faster than `vmap`, **5.16×** faster than `cvxpylayers`); on `simplex_layer` at $B=256$, `proxax-PANOC(threads)` drops runtime from `193.69 ms` to `88.86 ms` (**17.62×** faster than `cvxpylayers`).
 * **`vmap` shines on uniform fast-converging batches (`l2ball_layer`):** When iteration counts are tight and uniform across the batch, pure-XLA `proxax-PANOC(vmap)` avoids threadpool dispatch overhead and beats `cvxpylayers` by **33.45–79.03×** (`44.52 ms` vs. `1574.06 ms` at $B=256$).
 * **Verified gradient agreement:** Relative $\ell_2$ gradient discrepancy against `cvxpylayers` stays between `1.08e-06` and `1.07e-05` across all 12 cases.
+
+## Appendix: Execution & Thread-Pool Details
+
+* **Pre-compiled forward & cached `custom_vjp`:** Under `backend="threads"`, `px.batch_implicit_solve` pre-compiles a single forward executable `jax.jit(_one_fwd).lower(x0, first_theta).compile()` outside `jax.pure_callback` and caches the resulting `custom_vjp` wrapper in `_BATCH_IMPLICIT_CACHE` (`WeakKeyDictionary` keyed by `problem_fn` and problem signature), avoiding nested JIT contention across worker threads.
+* **Host-side NumPy slicing:** Inside `_host_batch_fwd`, `x_init` and `params_batch` are converted to NumPy arrays before `pool.map` so worker threads slice with NumPy indexing rather than dispatching `jax.lax.slice` primitives inside `pure_callback`.
+* **Adjoint VJP:** The backward pass (`implicit_vjp_from_solution`) runs `jax.vmap` over the cached forward solution `(x_hat, dual_hat)`, keeping implicit differentiation vectorized without re-running the forward solver.
