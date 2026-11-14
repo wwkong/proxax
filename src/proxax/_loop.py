@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 import typing
 from collections import abc
@@ -89,8 +90,10 @@ def while_loop(
     ValueError: If `callback` is unsupported with `jit=True` or
       `time_limit < 0`.
   """
-  if isinstance(time_limit, (int, float)) and time_limit < 0:
-    raise ValueError("`time_limit` must be non-negative.")
+  if isinstance(time_limit, (int, float)) and (
+      math.isnan(time_limit) or time_limit < 0
+  ):
+    raise ValueError("`time_limit` must be a non-negative finite number.")
 
   if jit:
     if callback is not None and not getattr(
@@ -119,41 +122,33 @@ def while_loop(
       limit_arr = jnp.asarray(time_limit, dtype=jnp.float32)
 
       def _timed_cond(
-          carry: tuple[StateT, jax.Array, jax.Array],
+          carry: tuple[StateT, jax.Array],
       ) -> jax.Array:
-        st, timed_out, _ = carry
+        st, timed_out = carry
         return (~timed_out) & cond_fun(st)
 
       def _timed_body(
-          carry: tuple[StateT, jax.Array, jax.Array],
-      ) -> tuple[StateT, jax.Array, jax.Array]:
-        st, _, step_idx = carry
-        # For budgets > 0.1s, amortize host io_callback overhead every 16 steps.
-        should_check = (limit_arr <= 0.1) | ((step_idx & 15) == 0)
-        now_out = jax.lax.cond(
-            should_check,
-            lambda _: (read_clock() - start_time) >= limit_arr,
-            lambda _: jnp.asarray(False),
-            operand=None,
-        )
+          carry: tuple[StateT, jax.Array],
+      ) -> tuple[StateT, jax.Array]:
+        st, _ = carry
+        now_out = ~((read_clock() - start_time) < limit_arr)
         return typing.cast(
-            tuple[StateT, jax.Array, jax.Array],
+            tuple[StateT, jax.Array],
             jax.lax.cond(
                 now_out,
                 lambda s: (
                     on_time_limit(s) if on_time_limit is not None else s,
                     jnp.asarray(True),
-                    step_idx + 1,
                 ),
-                lambda s: (step_fn(s), jnp.asarray(False), step_idx + 1),
+                lambda s: (step_fn(s), jnp.asarray(False)),
                 st,
             ),
         )
 
-      final_state, _, _ = jax.lax.while_loop(
+      final_state, _ = jax.lax.while_loop(
           _timed_cond,
           _timed_body,
-          (init_val, jnp.asarray(False), jnp.asarray(0, dtype=jnp.int32)),
+          (init_val, jnp.asarray(False)),
       )
       return final_state
 
@@ -166,7 +161,7 @@ def while_loop(
   while bool(cond_fun(state)):
     if (
         time_limit is not None
-        and (time.perf_counter() - start_time_py) >= float(time_limit)
+        and not ((time.perf_counter() - start_time_py) < float(time_limit))
     ):
       if on_time_limit is not None:
         state = on_time_limit(state)

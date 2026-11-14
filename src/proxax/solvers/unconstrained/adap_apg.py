@@ -385,6 +385,7 @@ class AdapAPG:
           grad_inc=als_fin.count + extra_g,
           prox_inc=als_fin.count + extra_p,
           max_iters=self.max_iters,
+          line_search_failed=jnp.logical_not(als_fin.accepted),
           finite_ok=cand_finite,
       )
 

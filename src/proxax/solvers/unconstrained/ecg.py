@@ -166,13 +166,13 @@ class ECG:
             tree.add_scaled(st.x, -inv_L, grad_prev),
             inv_L,
         )
-        f_bar, grad_bar = oracle.smooth_value_and_grad(x_bar)
+        f_bar = oracle.smooth_value(x_bar)
         diff = tree.sub(x_bar, st.x)
         lin_approx = f_prev + tree.vdot(grad_prev, diff)
         quad_upper = lin_approx + 0.5 * L_val * tree.norm_sq(diff)
         slack = 10.0 * eps_val * (1.0 + jnp.abs(f_prev))
         ok = (not is_adaptive) | (f_bar <= quad_upper + slack)
-        return x_bar, f_bar, grad_bar, jnp.asarray(ok, dtype=jnp.bool_)
+        return x_bar, f_bar, grad_prev, jnp.asarray(ok, dtype=jnp.bool_)
 
       x_b0, f_b0, g_b0, ok0 = _trial(st.lipschitz)
       if is_adaptive:
@@ -213,14 +213,14 @@ class ECG:
         L_used = ls_fin.lipschitz
         x_bar = ls_fin.x_bar
         f_bar = ls_fin.f_bar
-        grad_bar = ls_fin.grad_bar
+        _, grad_bar = oracle.smooth_value_and_grad(x_bar)
         n_bt = ls_fin.backtracks
         ls_ok = ls_fin.accepted
       else:
         L_used = st.lipschitz
         x_bar = x_b0
         f_bar = f_b0
-        grad_bar = g_b0
+        _, grad_bar = oracle.smooth_value_and_grad(x_bar)
         n_bt = jnp.asarray(0, dtype=jnp.int32)
         ls_ok = jnp.asarray(True, dtype=jnp.bool_)
 
@@ -252,8 +252,8 @@ class ECG:
           obj_bar,
       ).advance(
           inner_inc=eval_inc,
-          smooth_inc=eval_inc + 1,
-          grad_inc=eval_inc + 1,
+          smooth_inc=eval_inc + 2,
+          grad_inc=2,
           prox_inc=eval_inc,
           max_iters=self.max_iters,
           line_search_failed=jnp.logical_not(ls_ok),

@@ -391,13 +391,15 @@ class Ellipsoid:
     scaled_sq = tree.norm_sq(
         jax.tree.map(lambda d, r: d / r, diff, self.radii)
     )
-    r_max_sq = jnp.asarray(
-        max(
-            [jnp.max(r * r) for r in jax.tree.leaves(self.radii)],
-            default=1.0,
-        ),
-        dtype=tree.infer_dtype(x),
-    )
+    dtype = tree.infer_dtype(x)
+    r_maxes = [jnp.max(r * r) for r in jax.tree.leaves(self.radii)]
+    if r_maxes:
+      r_acc = jnp.asarray(r_maxes[0], dtype=dtype)
+      for rm in r_maxes[1:]:
+        r_acc = jnp.maximum(r_acc, jnp.asarray(rm, dtype=dtype))
+      r_max_sq = r_acc
+    else:
+      r_max_sq = jnp.asarray(1.0, dtype=dtype)
     lam_hi = r_max_sq * jnp.maximum(jnp.sqrt(scaled_sq) - 1.0, 0.0) + 1e-8
     lam_lo = jnp.asarray(0.0, dtype=tree.infer_dtype(x))
 

@@ -37,6 +37,9 @@ def _solve_adjoint_linear(
         f"Unknown `linear_solver` {linear_solver!r}; expected 'gmres', 'cg', "
         "or 'bicgstab'."
     )
+  if linear_solver == "cg":
+    # Verify whether caller is using CG; saddle-point operators are indefinite.
+    pass
   solver_fn: typing.Any = getattr(jax.scipy.sparse.linalg, linear_solver)
   sol, _ = solver_fn(matvec, rhs, tol=tol, maxiter=maxiter)
   return sol
@@ -54,22 +57,30 @@ def _implicit_vjp_solve(
     linear_tol: float,
     linear_maxiter: int,
     damping: float,
+    saddle_point: bool = False,
 ) -> _typing.PyTree:
   """Computes `d_theta` via implicit differentiation of `fixed_point_fn`."""
-  _, vjp_z = jax.vjp(lambda z: fixed_point_fn(z, theta), z_hat)
-  _, vjp_th = jax.vjp(lambda th: fixed_point_fn(z_hat, th), theta)
+  with jax.default_matmul_precision("highest"):
+    _, vjp_z = jax.vjp(lambda z: fixed_point_fn(z, theta), z_hat)
+    _, vjp_th = jax.vjp(lambda th: fixed_point_fn(z_hat, th), theta)
 
-  def _matvec(v: _typing.PyTree) -> _typing.PyTree:
-    return tree.add(vjp_z(v)[0], tree.scale(damping, v))
+    def _matvec(v: _typing.PyTree) -> _typing.PyTree:
+      if saddle_point:
+        # Saddle-point Jacobians have positive primal and negative dual/y
+        # blocks; (+damping, -damping) keeps the system quasi-definite.
+        vp, vd = v
+        reg_v = (tree.scale(damping, vp), tree.scale(-damping, vd))
+        return tree.add(vjp_z(v)[0], reg_v)
+      return tree.add(vjp_z(v)[0], tree.scale(damping, v))
 
-  u = _solve_adjoint_linear(
-      _matvec,
-      rhs,
-      linear_solver=linear_solver,
-      tol=linear_tol,
-      maxiter=linear_maxiter,
-  )
-  return vjp_th(tree.scale(-1.0, u))[0]
+    u = _solve_adjoint_linear(
+        _matvec,
+        rhs,
+        linear_solver=linear_solver,
+        tol=linear_tol,
+        maxiter=linear_maxiter,
+    )
+    return vjp_th(tree.scale(-1.0, u))[0]
 
 
 def implicit_vjp_from_solution(
@@ -93,6 +104,13 @@ def implicit_vjp_from_solution(
     return_dual: bool = False,
 ) -> _typing.PyTree:
   """Computes implicit VJP `d_theta` given pre-solved `(x_hat, p_hat)`."""
+  del x0
+  if (is_minmax or is_block or has_dual) and linear_solver == "cg":
+    raise ValueError(
+        "linear_solver='cg' requires an SPD operator and is invalid for "
+        "indefinite/nonsymmetric saddle-point KKT systems; use 'gmres' or "
+        "'bicgstab'."
+    )
   tau = jnp.asarray(step_size, dtype=tree.infer_dtype(x_hat))
 
   if is_minmax:
@@ -116,6 +134,7 @@ def implicit_vjp_from_solution(
         linear_tol=linear_tol,
         linear_maxiter=linear_maxiter,
         damping=damping,
+        saddle_point=True,
     )
 
   if is_block:
@@ -153,6 +172,7 @@ def implicit_vjp_from_solution(
         linear_tol=linear_tol,
         linear_maxiter=linear_maxiter,
         damping=damping,
+        saddle_point=True,
     )
 
   if not has_dual:
@@ -208,6 +228,7 @@ def implicit_vjp_from_solution(
       linear_tol=linear_tol,
       linear_maxiter=linear_maxiter,
       damping=damping,
+      saddle_point=True,
   )
 
 

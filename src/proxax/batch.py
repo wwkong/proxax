@@ -118,6 +118,32 @@ def _get_thread_pool(
     return pool
 
 
+def _solver_cache_key(solver: typing.Any) -> typing.Any:
+  """Returns a collision-free cache key for `solver` without `id()` reuse."""
+  if solver is None:
+    return None
+  try:
+    hash(solver)
+    return solver
+  except TypeError:
+    return (type(solver), repr(solver))
+
+
+def _store_bounded(
+    per_fn: dict[tuple[typing.Any, ...], typing.Any] | None,
+    key: tuple[typing.Any, ...],
+    val: typing.Any,
+    *,
+    maxsize: int = 16,
+) -> None:
+  """Stores `val` in `per_fn` with FIFO eviction above `maxsize`."""
+  if per_fn is None:
+    return
+  if len(per_fn) >= maxsize and key not in per_fn:
+    per_fn.pop(next(iter(per_fn)))
+  per_fn[key] = val
+
+
 def _get_compiled_batch_runner(
     problem_fn: collections.abc.Callable[[_typing.PyTree], AnyProblem],
     *,
@@ -131,7 +157,7 @@ def _get_compiled_batch_runner(
 ) -> typing.Any:
   """Returns a cached JIT-compiled single or vmap runner for `problem_fn`."""
   key = (
-      id(solver) if solver is not None else None,
+      _solver_cache_key(solver),
       method,
       opt_tol,
       feas_tol,
@@ -149,11 +175,22 @@ def _get_compiled_batch_runner(
   def _solve_one(
       x_init: _typing.PyTree, theta: _typing.PyTree
   ) -> base.Solution:
-    prob = problem_fn(theta)
-    if precondition:
-      return precondition_mod.solve_preconditioned(
-          typing.cast(problem_mod.CompositeProblem, prob),
-          typing.cast(jax.Array, x_init),
+    with jax.default_matmul_precision("highest"):
+      prob = problem_fn(theta)
+      if precondition:
+        return precondition_mod.solve_preconditioned(
+            typing.cast(problem_mod.CompositeProblem, prob),
+            typing.cast(jax.Array, x_init),
+            solver=solver,
+            method=method,
+            opt_tol=opt_tol,
+            feas_tol=feas_tol,
+            jit=True,
+            time_limit=time_limit,
+        )
+      return solve_mod.solve(
+          prob,
+          x_init,
           solver=solver,
           method=method,
           opt_tol=opt_tol,
@@ -161,24 +198,13 @@ def _get_compiled_batch_runner(
           jit=True,
           time_limit=time_limit,
       )
-    return solve_mod.solve(
-        prob,
-        x_init,
-        solver=solver,
-        method=method,
-        opt_tol=opt_tol,
-        feas_tol=feas_tol,
-        jit=True,
-        time_limit=time_limit,
-    )
 
   compiled = (
       jax.jit(jax.vmap(_solve_one, in_axes=(None, 0)))
       if mode == "vmap"
       else jax.jit(_solve_one)
   )
-  if per_fn is not None:
-    per_fn[key] = compiled
+  _store_bounded(per_fn, key, compiled)
   return compiled
 
 
@@ -315,27 +341,28 @@ def batch_implicit_solve(
   resolved = _resolve_backend(backend, batch_size)
 
   if resolved == "vmap":
-    return jax.vmap(
-        lambda p: implicit_mod.implicit_solve(
-            problem_fn,
-            x0,
-            p,
-            solver=solver,
-            method=method,
-            opt_tol=opt_tol,
-            feas_tol=feas_tol,
-            step_size=step_size,
-            linear_solver=linear_solver,
-            linear_tol=linear_tol,
-            linear_maxiter=linear_maxiter,
-            damping=damping,
-            return_dual=return_dual,
-        )
-    )(params_batch)
+    with jax.default_matmul_precision("highest"):
+      return jax.vmap(
+          lambda p: implicit_mod.implicit_solve(
+              problem_fn,
+              x0,
+              p,
+              solver=solver,
+              method=method,
+              opt_tol=opt_tol,
+              feas_tol=feas_tol,
+              step_size=step_size,
+              linear_solver=linear_solver,
+              linear_tol=linear_tol,
+              linear_maxiter=linear_maxiter,
+              damping=damping,
+              return_dual=return_dual,
+          )
+      )(params_batch)
 
   first_theta = _slice_pytree(params_batch, 0)
   cache_key = (
-      id(solver) if solver is not None else None,
+      _solver_cache_key(solver),
       method,
       opt_tol,
       feas_tol,
@@ -500,6 +527,5 @@ def batch_implicit_solve(
     return (None, d_pb)
 
   _batched_fn.defvjp(_fwd, _bwd)
-  if per_fn is not None:
-    per_fn[cache_key] = _batched_fn
+  _store_bounded(per_fn, cache_key, _batched_fn)
   return _batched_fn(x0, params_batch)

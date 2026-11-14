@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import warnings
 
 import jax
 import jax.numpy as jnp
@@ -85,6 +86,12 @@ class NCFISTA:
     elif oracle.curvature_lower is not None:
       m_val = jnp.asarray(oracle.curvature_lower, dtype=dtype)
     else:
+      warnings.warn(
+          "NCFISTA: both lower_curvature and oracle.curvature_lower are None; "
+          "defaulting to m=1.0.",
+          UserWarning,
+          stacklevel=2,
+      )
       m_val = jnp.asarray(1.0, dtype=dtype)
     m_val = jnp.maximum(m_val, jnp.asarray(0.0, dtype=dtype))
 

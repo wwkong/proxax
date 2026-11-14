@@ -89,8 +89,9 @@ class Shifted:
   @property
   def strong_convexity(self) -> jax.Array:
     """Total strong convexity `base.strong_convexity + reg`."""
-    base_mu = jnp.asarray(self.base.strong_convexity, dtype=self.reg.dtype)
-    return base_mu + self.reg
+    reg_arr = jnp.asarray(self.reg)
+    base_mu = jnp.asarray(self.base.strong_convexity, dtype=reg_arr.dtype)
+    return base_mu + reg_arr
 
   def value(self, x: _typing.PyTree) -> jax.Array:
     """Evaluates `base(x) + 0.5 * reg * ||x - center||_2^2`."""

@@ -87,11 +87,19 @@ class PDHG:
     tau0 = jnp.asarray(self.tau_init, dtype=dtype)
     sigma0 = jnp.asarray(self.sigma_init, dtype=dtype)
     if problem.L_xx is not None and problem.L_xy is not None:
-      lip_est = max(problem.L_xx + problem.L_xy, 1e-4)
-      tau0 = jnp.minimum(tau0, jnp.asarray(0.5 / lip_est, dtype=dtype))
+      lip_est = jnp.maximum(
+          jnp.asarray(problem.L_xx, dtype=dtype)
+          + jnp.asarray(problem.L_xy, dtype=dtype),
+          jnp.asarray(1e-4, dtype=dtype),
+      )
+      tau0 = jnp.minimum(tau0, 0.5 / lip_est)
     if problem.L_yy is not None and problem.L_xy is not None:
-      lip_est_y = max(problem.L_yy + problem.L_xy, 1e-4)
-      sigma0 = jnp.minimum(sigma0, jnp.asarray(0.5 / lip_est_y, dtype=dtype))
+      lip_est_y = jnp.maximum(
+          jnp.asarray(problem.L_yy, dtype=dtype)
+          + jnp.asarray(problem.L_xy, dtype=dtype),
+          jnp.asarray(1e-4, dtype=dtype),
+      )
+      sigma0 = jnp.minimum(sigma0, 0.5 / lip_est_y)
 
     init_state = PDHGState(
         x=x_init,
@@ -141,7 +149,9 @@ class PDHG:
       )
 
       next_iter = st.tracker.outer_iters + 1
-      do_eval = (next_iter % self.eval_every) == 0
+      do_eval = ((next_iter % self.eval_every) == 0) | (
+          next_iter >= self.max_iters
+      )
 
       def _eval_ref() -> tuple[
           _typing.PyTree, _typing.PyTree, jax.Array, jax.Array, jax.Array

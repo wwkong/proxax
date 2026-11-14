@@ -499,9 +499,31 @@ def _check_aipp_rejection(
       int(acg.ACGStatus.NONCONVEX_DETECTED),
       dtype=jnp.int32,
   )
+  ls_fail_code = jnp.asarray(
+      int(acg.ACGStatus.LINE_SEARCH_FAILED),
+      dtype=jnp.int32,
+  )
+  max_it_code = jnp.asarray(
+      int(acg.ACGStatus.MAX_ITER_REACHED),
+      dtype=jnp.int32,
+  )
+  bad_status = jnp.logical_or(
+      acg_out.status == noncvx_code,
+      jnp.logical_or(
+          acg_out.status == ls_fail_code,
+          acg_out.status == max_it_code,
+      ),
+  )
+  finite_ok = jnp.logical_and(
+      jnp.isfinite(phi_y),
+      jnp.logical_and(tree.all_finite(acg_out.y), tree.all_finite(acg_out.u)),
+  )
   return jnp.logical_and(
       jnp.asarray(use_adaptive),
-      jnp.logical_or(acg_out.status == noncvx_code, jnp.logical_not(desc_ok)),
+      jnp.logical_or(
+          bad_status,
+          jnp.logical_or(jnp.logical_not(finite_ok), jnp.logical_not(desc_ok)),
+      ),
   )
 
 
@@ -602,8 +624,8 @@ def _evaluate_apd_subproblem(
   )
   rejected = jnp.logical_and(
       jnp.logical_not(done_flag),
-      jnp.logical_and(
-          pf_out.status != ls_fail_code,
+      jnp.logical_or(
+          pf_out.status == ls_fail_code,
           jnp.logical_or(
               pf_out.status == bad_code,
               jnp.logical_not(jnp.logical_and(desc_ok, prox_err_ok)),

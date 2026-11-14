@@ -126,7 +126,11 @@ class Spectrahedron:
     sym = 0.5 * (x + jnp.swapaxes(x, -1, -2))
     evals, evecs = jnp.linalg.eigh(sym)
     s = jnp.asarray(self.scale, dtype=evals.dtype)
-    evals_proj = s * optax.projections.projection_simplex(evals / s)
+    safe_s = jnp.where(s > 0.0, s, 1.0)
+    n = evals.shape[-1]
+    evals_2d = (evals / safe_s).reshape((-1, n))
+    proj_2d = jax.vmap(optax.projections.projection_simplex)(evals_2d)
+    evals_proj = jnp.where(s > 0.0, s * proj_2d.reshape(evals.shape), 0.0)
     return typing.cast(
         jax.Array,
         (evecs * evals_proj[..., None, :]) @ jnp.swapaxes(evecs, -1, -2),
@@ -163,8 +167,11 @@ class SOC:
   def _project(self, x: jax.Array) -> jax.Array:
     t = x[0]
     v = x[1:]
-    norm_v = jnp.linalg.norm(v)
-    safe_norm = jnp.where(norm_v > 0.0, norm_v, 1.0)
+    v_sq = jnp.sum(v * v)
+    nz = v_sq > 0.0
+    safe_sq = jnp.where(nz, v_sq, 1.0)
+    norm_v = jnp.where(nz, jnp.sqrt(safe_sq), 0.0)
+    safe_norm = jnp.where(nz, norm_v, 1.0)
     mid = 0.5 * (1.0 + t / safe_norm) * jnp.concatenate(
         [jnp.expand_dims(norm_v, 0), v]
     )
@@ -396,10 +403,15 @@ class LogBarrier:
     prod = jnp.asarray(step_size, dtype=dtype) * jnp.asarray(
         self.weight, dtype=dtype
     )
-    return jax.tree.map(
-        lambda v: 0.5 * (v + jnp.sqrt(v * v + 4.0 * prod)),
-        x,
-    )
+    def _prox_v(v: jax.Array) -> jax.Array:
+      disc = jnp.sqrt(v * v + 4.0 * prod)
+      return jnp.where(
+          v >= 0.0,
+          0.5 * (v + disc),
+          (2.0 * prod) / jnp.maximum(disc - v, 1e-30),
+      )
+
+    return jax.tree.map(_prox_v, x)
 
   def domain_project(self, x: _typing.PyTree) -> _typing.PyTree:
     """Projects onto `cl(dom(h)) = {x >= 0}`."""
@@ -442,10 +454,12 @@ class NegEntropy:
     lm = jnp.asarray(step_size, dtype=dtype) * jnp.asarray(
         self.weight, dtype=dtype
     )
-    log_lm = jnp.log(lm)
+    pos_lm = lm > 0.0
+    safe_lm = jnp.where(pos_lm, lm, 1.0)
+    log_lm = jnp.log(safe_lm)
 
     def _prox_leaf(v: jax.Array) -> jax.Array:
-      z = v / lm - 1.0 - log_lm
+      z = v / safe_lm - 1.0 - log_lm
       y0 = jnp.where(z > 1.0, jnp.log(jnp.maximum(z, 1.0)), z)
 
       def _newton(_: jax.Array, y: jax.Array) -> jax.Array:
@@ -453,7 +467,12 @@ class NegEntropy:
         return y - (ey + y - z) / (ey + 1.0)
 
       y_sol = jax.lax.fori_loop(0, 12, _newton, y0)
-      return lm * jnp.exp(y_sol)
+      prox_pos = jnp.where(
+          z > 1e30,
+          safe_lm * z,
+          safe_lm * jnp.exp(jnp.minimum(y_sol, 80.0)),
+      )
+      return jnp.where(pos_lm, prox_pos, jnp.maximum(v, 0.0))
 
     return jax.tree.map(_prox_leaf, x)
 

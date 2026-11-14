@@ -152,6 +152,7 @@ def _solve_block_with_halving(
   def _halve_cond(
       st: tuple[
           jax.Array,
+          jax.Array,
           _typing.PyTree,
           _typing.PyTree,
           jax.Array,
@@ -160,11 +161,12 @@ def _solve_block_with_halving(
           jax.Array,
       ],
   ) -> jax.Array:
-    _, _, _, ok, it_h, _, _ = st
-    return (~ok) & (it_h < max_lam_halvings)
+    _, _, _, _, ok, it_h, _, _ = st
+    return jnp.logical_and(jnp.logical_not(ok), it_h < max_lam_halvings)
 
   def _halve_body(
       st: tuple[
+          jax.Array,
           jax.Array,
           _typing.PyTree,
           _typing.PyTree,
@@ -175,6 +177,7 @@ def _solve_block_with_halving(
       ],
   ) -> tuple[
       jax.Array,
+      jax.Array,
       _typing.PyTree,
       _typing.PyTree,
       jax.Array,
@@ -182,7 +185,7 @@ def _solve_block_with_halving(
       base.OracleCounts,
       jax.Array,
   ]:
-    lam_cur, _, _, _, it_h, cnt_cur, in_cur = st
+    lam_cur, _, _, _, _, it_h, cnt_cur, in_cur = st
     sub_smooth = _BlockSubSmooth(
         base_smooth=smooth_t,
         linear_op=op,
@@ -224,12 +227,15 @@ def _solve_block_with_halving(
     lam_min = jnp.asarray(1e-8, dtype=dtype)
     lam_next = jnp.where(ok, lam_cur, jnp.maximum(0.5 * lam_cur, lam_min))
     cnt_next = base.OracleCounts(
-        smooth_evals=cnt_cur.smooth_evals + pf_st.counts.smooth_evals,
+        smooth_evals=(
+            cnt_cur.smooth_evals + pf_st.counts.smooth_evals + num_blocks
+        ),
         grad_evals=cnt_cur.grad_evals + pf_st.counts.grad_evals,
         prox_evals=cnt_cur.prox_evals + pf_st.counts.prox_evals,
     )
     return (
         lam_next,
+        lam_cur,
         z_cand,
         w_cand,
         ok,
@@ -240,6 +246,7 @@ def _solve_block_with_halving(
 
   init_h = (
       lam_t,
+      lam_t,
       y_t,
       tree.zeros_like(y_t),
       jnp.asarray(False),
@@ -247,7 +254,7 @@ def _solve_block_with_halving(
       base.OracleCounts.zeros(),
       zero_int,
   )
-  lam_fin, z_t, w_t, _, _, cnt_t, in_t = _loop.while_loop(
+  _, lam_fin, z_t, w_t, _, _, cnt_t, in_t = _loop.while_loop(
       _halve_cond, _halve_body, init_h, jit=jit
   )
   return lam_fin, z_t, w_t, cnt_t, in_t
@@ -646,7 +653,10 @@ class PAdaptADMM:
         i_next = i_prev + 1
         sum_res_next = sum_res_prev + r_sq
         avg_res = sum_res_next / i_next.astype(dtype)
-        lmt_ok = (r_sq <= lmt_c_sq) & (avg_res >= t_i / (alpha_val * r_cap))
+        lmt_denom = jnp.maximum(
+            alpha_val * r_cap, jnp.asarray(1e-30, dtype=dtype)
+        )
+        lmt_ok = (r_sq <= lmt_c_sq) & (avg_res >= t_i / lmt_denom)
 
         q_next = jax.tree.map(
             lambda qc, qp: jnp.where(stat_ok | lmt_ok, qc, qp),
@@ -656,7 +666,11 @@ class PAdaptADMM:
         max_dq_next = jnp.where(lmt_ok, max_dq_cand, max_dq_prev)
         sum_dq_next = jnp.where(lmt_ok, sum_dq_cand, sum_dq_prev)
         cnt_next = base.OracleCounts(
-            smooth_evals=cnt_prev.smooth_evals + cnt_delta.smooth_evals,
+            smooth_evals=(
+                cnt_prev.smooth_evals
+                + cnt_delta.smooth_evals
+                + 2 * len(problem.blocks)
+            ),
             grad_evals=cnt_prev.grad_evals + cnt_delta.grad_evals,
             prox_evals=cnt_prev.prox_evals + cnt_delta.prox_evals,
         )
@@ -702,7 +716,7 @@ class PAdaptADMM:
           jit=jit,
           time_limit=_loop.remaining_time(jit, time_limit, start_wall),
       )
-      _, _, lam_s, z_s, q_s, r_s, _, _, _, _, _, _, o_fin, in_fin, cnt_fin = (
+      _, q_s, lam_s, z_s, _, r_s, _, _, _, _, _, _, o_fin, in_fin, cnt_fin = (
           fin_in
       )
       feas_s = tree.norm(
@@ -742,11 +756,46 @@ class PAdaptADMM:
       done = (feas_s <= self.feas_tol) & (stat_s <= self.opt_tol)
       return (~done) & (s_it < self.max_stages)
 
-    cb = (
-        None
-        if callback is None
-        else lambda pair: callback(int(pair[0][7]), pair[0][6], pair[0][5])
-    )
+    cb: typing.Any = None
+    if callback is not None:
+      if getattr(callback, "_supports_jit_callback", False):
+
+        def _cb_tracker(pair: typing.Any) -> typing.Any:
+          st_t = pair[0]
+          opt_tol_arr = jnp.asarray(self.opt_tol, dtype=dtype)
+          feas_tol_arr = jnp.asarray(self.feas_tol, dtype=dtype)
+          tiny_tol = jnp.asarray(1e-12, dtype=dtype)
+          kkt_score = jnp.maximum(
+              st_t[6] / jnp.maximum(opt_tol_arr, tiny_tol),
+              st_t[5] / jnp.maximum(feas_tol_arr, tiny_tol),
+          )
+          view = base.ConstrainedTracker(
+              best_x=st_t[0],
+              best_dual=st_t[1],
+              best_subgrad=st_t[2],
+              best_opt_res=st_t[6],
+              best_feas_res=st_t[5],
+              best_kkt_score=kkt_score,
+              best_obj=problem.objective_value(st_t[0]),
+              target_opt_tol=opt_tol_arr,
+              target_feas_tol=feas_tol_arr,
+              outer_iters=st_t[8],
+              inner_iters=st_t[9],
+              counts=st_t[10],
+              status=jnp.asarray(base.SolveStatus.RUNNING, dtype=jnp.int32),
+          )
+          return typing.cast(
+              typing.Callable[[base.ConstrainedTracker], typing.Any], callback
+          )(view)
+
+        _cb_tracker._supports_jit_callback = True  # type: ignore[attr-defined]
+        cb = _cb_tracker
+      else:
+
+        def _cb_user(pair: typing.Any) -> typing.Any:
+          return callback(int(pair[0][7]), pair[0][6], pair[0][5])
+
+        cb = _cb_user
     final_stage, timed_out = _loop.while_loop(
         lambda pair: _stage_cond(pair[0]),
         lambda pair: (_run_stage(pair[0]), pair[1]),

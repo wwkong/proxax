@@ -246,6 +246,7 @@ class SProxALM:
         )
         bt_trials = jnp.asarray(1, dtype=jnp.int32)
         extra_s = jnp.asarray(0, dtype=jnp.int32)
+        ls_ok = jnp.asarray(True)
       else:
 
         def _trial_c(
@@ -293,6 +294,7 @@ class SProxALM:
         x_next = bt_fin.x_trial
         bt_trials = bt_fin.trials
         extra_s = bt_fin.trials
+        ls_ok = bt_fin.accepted
 
       z_next = jax.tree.map(
           lambda z0_i, xn_i: z0_i + self.beta * (xn_i - z0_i),
@@ -332,6 +334,7 @@ class SProxALM:
           grad_inc=2,
           prox_inc=bt_trials,
           max_iters=self.max_iters,
+          line_search_failed=jnp.logical_not(ls_ok),
           finite_ok=cand_finite,
       )
 

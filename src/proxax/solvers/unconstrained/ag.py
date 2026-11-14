@@ -154,14 +154,14 @@ class AG:
             tree.add_scaled(x_md, -beta, grad_md),
             beta,
         )
-        f_ag, grad_ag = oracle.smooth_value_and_grad(x_ag_cand)
+        f_ag = oracle.smooth_value(x_ag_cand)
         diff = tree.sub(x_ag_cand, x_md)
         quad_upper = (
             f_md + tree.vdot(grad_md, diff) + 0.5 * M_val * tree.norm_sq(diff)
         )
         slack = 10.0 * eps_val * (1.0 + jnp.abs(f_md))
         ok = known_M | (f_ag <= quad_upper + slack)
-        return x_ag_cand, f_ag, grad_ag, jnp.asarray(ok, dtype=jnp.bool_)
+        return x_ag_cand, f_ag, grad_md, jnp.asarray(ok, dtype=jnp.bool_)
 
       x_ag0, f_ag0, g_ag0, ok0 = _trial_ag(st.upper_curvature)
       if not known_M:
@@ -202,14 +202,14 @@ class AG:
         M_used = ls_fin.upper_curvature
         x_ag_next = ls_fin.x_ag
         f_ag_next = ls_fin.f_ag
-        grad_ag_next = ls_fin.grad_ag
+        _, grad_ag_next = oracle.smooth_value_and_grad(x_ag_next)
         n_bt = ls_fin.backtracks
         ls_ok = ls_fin.accepted
       else:
         M_used = st.upper_curvature
         x_ag_next = x_ag0
         f_ag_next = f_ag0
-        grad_ag_next = g_ag0
+        _, grad_ag_next = oracle.smooth_value_and_grad(x_ag_next)
         n_bt = jnp.asarray(0, dtype=jnp.int32)
         ls_ok = jnp.asarray(True, dtype=jnp.bool_)
 
@@ -228,7 +228,7 @@ class AG:
       obj_ag = f_ag_next + oracle.proximal_value(x_ag_next)
 
       cand_finite = jnp.logical_and(
-          tree.all_finite(x_ag_next),
+          jnp.logical_and(tree.all_finite(x_ag_next), tree.all_finite(x_next)),
           jnp.isfinite(res_bar),
       )
       eval_inc = n_bt + 1
@@ -236,8 +236,8 @@ class AG:
           x_ag_next, v_bar, res_bar, obj_ag
       ).advance(
           inner_inc=eval_inc,
-          smooth_inc=eval_inc + 1,
-          grad_inc=eval_inc + 1,
+          smooth_inc=eval_inc + 2,
+          grad_inc=2,
           prox_inc=eval_inc + 1,
           max_iters=self.max_iters,
           line_search_failed=jnp.logical_not(ls_ok),

@@ -104,8 +104,11 @@ class L2:
   ) -> _typing.PyTree:
     """Applies Euclidean block soft-thresholding with `step_size * weight`."""
     thresh = step_size * self.weight
-    norm_x = tree.l2_norm(x)
-    safe_norm = jnp.where(norm_x > 0.0, norm_x, 1.0)
+    norm_sq = tree.norm_sq(x)
+    nz = norm_sq > 0.0
+    safe_sq = jnp.where(nz, norm_sq, 1.0)
+    norm_x = jnp.where(nz, jnp.sqrt(safe_sq), 0.0)
+    safe_norm = jnp.where(nz, norm_x, 1.0)
     factor = jnp.where(norm_x > thresh, 1.0 - thresh / safe_norm, 0.0)
     return tree.scale(factor, x)
 
@@ -225,8 +228,11 @@ class L21:
     thresh = step_size * self.weight
 
     def _group_prox(leaf: jax.Array) -> jax.Array:
-      norms = jnp.linalg.norm(leaf, axis=self.axis, keepdims=True)
-      safe = jnp.where(norms > 0.0, norms, 1.0)
+      sq = jnp.sum(leaf * leaf, axis=self.axis, keepdims=True)
+      nz = sq > 0.0
+      safe_sq = jnp.where(nz, sq, 1.0)
+      norms = jnp.where(nz, jnp.sqrt(safe_sq), 0.0)
+      safe = jnp.where(nz, norms, 1.0)
       scale = jnp.where(norms > thresh, 1.0 - thresh / safe, 0.0)
       return leaf * scale
 

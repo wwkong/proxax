@@ -247,7 +247,6 @@ def aipp(
               ref.x_hat,
               ref.v_hat,
               cand_res,
-              check_finite=False,
           )
           conv = upd_tr.opt_residual <= tol_arr
 
@@ -263,10 +262,10 @@ def aipp(
               upd_tr.best_x,
               cand_center,
           )
-          next_center_obj = jnp.where(
+          next_center_obj = jax.lax.cond(
               conv,
-              base_oracle.value(upd_tr.best_x),
-              cand_center_obj,
+              lambda: base_oracle.value(upd_tr.best_x),
+              lambda: cand_center_obj,
           )
           grow = jnp.logical_and(
               jnp.asarray(use_adaptive),

@@ -107,7 +107,7 @@ class IAICG:
         lipschitz_init=self.lipschitz_init,
         xi_init=self.xi_init,
         lam_init=self.lam_init,
-        sigma=self.sigma,
+        sigma=self.sigma if self.sigma is not None else 0.9**0.5,
         max_inner_iters=self.max_inner_iters,
         jit=jit,
     )
@@ -284,9 +284,9 @@ class IAICG:
           ref.obj_val,
       ).advance(
           inner_inc=acg_st.iteration,
-          smooth_inc=1 + extra_f1 + ref.f1_evals,
-          grad_inc=1 + ref.f1_grad_evals,
-          prox_inc=1,
+          smooth_inc=1 + extra_f1 + ref.f1_evals + ref.vec_evals,
+          grad_inc=1 + ref.f1_grad_evals + ref.vec_evals,
+          prox_inc=1 + ref.vec_evals,
           counts_inc=acg_st.counts,
           max_iters=self.max_outer_iters,
           finite_ok=cand_finite,

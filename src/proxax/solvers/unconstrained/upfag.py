@@ -243,7 +243,6 @@ class UPFAG:
             st.x_k,
         )
         f_md, grad_md = oracle.smooth_value_and_grad(x_md)
-        phi_md = f_md + oracle.proximal_value(x_md)
         x_k_cand = oracle.prox(
             tree.add_scaled(st.x_k, -lam_k, grad_md),
             lam_k,
@@ -253,14 +252,15 @@ class UPFAG:
             st.x_ag,
             x_k_cand,
         )
-        phi_tilde = oracle.value(x_ag_tilde)
+        f_tilde = oracle.smooth_value(x_ag_tilde)
+        phi_tilde = f_tilde + oracle.proximal_value(x_ag_tilde)
         diff_md = tree.sub(x_ag_tilde, x_md)
         rhs = (
-            phi_md
+            f_md
             + tree.vdot(grad_md, diff_md)
             + tree.norm_sq(diff_md) / jnp.maximum(2.0 * alpha_k * lam_k, 1e-30)
             + self.delta * alpha_k
-            + 10.0 * eps_val * (1.0 + jnp.abs(phi_md))
+            + 10.0 * eps_val * (1.0 + jnp.abs(f_md))
         )
         return (
             lam_k,
@@ -270,7 +270,7 @@ class UPFAG:
             x_k_cand,
             x_ag_tilde,
             phi_tilde,
-            phi_tilde <= rhs,
+            f_tilde <= rhs,
         )
 
       it0 = jnp.asarray(0, dtype=jnp.int32)

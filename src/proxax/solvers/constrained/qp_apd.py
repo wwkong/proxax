@@ -138,18 +138,16 @@ class QPAPD:
           m_max_arr,
       )
     elif base_oracle.curvature_lower is not None:
-      if base_oracle.curvature_lower > 0.0:
-        m0 = jnp.clip(
-            jnp.asarray(base_oracle.curvature_lower, dtype=dtype),
-            m_min_arr,
-            m_max_arr,
-        )
-      else:
-        m0 = jnp.clip(
-            jnp.maximum(tracker0.target_opt_tol, m_min_arr),
-            m_min_arr,
-            m_max_arr,
-        )
+      curv_low = jnp.asarray(base_oracle.curvature_lower, dtype=dtype)
+      m0 = jnp.where(
+          curv_low > 0.0,
+          jnp.clip(curv_low, m_min_arr, m_max_arr),
+          jnp.clip(
+              jnp.maximum(tracker0.target_opt_tol, m_min_arr),
+              m_min_arr,
+              m_max_arr,
+          ),
+      )
     else:
       m0 = jnp.clip(jnp.asarray(1.0, dtype=dtype), m_min_arr, m_max_arr)
 

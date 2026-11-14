@@ -327,15 +327,25 @@ def qp_aipp(
               ),
           )
 
+          upd_tr = st.tracker.update_incumbent(
+              ref.x_hat,
+              cand_dual,
+              ref.v_hat,
+              cand_opt,
+              cand_feas,
+              opt_tol_arr=opt_tol_arr,
+              feas_tol_arr=feas_tol_arr,
+          )
           use_ref = ref.obj_val <= phi_y
           cand_center = jax.tree.map(
               lambda rx, yx: jnp.where(use_ref, rx, yx),
               ref.x_hat,
               acg_out.y,
           )
+          cand_center_obj = jnp.where(use_ref, ref.obj_val, phi_y)
           next_center = jax.tree.map(
-              lambda rx, cc: jnp.where(conv, rx, cc),
-              ref.x_hat,
+              lambda bx, cc: jnp.where(conv, bx, cc),
+              upd_tr.best_x,
               cand_center,
           )
 
@@ -351,7 +361,11 @@ def qp_aipp(
               penalty=next_penalty,
               dampen=0.0,
           )
-          next_center_obj = next_pen_oracle.value(next_center)
+          next_center_obj = jax.lax.cond(
+              jnp.logical_or(advance_penalty, conv),
+              lambda: next_pen_oracle.value(next_center),
+              lambda: cand_center_obj,
+          )
           next_L = jnp.where(
               advance_penalty,
               ref.lipschitz_used * (next_penalty / st.penalty),
@@ -370,7 +384,8 @@ def qp_aipp(
               st.lam,
           )
           return QPTransformState(
-              tracker=ConstrainedOptaxTracker(
+              tracker=dataclasses.replace(
+                  upd_tr,
                   initialized=jnp.asarray(True, dtype=jnp.bool_),
                   converged=conv,
                   stage_iter=jnp.where(
@@ -388,12 +403,7 @@ def qp_aipp(
                   total_steps=st.total_steps + 1,
                   center=next_center,
                   center_obj=next_center_obj,
-                  best_x=ref.x_hat,
                   penalty=next_penalty,
-                  dual=cand_dual,
-                  subgrad=ref.v_hat,
-                  opt_residual=cand_opt,
-                  feas_residual=cand_feas,
               ),
               subproblem=ACGSubproblemCarry.create(
                   next_center,
@@ -765,10 +775,10 @@ def qp_apd(
               penalty=next_penalty,
               dampen=0.0,
           )
-          next_center_obj = jnp.where(
+          next_center_obj = jax.lax.cond(
               jnp.logical_or(advance_penalty, conv_now),
-              next_pen_oracle.value(next_center),
-              phi_y,
+              lambda: next_pen_oracle.value(next_center),
+              lambda: phi_y,
           )
           return QPAPDTransformState(
               tracker=dataclasses.replace(
@@ -1224,10 +1234,10 @@ def ialm(
               penalty=next_penalty,
               dampen=dampen,
           )
-          next_center_obj = jnp.where(
+          next_center_obj = jax.lax.cond(
               jnp.logical_or(advance_alm, conv_now),
-              next_pen_oracle.value(next_center),
-              phi_y,
+              lambda: next_pen_oracle.value(next_center),
+              lambda: phi_y,
           )
           return IALMTransformState(
               multiplier=next_mult,

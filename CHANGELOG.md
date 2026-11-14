@@ -4,6 +4,16 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-14
+
+### Fixed
+- **Full-Codebase Audit Fixes**: Resolved 35+ correctness, numerical stability, JAX tracer/`vmap`, evaluation-counting, and `optax_compat` issues across `_loop.py`, `tree.py`, `precondition.py`, `implicit.py`, `batch.py`, `plotting.py`, `prox/*`, `constraints/*`, `solvers/{inner,unconstrained,constrained,block,minmax}/*`, and `optax_compat/*`.
+- **GPU `vmap` Precision**: Enforced `jax.default_matmul_precision("highest")` in `batch_solve`, `batch_implicit_solve`, and `_implicit_vjp_solve` to prevent TF32 `~1e-4` matmul noise from breaking batched solver convergence and implicit gradients.
+- **Block Solvers & `HistoryTracker`**: Fixed `ADMM` / `DPADMM` / `PAdaptADMM` step-size/residual consistency, per-block `lam_t`, and `track_history=True` (`HistoryTracker`) compatibility.
+
+### Added
+- Added [tests/test_audit_fixes.py](tests/test_audit_fixes.py) covering zero-norm reverse-mode AD, exotic prox edge cases, block solver history tracking, saddle-point `cg` rejection, and empty-trajectory plotting guards.
+
 ## [0.3.10] - 2026-11-14
 
 ### Added

@@ -259,18 +259,16 @@ class IALM:
           m_max_arr,
       )
     elif base_oracle.curvature_lower is not None:
-      if base_oracle.curvature_lower > 0.0:
-        m0 = jnp.clip(
-            jnp.asarray(base_oracle.curvature_lower, dtype=dtype),
-            m_min_arr,
-            m_max_arr,
-        )
-      else:
-        m0 = jnp.clip(
-            jnp.maximum(tracker0.target_opt_tol, m_min_arr),
-            m_min_arr,
-            m_max_arr,
-        )
+      curv_low = jnp.asarray(base_oracle.curvature_lower, dtype=dtype)
+      m0 = jnp.where(
+          curv_low > 0.0,
+          jnp.clip(curv_low, m_min_arr, m_max_arr),
+          jnp.clip(
+              jnp.maximum(tracker0.target_opt_tol, m_min_arr),
+              m_min_arr,
+              m_max_arr,
+          ),
+      )
     else:
       m0 = jnp.clip(jnp.asarray(1.0, dtype=dtype), m_min_arr, m_max_arr)
 
@@ -438,6 +436,10 @@ class IALM:
       prev_feas_next = jnp.minimum(st.prev_feas_res, cand_feas)
       upper_next = upper_used * (c_next / st.penalty)
 
+      cand_finite = jnp.logical_and(
+          tree.all_finite(cand_x),
+          jnp.logical_and(jnp.isfinite(cand_opt), jnp.isfinite(cand_feas)),
+      )
       tracker = st.tracker.update_incumbent(
           cand_x,
           cand_p,
@@ -451,6 +453,7 @@ class IALM:
           counts_inc=sub_counts,
           max_iters=self.max_alm_iters,
           sub_status=sub_status,
+          finite_ok=cand_finite,
       )
 
       return IALMState(

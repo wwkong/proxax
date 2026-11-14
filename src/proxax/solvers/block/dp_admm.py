@@ -242,6 +242,7 @@ class DPADMM:
         x_next_list: list[_typing.PyTree] = []
         dax_list: list[_typing.PyTree] = []
         w_list: list[_typing.PyTree] = []
+        lam_list: list[jax.Array] = []
         lam_next = lam_cur
         smooth_add = zero_int
         grad_add = zero_int
@@ -345,7 +346,7 @@ class DPADMM:
             return bad, y_v, r_v, in_t + in_new, tot_c, next_lam, tries + 1
 
           bad0, x_t_next, w_t, in0, cnt0, _ = _solve_block(lam_next)
-          _, x_t_next, w_t, in_fin_t, cnt_fin_t, lam_next, _ = (
+          _, x_t_next, w_t, in_fin_t, cnt_fin_t, lam_t, _ = (
               _loop.while_loop(
                   _lam_cond,
                   _lam_body,
@@ -353,11 +354,13 @@ class DPADMM:
                   jit=jit,
               )
           )
+          lam_next = lam_t
           dax_t = tree.sub(op.matvec(x_t_next), ax_t_prev)
           ax_running = tree.add(ax_running, dax_t)
           x_next_list.append(x_t_next)
           dax_list.append(dax_t)
           w_list.append(w_t)
+          lam_list.append(lam_t)
           smooth_add = smooth_add + cnt_fin_t.smooth_evals
           grad_add = grad_add + cnt_fin_t.grad_evals
           prox_add = prox_add + cnt_fin_t.prox_evals
@@ -367,21 +370,24 @@ class DPADMM:
         q_next = tree.add(damp_p, tree.scale(c_cur, ax_running))
 
         # Exact KKT stationarity residuals:
-        # v_t = (w_t - dx_t) / lam + c A_t^* sum_{s>t} A_s(dx_s)
+        # v_t = (w_t - dx_t) / lam_t + c A_t^* sum_{s>t} A_s(dx_s)
         suffix_dax = tree.zeros_like(ax_running)
         v_rev: list[_typing.PyTree] = []
-        inv_lam = 1.0 / lam_next
-        for op, x_t, x_t_next, w_t, dax_t in zip(
+        for op, x_t, x_t_next, w_t, dax_t, lam_t in zip(
             reversed(bound_ops),
             reversed(x_prev),
             reversed(x_next),
             reversed(w_list),
             reversed(dax_list),
+            reversed(lam_list),
             strict=True,
         ):
+          inv_lam_t = 1.0 / lam_t
           dz_t = tree.sub(x_t_next, x_t)
           v_t = tree.add(
-              tree.sub(tree.scale(inv_lam, w_t), tree.scale(inv_lam, dz_t)),
+              tree.sub(
+                  tree.scale(inv_lam_t, w_t), tree.scale(inv_lam_t, dz_t)
+              ),
               tree.scale(c_cur, op.rmatvec(suffix_dax)),
           )
           v_rev.append(v_t)
@@ -490,11 +496,46 @@ class DPADMM:
       done = (stat_s <= self.opt_tol) & (feas_s <= self.feas_tol)
       return (~done) & (s_it < self.max_stages)
 
-    cb = (
-        None
-        if callback is None
-        else lambda pair: callback(int(pair[0][7]), pair[0][5], pair[0][6])
-    )
+    cb: typing.Any = None
+    if callback is not None:
+      if getattr(callback, "_supports_jit_callback", False):
+
+        def _cb_tracker(pair: typing.Any) -> typing.Any:
+          st_t = pair[0]
+          opt_tol_arr = jnp.asarray(self.opt_tol, dtype=dtype)
+          feas_tol_arr = jnp.asarray(self.feas_tol, dtype=dtype)
+          tiny_tol = jnp.asarray(1e-12, dtype=dtype)
+          kkt_score = jnp.maximum(
+              st_t[5] / jnp.maximum(opt_tol_arr, tiny_tol),
+              st_t[6] / jnp.maximum(feas_tol_arr, tiny_tol),
+          )
+          view = base.ConstrainedTracker(
+              best_x=st_t[0],
+              best_dual=st_t[1],
+              best_subgrad=st_t[2],
+              best_opt_res=st_t[5],
+              best_feas_res=st_t[6],
+              best_kkt_score=kkt_score,
+              best_obj=problem.objective_value(st_t[0]),
+              target_opt_tol=opt_tol_arr,
+              target_feas_tol=feas_tol_arr,
+              outer_iters=st_t[8],
+              inner_iters=st_t[9],
+              counts=st_t[10],
+              status=jnp.asarray(base.SolveStatus.RUNNING, dtype=jnp.int32),
+          )
+          return typing.cast(
+              typing.Callable[[base.ConstrainedTracker], typing.Any], callback
+          )(view)
+
+        _cb_tracker._supports_jit_callback = True  # type: ignore[attr-defined]
+        cb = _cb_tracker
+      else:
+
+        def _cb_user(pair: typing.Any) -> typing.Any:
+          return callback(int(pair[0][7]), pair[0][5], pair[0][6])
+
+        cb = _cb_user
     final_stage, timed_out = _loop.while_loop(
         lambda pair: _stage_cond(pair[0]),
         lambda pair: (_run_stage(pair[0]), pair[1]),

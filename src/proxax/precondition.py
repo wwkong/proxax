@@ -12,6 +12,7 @@ from jax.experimental import sparse as jsparse
 import proxax.solve as solve_mod
 from proxax import _typing
 from proxax import problem as problem_mod
+from proxax import tree
 from proxax.constraints import linear_op
 from proxax.constraints import sets
 from proxax.oracle import terms
@@ -80,8 +81,11 @@ class PreconditionedProblem:
 
   def unscale(self, sol: base.Solution) -> base.Solution:
     """Maps a `Solution` from scaled coordinates back to original space."""
-    x_orig = self.d_x * jnp.asarray(sol.x)
-    subgrad_orig = jnp.asarray(sol.subgrad) / (self.cost_scale * self.d_x)
+    x_orig = jax.tree.map(lambda leaf: self.d_x * jnp.asarray(leaf), sol.x)
+    subgrad_orig = jax.tree.map(
+        lambda leaf: jnp.asarray(leaf) / (self.cost_scale * self.d_x),
+        sol.subgrad,
+    )
     dual_orig: _typing.PyTree | None = sol.dual
     if sol.dual is not None:
       if self.d_y is not None:
@@ -98,7 +102,7 @@ class PreconditionedProblem:
       else:
         dual_orig = jax.tree.map(lambda p: p / self.cost_scale, sol.dual)
     obj_orig = sol.stats.obj_val / self.cost_scale
-    opt_res_orig = jnp.linalg.norm(subgrad_orig)
+    opt_res_orig = tree.l2_norm(subgrad_orig)
     feas_res_orig = sol.stats.feas_residual / self.feas_tol_factor
     stats_orig = dataclasses.replace(
         sol.stats,
@@ -357,8 +361,26 @@ def ruiz_equilibrate(
     scaled_constraints = problem.constraints
     d_y_tree = None
 
+  d_x_max_sq = (
+      jnp.max(d_x) ** 2 if n > 0 else jnp.asarray(1.0, dtype=dtype)
+  )
+  d_x_min_sq = (
+      jnp.min(d_x) ** 2 if n > 0 else jnp.asarray(1.0, dtype=dtype)
+  )
+  orig_L = getattr(problem.smooth, "curvature_upper", None)
+  orig_m = getattr(problem.smooth, "curvature_lower", None)
+  scaled_L = (
+      None if orig_L is None else cost_scale * d_x_max_sq * orig_L
+  )
+  scaled_m = (
+      None if orig_m is None else cost_scale * d_x_min_sq * orig_m
+  )
   scaled_problem = problem_mod.CompositeProblem(
-      smooth=terms.as_smooth_term(_scaled_smooth),
+      smooth=terms.SmoothTerm(
+          fn=_scaled_smooth,
+          upper_curvature=scaled_L,
+          lower_curvature=scaled_m,
+      ),
       proximal=scaled_prox,
       constraints=scaled_constraints,
   )
@@ -399,15 +421,17 @@ def solve_preconditioned(
   pre = ruiz_equilibrate(problem, x0, hessian=hessian, num_iters=num_iters)
   eff_opt_raw = pre.scale_opt_tol(opt_tol)
   eff_feas_raw = pre.scale_feas_tol(feas_tol)
-  eff_opt_tol = (
-      opt_tol
+  eff_opt_tol = typing.cast(
+      float,
+      eff_opt_raw
       if isinstance(eff_opt_raw, jax.core.Tracer)
-      else float(eff_opt_raw)
+      else float(eff_opt_raw),
   )
-  eff_feas_tol = (
-      feas_tol
+  eff_feas_tol = typing.cast(
+      float,
+      eff_feas_raw
       if isinstance(eff_feas_raw, jax.core.Tracer)
-      else float(eff_feas_raw)
+      else float(eff_feas_raw),
   )
   if solver is not None:
     sol = solve_mod.solve(

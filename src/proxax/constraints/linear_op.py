@@ -365,17 +365,6 @@ class BoundProductConstraint:
   def adjoint(self, dual: _typing.PyTree) -> _typing.PyTree:
     """Computes `sum_k A_k^*(dual_k)`."""
     leaves = jax.tree.leaves(self.constraints, is_leaf=_is_constraint)
-    dual_subtrees = jax.tree.leaves(
-        jax.tree.map(
-            lambda c, d: c.adjoint(d),
-            self.constraints,
-            dual,
-            is_leaf=_is_constraint,
-        ),
-        is_leaf=lambda node: False,
-    )
-    del dual_subtrees
-    # Map each constraint + dual subtree into a primal PyTree, then sum them.
     primal_terms: list[_typing.PyTree] = []
 
     def _collect(c: BoundConstraint, d: _typing.PyTree) -> None:

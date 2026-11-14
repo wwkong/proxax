@@ -243,10 +243,19 @@ class AdapFISTA:
         )
 
       def _sub_body(c: _AdapFISTASubCarry) -> _AdapFISTASubCarry:
-        bad_L = c.lam * c.m_upper > 0.9
-        lam_shrunk = jnp.minimum(
+        finite_step = jnp.logical_and(
+            jnp.isfinite(c.f_y_next), jnp.isfinite(c.m_upper)
+        )
+        bad_L = jnp.logical_or(
+            jnp.logical_not(finite_step), c.lam * c.m_upper > 0.9
+        )
+        lam_finite = jnp.minimum(
             c.lam / self.theta,
             0.9 / jnp.maximum(c.m_upper, 1e-30),
+        )
+        lam_shrunk = jnp.maximum(
+            jnp.where(finite_step, lam_finite, 0.5 * c.lam),
+            jnp.asarray(1e-12, dtype=c.lam.dtype),
         )
         next_lam = jnp.where(bad_L, lam_shrunk, c.lam)
         bad_xi = jnp.logical_and(
@@ -291,8 +300,8 @@ class AdapFISTA:
       obj_yn = sub_fin.f_y_next + oracle.proximal_value(y_next)
 
       cand_finite = jnp.logical_and(
-          tree.all_finite(y_next),
-          jnp.isfinite(res_cand),
+          jnp.logical_and(tree.all_finite(y_next), jnp.isfinite(res_cand)),
+          jnp.isfinite(sub_fin.f_y_next),
       )
       next_tr = st.tracker.update_incumbent(
           y_next, v_cand, res_cand, obj_yn

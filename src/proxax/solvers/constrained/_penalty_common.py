@@ -136,6 +136,10 @@ def advance_penalty_stage(
       penalty * penalty_factor,
       jnp.asarray(penalty_max, dtype=dtype),
   )
+  cand_finite = jnp.logical_and(
+      tree.all_finite(cand_x),
+      jnp.logical_and(jnp.isfinite(cand_opt), jnp.isfinite(cand_feas)),
+  )
   next_tracker = tracker.update_incumbent(
       cand_x,
       cand_p,
@@ -149,5 +153,6 @@ def advance_penalty_stage(
       counts_inc=counts,
       max_iters=max_penalty_iters,
       sub_status=sub_status,
+      finite_ok=cand_finite,
   )
   return c_next, next_tracker

@@ -344,7 +344,10 @@ class IAIPAL:
       p_cand = pen_oracle.effective_dual(x_acg)
       k0_period = jnp.maximum(
           jnp.asarray(1, dtype=jnp.int32),
-          jnp.ceil(st.penalty / op_norm_sq).astype(jnp.int32),
+          jnp.minimum(
+              jnp.ceil(st.penalty / op_norm_sq),
+              jnp.asarray(2**30, dtype=st.penalty.dtype),
+          ).astype(jnp.int32),
       )
       if self.k0_type == 1:
         do_mult = jnp.asarray(True)
@@ -380,11 +383,7 @@ class IAIPAL:
       stage_al_val = delta_oracle.value(x_acg)
       is_first_in_stage = st.local_outer_iter == 1
       denom_cyc = jnp.maximum(loc_f - 1.0, 1.0)
-      delta_k = (
-          st.stage_al_base
-          - stage_al_val
-          - 0.5 * tree.norm_sq(p_updated) / st.penalty
-      ) / denom_cyc
+      delta_k = (st.stage_al_base - stage_al_val) / denom_cyc
       delta_mult = (
           st.lam
           * (1.0 - sigma_k**2)

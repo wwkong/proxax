@@ -67,7 +67,6 @@ class ADMM:
     )
     bound_ops = problem.bind_operators(x_init)
     dtype = tree.infer_dtype(x_init[0])
-    zero_val = jnp.asarray(0.0, dtype=dtype)
     inf_val = jnp.asarray(jnp.inf, dtype=dtype)
 
     ax_init = problem.coupling_residual(x_init, bound_ops)
@@ -88,6 +87,8 @@ class ADMM:
             jax.Array,
             jax.Array,
             jax.Array,
+            jax.Array,
+            jax.Array,
             base.OracleCounts,
         ],
     ) -> tuple[
@@ -99,9 +100,23 @@ class ADMM:
         jax.Array,
         jax.Array,
         jax.Array,
+        jax.Array,
+        jax.Array,
         base.OracleCounts,
     ]:
-      x_cur, y_cur, lips_cur, ax_cur, _, _, _, it_cur, counts_cur = state
+      (
+          x_cur,
+          y_cur,
+          lips_cur,
+          ax_cur,
+          _,
+          _,
+          _,
+          it_cur,
+          inner_cur,
+          _,
+          counts_cur,
+      ) = state
       rho_val = jnp.asarray(self.rho, dtype=dtype)
       x_next_list: list[_typing.PyTree] = []
       lips_next_list: list[jax.Array] = []
@@ -111,6 +126,8 @@ class ADMM:
       smooth_evals = counts_cur.smooth_evals
       grad_evals = counts_cur.grad_evals
       prox_evals = counts_cur.prox_evals
+      inner_step = inner_cur
+      ls_ok_step = jnp.asarray(True)
 
       for blk, op, x_i, lip_i in zip(
           problem.blocks, bound_ops, x_cur, lips_cur, strict=True
@@ -131,6 +148,7 @@ class ADMM:
               tree.scale(1.0 / rho_val, y_cur),
           )
           f_val_i, f_grad_i = smooth_i.value_and_grad(x_i)
+          smooth_evals = smooth_evals + 1
           grad_evals = grad_evals + 1
           aug_vec = tree.add(y_cur, tree.scale(rho_val, ax_running))
           g_i = tree.add(f_grad_i, op.rmatvec(aug_vec))
@@ -141,6 +159,7 @@ class ADMM:
           lip_try = jnp.maximum(lip_i / 1.2, jnp.asarray(1e-6, dtype=dtype))
           bt_init = (
               lip_try,
+              lip_try,
               x_i,
               ax_i_cur,
               jnp.asarray(False),
@@ -149,6 +168,7 @@ class ADMM:
 
           _BTState = tuple[
               jax.Array,
+              jax.Array,
               _typing.PyTree,
               _typing.PyTree,
               jax.Array,
@@ -156,7 +176,7 @@ class ADMM:
           ]
 
           def _bt_cond(bt_st: _BTState) -> jax.Array:
-            _, _, _, ok, bt_it = bt_st
+            _, _, _, _, ok, bt_it = bt_st
             return (~ok) & (bt_it < self.max_backtracks)
 
           def _bt_body(
@@ -169,7 +189,7 @@ class ADMM:
               _blk: block_mod.BlockTerm = blk,
               _op: typing.Any = op,
           ) -> _BTState:
-            l_cur, _, _, _, bt_it = bt_st
+            l_cur, _, _, _, _, bt_it = bt_st
             tau = 1.0 / l_cur
             cand = _blk.proximal.prox(
                 tree.sub(_x_i, tree.scale(tau, _g_i)), tau
@@ -184,21 +204,22 @@ class ADMM:
                 + tree.vdot(_g_i, dx)
                 + 0.5 * l_cur * tree.norm_sq(dx)
             )
-            accepted = psi_cand <= rhs_val + 1e-10 * (
-                1.0 + jnp.abs(_psi_cur)
-            )
+            tol_bt = 10.0 * tree.eps(dtype) * (1.0 + jnp.abs(_psi_cur))
+            accepted = psi_cand <= rhs_val + tol_bt
             l_next = jnp.where(
                 accepted, l_cur, l_cur * self.backtrack_factor
             )
-            return l_next, cand, ax_cand, accepted, bt_it + 1
+            return l_next, l_cur, cand, ax_cand, accepted, bt_it + 1
 
-          lip_i_next, x_i_next, ax_i_next, _, bt_iters = jax.lax.while_loop(
-              _bt_cond, _bt_body, bt_init
+          _, lip_i_next, x_i_next, ax_i_next, bt_ok, bt_iters = (
+              _loop.while_loop(_bt_cond, _bt_body, bt_init, jit=jit)
           )
           tau_i = 1.0 / lip_i_next
           ax_running = tree.add(ax_running, tree.sub(ax_i_next, ax_i_cur))
           smooth_evals = smooth_evals + bt_iters
           prox_evals = prox_evals + bt_iters
+          inner_step = inner_step + bt_iters
+          ls_ok_step = ls_ok_step & bt_ok
 
         x_next_list.append(x_i_next)
         lips_next_list.append(lip_i_next)
@@ -225,6 +246,7 @@ class ADMM:
           f_grad_next = tree.zeros_like(x_i_next)
         else:
           _, f_grad_next = smooth_i.value_and_grad(x_i_next)
+          smooth_evals = smooth_evals + 1
           grad_evals = grad_evals + 1
         a_adj_y = op.rmatvec(y_next)
         prox_subgrad = tree.sub(
@@ -250,6 +272,8 @@ class ADMM:
           stat_next,
           feas_next,
           it_cur + 1,
+          inner_step,
+          ls_ok_step,
           counts_next,
       )
 
@@ -262,6 +286,8 @@ class ADMM:
         inf_val,
         inf_val,
         jnp.asarray(0, dtype=jnp.int32),
+        jnp.asarray(0, dtype=jnp.int32),
+        jnp.asarray(True),
         counts_init,
     )
 
@@ -275,18 +301,56 @@ class ADMM:
             jax.Array,
             jax.Array,
             jax.Array,
+            jax.Array,
+            jax.Array,
             base.OracleCounts,
         ],
     ) -> jax.Array:
-      _, _, _, _, _, stat_cur, feas_cur, it_cur, _ = state
+      _, _, _, _, _, stat_cur, feas_cur, it_cur, _, ls_ok_cur, _ = state
       converged = (stat_cur <= self.opt_tol) & (feas_cur <= self.feas_tol)
-      return (~converged) & (it_cur < self.max_iters)
+      return (~converged) & ls_ok_cur & (it_cur < self.max_iters)
 
-    cb = (
-        None
-        if callback is None
-        else lambda pair: callback(int(pair[0][7]), pair[0][5], pair[0][6])
-    )
+    cb: typing.Any = None
+    if callback is not None:
+      if getattr(callback, "_supports_jit_callback", False):
+
+        def _cb_tracker(pair: typing.Any) -> typing.Any:
+          st_t = pair[0]
+          opt_tol_arr = jnp.asarray(self.opt_tol, dtype=dtype)
+          feas_tol_arr = jnp.asarray(self.feas_tol, dtype=dtype)
+          tiny_tol = jnp.asarray(1e-12, dtype=dtype)
+          kkt_score = jnp.maximum(
+              st_t[5] / jnp.maximum(opt_tol_arr, tiny_tol),
+              st_t[6] / jnp.maximum(feas_tol_arr, tiny_tol),
+          )
+          view = base.ConstrainedTracker(
+              best_x=st_t[0],
+              best_dual=st_t[1],
+              best_subgrad=st_t[4],
+              best_opt_res=st_t[5],
+              best_feas_res=st_t[6],
+              best_kkt_score=kkt_score,
+              best_obj=problem.objective_value(st_t[0]),
+              target_opt_tol=opt_tol_arr,
+              target_feas_tol=feas_tol_arr,
+              outer_iters=st_t[7],
+              inner_iters=st_t[8],
+              counts=st_t[10],
+              status=jnp.asarray(base.SolveStatus.RUNNING, dtype=jnp.int32),
+          )
+          return typing.cast(
+              typing.Callable[[base.ConstrainedTracker], typing.Any], callback
+          )(view)
+
+        _cb_tracker._supports_jit_callback = True  # type: ignore[attr-defined]
+        cb = _cb_tracker
+      else:
+
+        def _cb_user(pair: typing.Any) -> typing.Any:
+          return callback(int(pair[0][7]), pair[0][5], pair[0][6])
+
+        cb = _cb_user
+
     final_state, timed_out = _loop.while_loop(
         lambda pair: _not_done(pair[0]),
         lambda pair: (_step(pair[0]), pair[1]),
@@ -297,9 +361,19 @@ class ADMM:
         on_time_limit=lambda pair: (pair[0], jnp.asarray(True)),
     )
 
-    x_fin, y_fin, _, _, v_fin, stat_fin, feas_fin, it_fin, counts_fin = (
-        final_state
-    )
+    (
+        x_fin,
+        y_fin,
+        _,
+        _,
+        v_fin,
+        stat_fin,
+        feas_fin,
+        it_fin,
+        inner_fin,
+        ls_ok_fin,
+        counts_fin,
+    ) = final_state
     converged = (stat_fin <= self.opt_tol) & (feas_fin <= self.feas_tol)
     status = jnp.where(
         timed_out,
@@ -307,7 +381,13 @@ class ADMM:
         jnp.where(
             converged,
             jnp.asarray(base.SolveStatus.CONVERGED, dtype=jnp.int32),
-            jnp.asarray(base.SolveStatus.MAX_ITER_REACHED, dtype=jnp.int32),
+            jnp.where(
+                ~ls_ok_fin,
+                jnp.asarray(
+                    base.SolveStatus.LINE_SEARCH_FAILED, dtype=jnp.int32
+                ),
+                jnp.asarray(base.SolveStatus.MAX_ITER_REACHED, dtype=jnp.int32),
+            ),
         ),
     )
 
@@ -319,7 +399,7 @@ class ADMM:
         status=status,
         stats=base.SolveStats(
             outer_iters=it_fin,
-            inner_iters=zero_val.astype(jnp.int32),
+            inner_iters=inner_fin,
             smooth_evals=counts_fin.smooth_evals,
             grad_evals=counts_fin.grad_evals,
             prox_evals=counts_fin.prox_evals,

@@ -273,10 +273,10 @@ def apd(
               upd_tr.best_x,
               pf_out.y,
           )
-          next_center_obj = jnp.where(
+          next_center_obj = jax.lax.cond(
               conv_now,
-              base_oracle.value(upd_tr.best_x),
-              phi_y,
+              lambda: base_oracle.value(upd_tr.best_x),
+              lambda: phi_y,
           )
           return APDTransformState(
               tracker=dataclasses.replace(

@@ -6,14 +6,13 @@ import typing
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 from proxax import _typing
 
 
 def eps(dtype: jnp.dtype[typing.Any]) -> float:
   """Returns floating-point machine epsilon for `dtype`."""
-  return float(np.finfo(dtype).eps)
+  return float(typing.cast(typing.Any, jnp.finfo(dtype)).eps)  # type: ignore[no-untyped-call]
 
 
 def infer_dtype(tree: _typing.PyTree) -> jnp.dtype[typing.Any]:
@@ -38,7 +37,9 @@ def as_float_tree(tree: _typing.PyTree) -> _typing.PyTree:
 
   def _to_float(leaf: typing.Any) -> jax.Array:
     arr = jnp.asarray(leaf)
-    if jnp.issubdtype(arr.dtype, jnp.floating):
+    if jnp.issubdtype(arr.dtype, jnp.floating) or jnp.issubdtype(
+        arr.dtype, jnp.complexfloating
+    ):
       return arr
     return arr.astype(default_dtype)
 
@@ -124,7 +125,7 @@ def linf_norm(x: _typing.PyTree) -> jax.Array:
   dtype = infer_dtype(x)
   maxes = [
       (
-          jnp.max(jnp.abs(leaf))
+          jnp.max(jnp.abs(leaf).astype(dtype))
           if jnp.size(leaf) > 0
           else jnp.asarray(0.0, dtype=dtype)
       )
@@ -175,10 +176,12 @@ def clip_box(
 ) -> _typing.PyTree:
   """Clips `x` onto `[lower, upper]`, broadcasting scalar bounds."""
   low_scalar = (
-      not isinstance(lower, dict | list | tuple) and jnp.ndim(lower) == 0
+      jax.tree_util.treedef_is_leaf(jax.tree.structure(lower))
+      and jnp.ndim(lower) == 0
   )
   high_scalar = (
-      not isinstance(upper, dict | list | tuple) and jnp.ndim(upper) == 0
+      jax.tree_util.treedef_is_leaf(jax.tree.structure(upper))
+      and jnp.ndim(upper) == 0
   )
   if low_scalar and high_scalar:
     return jax.tree.map(lambda leaf: jnp.clip(leaf, lower, upper), x)

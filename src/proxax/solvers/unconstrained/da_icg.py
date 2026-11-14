@@ -111,7 +111,7 @@ class DAICG:
         lipschitz_init=self.lipschitz_init,
         xi_init=self.xi_init,
         lam_init=self.lam_init,
-        sigma=self.sigma,
+        sigma=self.sigma if self.sigma is not None else 0.5**0.5,
         max_inner_iters=self.max_inner_iters,
         jit=jit,
     )
@@ -157,7 +157,7 @@ class DAICG:
       )
       acg_cfg_step = dataclasses.replace(acg_cfg, rhs_offset_sq=orth_gap_sq)
       # Project s_xt onto dom(prox_vec) so ACG starts at a feasible point.
-      s_xt_feas = oracle.prox_vec.prox(s_xt, jnp.asarray(0.0, dtype=dtype))
+      s_xt_feas = oracle.prox_vec.domain_project(s_xt)
       sub_L_init = st.lam * st.m2_est + 0.5
       acg_st = acg.run_acg(
           vec_oracle,
@@ -325,9 +325,9 @@ class DAICG:
           ref.obj_val,
       ).advance(
           inner_inc=acg_st.iteration,
-          smooth_inc=2 + ref.f1_evals,
-          grad_inc=1 + ref.f1_grad_evals,
-          prox_inc=1,
+          smooth_inc=2 + ref.f1_evals + ref.vec_evals,
+          grad_inc=1 + ref.f1_grad_evals + ref.vec_evals,
+          prox_inc=1 + ref.vec_evals,
           counts_inc=acg_st.counts,
           max_iters=self.max_outer_iters,
           finite_ok=cand_finite,

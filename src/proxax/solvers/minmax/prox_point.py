@@ -8,6 +8,7 @@ import typing
 import jax
 import jax.numpy as jnp
 
+from proxax import _loop
 from proxax import _typing
 from proxax import tree
 from proxax.certificates import minmax as minmax_cert
@@ -65,18 +66,29 @@ class ProxPointMinMax:
     x_init, y_init = oracle.domain_project(x0[0], x0[1])
     dtype = tree.infer_dtype(x_init)
 
-    rho_x_val = (
-        self.rho_x
+    start_wall = (
+        _loop.start_clock(jit=jit) if time_limit is not None else 0.0
+    )
+    rho_x0 = (
+        jnp.asarray(self.rho_x, dtype=dtype)
         if self.rho_x is not None
-        else max(2.0 * (problem.m_x or 0.5), 1e-2)
+        else jnp.maximum(
+            2.0
+            * jnp.asarray(
+                problem.m_x if problem.m_x is not None else 0.5, dtype=dtype
+            ),
+            jnp.asarray(1e-2, dtype=dtype),
+        )
     )
-    rho_y_val = (
-        self.rho_y
+    rho_y0 = (
+        jnp.asarray(self.rho_y, dtype=dtype)
         if self.rho_y is not None
-        else (2.0 * problem.m_y if problem.m_y is not None else 0.0)
+        else (
+            2.0 * jnp.asarray(problem.m_y, dtype=dtype)
+            if problem.m_y is not None
+            else jnp.asarray(0.0, dtype=dtype)
+        )
     )
-    rho_x0 = jnp.asarray(rho_x_val, dtype=dtype)
-    rho_y0 = jnp.asarray(rho_y_val, dtype=dtype)
 
     ref0 = minmax_cert.refine_minmax(
         oracle,
@@ -133,12 +145,13 @@ class ProxPointMinMax:
       )
       sub_tol = jnp.maximum(
           jnp.asarray(self.opt_tol * self.inner_tol_factor, dtype=dtype),
-          jnp.asarray(1e-8, dtype=dtype),
+          tree.eps(dtype),
       )
       sub_sol = inner_solver.solve(
           sub_prob,
           (st.x, st.y),
           jit=jit,
+          time_limit=_loop.remaining_time(jit, time_limit, start_wall),
           opt_tol_override=sub_tol,
       )
       x_next, y_next = sub_sol.x

@@ -208,10 +208,19 @@ class AIPP:
           ),
       )
 
+      ls_fail_code = jnp.asarray(
+          int(acg.ACGStatus.LINE_SEARCH_FAILED),
+          dtype=jnp.int32,
+      )
+
       def _on_reject() -> AIPPState:
         shrunk_lam = jnp.maximum(
             st.lam * self.lam_decrease,
             jnp.asarray(self.lam_min, dtype=dtype),
+        )
+        rej_finite = jnp.logical_and(
+            tree.all_finite(acg_st.y),
+            jnp.isfinite(phi_y),
         )
         next_tr = st.tracker.advance(
             inner_inc=acg_st.iteration,
@@ -219,6 +228,8 @@ class AIPP:
             counts_inc=acg_st.counts,
             max_iters=self.max_outer_iters,
             check_converged=False,
+            line_search_failed=acg_st.status == ls_fail_code,
+            finite_ok=rej_finite,
         )
         return AIPPState(
             center=st.center,
@@ -258,10 +269,6 @@ class AIPP:
             st.lam,
         )
 
-        ls_fail_code = jnp.asarray(
-            int(acg.ACGStatus.LINE_SEARCH_FAILED),
-            dtype=jnp.int32,
-        )
         next_tr = st.tracker.update_incumbent(
             ref.x_hat, ref.v_hat, cand_res, ref.obj_val
         ).advance(

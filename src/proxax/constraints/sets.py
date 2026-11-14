@@ -123,8 +123,11 @@ class SecondOrderCone:
     """Projects a 1D vector `y = [t, u_1, ..., u_d]` onto the SOC."""
     t = y[0]
     u = y[1:]
-    u_norm = jnp.linalg.norm(u)
-    safe_norm = jnp.where(u_norm > 0.0, u_norm, 1.0)
+    u_sq = jnp.sum(u * u)
+    nz = u_sq > 0.0
+    safe_sq = jnp.where(nz, u_sq, 1.0)
+    u_norm = jnp.where(nz, jnp.sqrt(safe_sq), 0.0)
+    safe_norm = jnp.where(nz, u_norm, 1.0)
     scale = 0.5 * (t + u_norm)
     mid_proj = jnp.concatenate([
         jnp.expand_dims(scale, axis=0),
@@ -186,7 +189,7 @@ def project_exp_cone(v: jax.Array) -> jax.Array:
   in_primal = jnp.logical_or(
       jnp.logical_and(
           v1 > 0.0,
-          v1 * jnp.exp(jnp.clip(v0 / jnp.maximum(v1, 1e-30), -40.0, 40.0))
+          v1 * jnp.exp(jnp.clip(v0 / jnp.maximum(v1, 1e-30), -80.0, 80.0))
           <= v2,
       ),
       jnp.logical_and(jnp.logical_and(v0 <= 0.0, v1 == 0.0), v2 >= 0.0),
@@ -194,7 +197,7 @@ def project_exp_cone(v: jax.Array) -> jax.Array:
   in_polar = jnp.logical_or(
       jnp.logical_and(
           v0 > 0.0,
-          v0 * jnp.exp(jnp.clip(v1 / jnp.maximum(v0, 1e-30), -40.0, 40.0))
+          v0 * jnp.exp(jnp.clip(v1 / jnp.maximum(v0, 1e-30), -80.0, 80.0))
           <= -jnp.e * v2,
       ),
       jnp.logical_and(jnp.logical_and(v0 == 0.0, v1 <= 0.0), v2 <= 0.0),

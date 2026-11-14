@@ -158,7 +158,7 @@ def step_pf_acg(
         tree.add_scaled(x_tilde, -inv_L_mu, grad_tilde),
         inv_L_mu,
     )
-    f_y_next, grad_y_next = oracle.smooth_value_and_grad(y_next)
+    f_y_next = oracle.smooth_value(y_next)
     diff_y = tree.sub(y_next, x_tilde)
     quad_upper = (
         f_tilde
@@ -174,7 +174,7 @@ def step_pf_acg(
         grad_tilde,
         y_next,
         f_y_next,
-        grad_y_next,
+        grad_tilde,
         ok,
     )
 
@@ -224,7 +224,7 @@ def step_pf_acg(
   grad_tilde = fin_ls.grad_tilde
   y_next = fin_ls.y_next
   f_y_next = fin_ls.f_y_next
-  grad_y_next = fin_ls.grad_y_next
+  _, grad_y_next = oracle.smooth_value_and_grad(y_next)
   ls_ok = fin_ls.accepted
   trials = 1 + fin_ls.backtracks
 
@@ -328,8 +328,8 @@ def step_pf_acg(
       iteration=next_iter,
       status=status,
       counts=state.counts.add(
-          smooth=2 * trials,
-          grad=2 * trials,
+          smooth=2 * trials + 1,
+          grad=trials + 1,
           prox=trials,
       ),
   )

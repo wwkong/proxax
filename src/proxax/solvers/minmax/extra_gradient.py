@@ -8,6 +8,7 @@ import typing
 import jax
 import jax.numpy as jnp
 
+from proxax import _loop
 from proxax import _typing
 from proxax import tree
 from proxax.certificates import minmax as minmax_cert
@@ -65,15 +66,24 @@ class ExtraGradient:
         or problem.L_yy is not None
     ):
       lip_sum = (
-          (problem.L_xx or 0.0)
-          + (problem.L_xy or 0.0)
-          + (problem.L_yy or 0.0)
+          jnp.asarray(
+              problem.L_xx if problem.L_xx is not None else 0.0, dtype=dtype
+          )
+          + jnp.asarray(
+              problem.L_xy if problem.L_xy is not None else 0.0, dtype=dtype
+          )
+          + jnp.asarray(
+              problem.L_yy if problem.L_yy is not None else 0.0, dtype=dtype
+          )
       )
-      if lip_sum > 0.0:
-        alpha0 = jnp.minimum(
-            alpha0,
-            jnp.asarray(0.5 / lip_sum, dtype=dtype),
-        )
+      alpha0 = jnp.where(
+          lip_sum > 0.0,
+          jnp.minimum(
+              alpha0,
+              0.5 / jnp.maximum(lip_sum, jnp.asarray(1e-30, dtype=dtype)),
+          ),
+          alpha0,
+      )
 
     ref0 = minmax_cert.refine_minmax(
         oracle,
@@ -109,6 +119,7 @@ class ExtraGradient:
       def _ls_cond(
           carry: tuple[
               jax.Array,
+              jax.Array,
               _typing.PyTree,
               _typing.PyTree,
               jax.Array,
@@ -118,11 +129,12 @@ class ExtraGradient:
               jax.Array,
           ],
       ) -> jax.Array:
-        _, _, _, _, _, _, accepted, trials = carry
+        _, _, _, _, _, _, _, accepted, trials = carry
         return jnp.logical_and(jnp.logical_not(accepted), trials < 12)
 
       def _ls_body(
           carry: tuple[
+              jax.Array,
               jax.Array,
               _typing.PyTree,
               _typing.PyTree,
@@ -134,6 +146,7 @@ class ExtraGradient:
           ],
       ) -> tuple[
           jax.Array,
+          jax.Array,
           _typing.PyTree,
           _typing.PyTree,
           jax.Array,
@@ -142,7 +155,7 @@ class ExtraGradient:
           jax.Array,
           jax.Array,
       ]:
-        alpha, _, _, _, _, _, _, trials = carry
+        alpha, _, _, _, _, _, _, _, trials = carry
         x_m = oracle.prox_x.prox(tree.sub(st.x, tree.scale(alpha, gx)), alpha)
         y_m = oracle.prox_y.prox(tree.add(st.y, tree.scale(alpha, gy)), alpha)
         val_m, gx_m, gy_m = oracle.phi_val_grad(x_m, y_m)
@@ -162,9 +175,10 @@ class ExtraGradient:
             alpha,
             jnp.maximum(0.5 * alpha, jnp.asarray(self.step_min, dtype=dtype)),
         )
-        return alpha_next, x_m, y_m, val_m, gx_m, gy_m, ok, trials + 1
+        return alpha_next, alpha, x_m, y_m, val_m, gx_m, gy_m, ok, trials + 1
 
       init_ls = (
+          st.step_size,
           st.step_size,
           st.x,
           st.y,
@@ -174,8 +188,8 @@ class ExtraGradient:
           jnp.asarray(False),
           jnp.asarray(0, dtype=jnp.int32),
       )
-      alpha_used, x_mid, y_mid, val_mid, gx_mid, gy_mid, _, trials = (
-          jax.lax.while_loop(_ls_cond, _ls_body, init_ls)
+      _, alpha_used, x_mid, y_mid, val_mid, gx_mid, gy_mid, _, trials = (
+          _loop.while_loop(_ls_cond, _ls_body, init_ls, jit=jit)
       )
 
       # Exact primal-dual stationarity certificate at (x_mid, y_mid).

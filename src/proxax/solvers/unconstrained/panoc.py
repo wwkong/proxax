@@ -156,7 +156,7 @@ class PANOC:
 
   def __post_init__(self) -> None:
     """Validates `PANOC` hyperparameters."""
-    if self.opt_tol <= 0.0:
+    if isinstance(self.opt_tol, (int, float)) and self.opt_tol <= 0.0:
       raise ValueError("`opt_tol` must be positive.")
     if self.memory < 1:
       raise ValueError("`memory` must be >= 1.")
@@ -199,14 +199,15 @@ class PANOC:
     x_dom0 = oracle.domain_project(x0)
     if lipschitz_init is not None:
       L_seed = jnp.asarray(lipschitz_init, dtype=dtype)
-    else:
-      lip_guess = (
-          float(oracle.curvature_upper)
-          if oracle.curvature_upper is not None
-          and float(oracle.curvature_upper) > 0.0
-          else float(self.lipschitz_init)
+    elif oracle.curvature_upper is not None:
+      curv_up = jnp.asarray(oracle.curvature_upper, dtype=dtype)
+      L_seed = jnp.where(
+          curv_up > 0.0,
+          curv_up,
+          jnp.asarray(self.lipschitz_init, dtype=dtype),
       )
-      L_seed = jnp.asarray(lip_guess, dtype=dtype)
+    else:
+      L_seed = jnp.asarray(self.lipschitz_init, dtype=dtype)
     ref0 = certificates.refine(oracle, x_dom0, L_seed, jit=jit)
     L0 = ref0.lipschitz_used
     res0 = tree.norm(ref0.v_hat, kind=self.norm_kind)
@@ -273,17 +274,23 @@ class PANOC:
       ]:
         gamma = self.beta / L_val
         x_bar = oracle.prox(tree.add_scaled(st.x, -gamma, grad_cur), gamma)
-        f_bar, grad_bar = oracle.smooth_value_and_grad(x_bar)
+        f_bar = oracle.smooth_value(x_bar)
         h_bar = oracle.proximal_value(x_bar)
         diff = tree.sub(x_bar, st.x)
         quad_ub = (
             f_cur
             + tree.vdot(grad_cur, diff)
-            + 0.5 * self.beta * L_val * tree.norm_sq(diff)
+            + 0.5 * L_val * tree.norm_sq(diff)
         )
         slack = 10.0 * eps_val * (1.0 + jnp.abs(f_cur))
         ok = f_bar <= quad_ub + slack
-        return x_bar, f_bar, grad_bar, h_bar, jnp.asarray(ok, dtype=jnp.bool_)
+        return (
+            x_bar,
+            f_bar,
+            grad_cur,
+            h_bar,
+            jnp.asarray(ok, dtype=jnp.bool_),
+        )
 
       xb0, fb0, gb0, hb0, ok0 = _trial_l(st.lipschitz)
       ls_init = _LCheckCarry(
@@ -326,7 +333,7 @@ class PANOC:
       gamma = self.beta / L_used
       x_bar = l_fin.x_bar
       f_bar = l_fin.f_bar
-      grad_bar = l_fin.grad_bar
+      _, grad_bar = oracle.smooth_value_and_grad(x_bar)
       h_bar = l_fin.h_bar
 
       r_cur = tree.sub(st.x, x_bar)
@@ -439,14 +446,19 @@ class PANOC:
           (st.s_hist, st.y_hist, st.rho_hist, st.hist_head, count_cur),
       )
 
-      total_evals = l_fin.evals + fbe_fin.evals + 1
+      cand_finite = jnp.logical_and(
+          tree.all_finite(x_bar),
+          jnp.isfinite(res_bar),
+      )
       next_tracker = st.tracker.update_incumbent(
           x_bar, v_bar, res_bar, obj_bar
       ).advance(
-          smooth_inc=1 + total_evals,
-          grad_inc=1 + total_evals,
-          prox_inc=total_evals,
+          smooth_inc=1 + l_fin.evals + 1 + fbe_fin.evals + 1,
+          grad_inc=1 + 1 + fbe_fin.evals + 1,
+          prox_inc=l_fin.evals + fbe_fin.evals + 1,
           max_iters=self.max_iters,
+          line_search_failed=jnp.logical_not(l_fin.accepted),
+          finite_ok=cand_finite,
       )
       return PANOCState(
           x=x_next,
