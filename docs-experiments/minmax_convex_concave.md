@@ -28,6 +28,10 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 .venv/bin/python -m benchmarks.external.minma
 
 ![Convex-Concave MinMax vs. Dualized Conic Solvers](_static/plots/minmax_convex_concave.svg)
 
+### Dolan–Moré Runtime Profile
+
+![Convex-Concave MinMax Dolan-Moré Profile](_static/plots/minmax_convex_concave_profile.svg)
+
 ### Summary Table (`tol = 1e-4`)
 
 | Problem | Solver | Status | Objective | Opt Res | Grad Evals | Run (ms) |

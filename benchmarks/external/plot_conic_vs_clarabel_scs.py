@@ -21,6 +21,7 @@ SOLVER_COLORS = {
     "QP-APD": "#fab387",
     "Clarabel": "#94e2d5",
     "SCS (direct)": "#f9e2af",
+    "SCS (indirect)": "#f38ba8",
     "CVXPY (SCS)": "#cba6f7",
 }
 SOLVER_MARKERS = {
@@ -29,6 +30,7 @@ SOLVER_MARKERS = {
     "QP-APD": "^",
     "Clarabel": "P",
     "SCS (direct)": "D",
+    "SCS (indirect)": "v",
     "CVXPY (SCS)": "X",
 }
 
@@ -138,6 +140,75 @@ def plot_conic_scaling(
   plt.close(fig)
 
 
+def plot_dolan_more_profile(
+    rows: list[dict[str, typing.Any]], out_path: Path
+) -> None:
+  """Generates a Dolan-More runtime performance profile across 9 problems."""
+  _apply_mocha_style()
+  fig, ax = plt.subplots(figsize=(7.2, 4.4), constrained_layout=True)
+
+  solvers = [
+      "IALM (APD)",
+      "PANOC-ALM",
+      "QP-APD",
+      "Clarabel",
+      "SCS (direct)",
+      "SCS (indirect)",
+      "CVXPY (SCS)",
+  ]
+  problems = sorted({str(r["problem_name"]) for r in rows})
+  by_key = {(r["problem_name"], r["solver_name"]): r for r in rows}
+
+  best_time: dict[str, float] = {}
+  for p in problems:
+    times = [
+        float(by_key[(p, s)]["run_s"])
+        for s in solvers
+        if (p, s) in by_key and by_key[(p, s)]["converged"]
+    ]
+    best_time[p] = min(times) if times else float("inf")
+
+  taus = [1.0, 1.5, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
+  for s in solvers:
+    ratios = []
+    for p in problems:
+      row = by_key.get((p, s))
+      if row is not None and row["converged"] and best_time[p] > 0:
+        ratios.append(float(row["run_s"]) / best_time[p])
+    ys = [
+        sum(1 for r in ratios if r <= t) / max(1, len(problems))
+        for t in taus
+    ]
+    ax.step(
+        taus,
+        ys,
+        where="post",
+        label=s,
+        color=SOLVER_COLORS[s],
+        marker=SOLVER_MARKERS[s],
+        linewidth=2.0,
+        markersize=5.5,
+    )
+
+  ax.set_xscale("log")
+  ax.set_xticks(taus)
+  ax.set_xticklabels([f"{t:g}x" for t in taus])
+  ax.minorticks_off()
+  ax.set_ylim(-0.02, 1.05)
+  ax.set_xlabel("Runtime Ratio tau (vs. fastest per problem)")
+  ax.set_ylabel("Fraction of Problems Solved")
+  ax.set_title(
+      "Conic Optimization Dolan-More Runtime Profile (9 Problems)",
+      fontweight="bold",
+  )
+  ax.grid(True, which="major")
+  ax.legend(loc="lower right", frameon=True)
+
+  out_path.parent.mkdir(parents=True, exist_ok=True)
+  fig.savefig(out_path, format="svg", bbox_inches="tight")
+  plt.close(fig)
+
+
 def main() -> None:
   """CLI entry point for conic benchmark plots."""
   parser = argparse.ArgumentParser()
@@ -147,6 +218,9 @@ def main() -> None:
 
   rows = json.loads(args.json_in.read_text(encoding="utf-8"))
   plot_conic_scaling(rows, args.out_dir / "conic_vs_clarabel_scs.svg")
+  plot_dolan_more_profile(
+      rows, args.out_dir / "conic_vs_clarabel_scs_profile.svg"
+  )
 
 
 if __name__ == "__main__":

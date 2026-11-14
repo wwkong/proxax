@@ -28,6 +28,10 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 .venv/bin/python -m benchmarks.external.conic
 
 ![Conic Optimization Runtime Scaling](_static/plots/conic_vs_clarabel_scs.svg)
 
+### Dolan–Moré Runtime Profile
+
+![Conic Optimization Dolan-Moré Profile](_static/plots/conic_vs_clarabel_scs_profile.svg)
+
 ### Summary Table (`tol = 1e-4`)
 
 | Problem | Solver | Status | Objective | Opt Res | Feas Res | Grad Evals | Run (ms) |

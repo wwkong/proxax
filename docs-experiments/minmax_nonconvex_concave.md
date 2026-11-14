@@ -25,6 +25,10 @@ JAX_PLATFORMS=cpu JAX_ENABLE_X64=1 .venv/bin/python -m benchmarks.external.minma
 
 ![Nonconvex-Concave MinMax QP](_static/plots/minmax_nonconvex_concave.svg)
 
+### Dolan–Moré Runtime & Gradient-Eval Profiles
+
+![Nonconvex-Concave MinMax Dolan-Moré Profiles](_static/plots/minmax_nonconvex_concave_profile.svg)
+
 ### Summary Table (`tol = 1e-4`)
 
 | Problem | Solver | Status | Objective | Opt Res | Grad Evals | Run (ms) |

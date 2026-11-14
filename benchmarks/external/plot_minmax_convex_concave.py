@@ -128,6 +128,74 @@ def plot_minmax_cc(
   plt.close(fig)
 
 
+def plot_dolan_more_profile(
+    rows: list[dict[str, typing.Any]], out_path: Path
+) -> None:
+  """Generates a Dolan-More runtime performance profile across 6 problems."""
+  _apply_mocha_style()
+  fig, ax = plt.subplots(figsize=(7.2, 4.4), constrained_layout=True)
+
+  solvers = [
+      "PDHG",
+      "ExtraGradient",
+      "ProxPointMinMax",
+      "Clarabel",
+      "SCS (direct)",
+      "CVXPY (Clarabel)",
+  ]
+  problems = sorted({str(r["problem_name"]) for r in rows})
+  by_key = {(r["problem_name"], r["solver_name"]): r for r in rows}
+
+  best_time: dict[str, float] = {}
+  for p in problems:
+    times = [
+        float(by_key[(p, s)]["run_s"])
+        for s in solvers
+        if (p, s) in by_key and by_key[(p, s)]["converged"]
+    ]
+    best_time[p] = min(times) if times else float("inf")
+
+  taus = [1.0, 1.5, 2.0, 4.0, 8.0, 16.0, 32.0]
+  for s in solvers:
+    ratios = []
+    for p in problems:
+      row = by_key.get((p, s))
+      if row is not None and row["converged"] and best_time[p] > 0:
+        ratios.append(float(row["run_s"]) / best_time[p])
+    ys = [
+        sum(1 for r in ratios if r <= t) / max(1, len(problems))
+        for t in taus
+    ]
+    ax.step(
+        taus,
+        ys,
+        where="post",
+        label=s,
+        color=SOLVER_COLORS[s],
+        marker=SOLVER_MARKERS[s],
+        linewidth=2.0,
+        markersize=5.5,
+    )
+
+  ax.set_xscale("log")
+  ax.set_xticks(taus)
+  ax.set_xticklabels([f"{t:g}x" for t in taus])
+  ax.minorticks_off()
+  ax.set_ylim(-0.02, 1.05)
+  ax.set_xlabel("Runtime Ratio tau (vs. fastest per problem)")
+  ax.set_ylabel("Fraction of Problems Solved")
+  ax.set_title(
+      "Convex-Concave MinMax Dolan-More Runtime Profile (6 Problems)",
+      fontweight="bold",
+  )
+  ax.grid(True, which="major")
+  ax.legend(loc="lower right", frameon=True)
+
+  out_path.parent.mkdir(parents=True, exist_ok=True)
+  fig.savefig(out_path, format="svg", bbox_inches="tight")
+  plt.close(fig)
+
+
 def main() -> None:
   """CLI entry point for convex-concave MinMax plots."""
   parser = argparse.ArgumentParser()
@@ -137,6 +205,9 @@ def main() -> None:
 
   rows = json.loads(args.json_in.read_text(encoding="utf-8"))
   plot_minmax_cc(rows, args.out_dir / "minmax_convex_concave.svg")
+  plot_dolan_more_profile(
+      rows, args.out_dir / "minmax_convex_concave_profile.svg"
+  )
 
 
 if __name__ == "__main__":
