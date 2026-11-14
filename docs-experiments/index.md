@@ -30,6 +30,7 @@ and constrained composite suites:
 * [Batched Nonconvex Solves (`proxax` vs. `alpaqa`)](batch_vs_alpaqa.md)
 * [Closed-Loop Warm-Started MPC Rollout (`proxax` vs. `Clarabel` & `alpaqa`)](mpc_rollout.md)
 * [End-to-End Differentiable Training Loop (`proxax` vs. `cvxpylayers`)](diff_training_loop.md)
+* [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free.md)
 
 ## Scaling Studies
 
@@ -66,6 +67,7 @@ batch_vs_clarabel
 batch_vs_alpaqa
 mpc_rollout
 diff_training_loop
+large_matrix_free
 ```
 
 ```{toctree}
