@@ -211,7 +211,7 @@ the transpose $\mathcal{A}^*$ automatically via `jax.linear_transpose`.
 
 ## Understanding the Returned `Solution`
 
-Every solver returns a `px.Solution` PyTree with five fields:
+Every solver returns a `px.Solution` PyTree with seven fields (plus `.status_enum` and `.plot()`):
 
 | Field | Type | Plain-English Meaning |
 | :--- | :--- | :--- |
@@ -220,6 +220,8 @@ Every solver returns a `px.Solution` PyTree with five fields:
 | `sol.subgrad` | PyTree | Exact stationarity vector $\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}) + \mathcal{A}^*(\hat{p})$. Near zero means $\hat{x}$ is stationary. |
 | `sol.status` / `sol.status_enum` | `jax.Array` / `SolveStatus` | Integer code (`0` = `CONVERGED`, `1` = `MAX_ITER_REACHED`, `2` = `TIME_LIMIT_REACHED`, `3` = `LINE_SEARCH_FAILED`, `4` = `NON_FINITE`). |
 | `sol.stats` | `SolveStats` | Iteration and oracle counters (`outer_iters`, `inner_iters`, `smooth_evals`, `grad_evals`, `prox_evals`) plus final `opt_residual`, `feas_residual`, and `obj_val`. |
+| `sol.history` | `HistoryTracker` or `None` | Recorded iteration/residual trace when `track_history=True` (render with `sol.plot()`). |
+| `sol.runtime_ms` | `float` or `None` | Host wall-clock runtime in milliseconds recorded by `px.solve` outside JAX tracing. |
 
 ---
 

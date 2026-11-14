@@ -216,9 +216,10 @@ By default, `px.solve(..., jit=True)` compiles the entire solver loop with
 `jax.lax.while_loop`. This gives minimal Python overhead on CPU/GPU and makes
 every solver compatible with `jax.jit` and `jax.vmap`.
 
-When debugging interactively in Python — or when you want a **per-iteration
-callback**, **history tracking**, or a **wall-clock `time_limit`** (in seconds)
-— pass `jit=False`.
+When debugging interactively in Python — or when you want a custom Python
+per-iteration `callback(state)` — pass `jit=False`. Both `track_history=True`
+and a wall-clock `time_limit` (in seconds) work under both `jit=True` and
+`jit=False`.
 
 ### Tracking Function Values & Tolerances (`px.HistoryTracker`)
 
@@ -295,8 +296,9 @@ See `examples/history_tracker.py` for the full runnable script.
 
 ### Custom Callbacks & Time Limits
 
-You can also pass any Python callable `callback(state)` (return `True` to stop
-early):
+Pass `time_limit` (in seconds) to stop cleanly with `TIME_LIMIT_REACHED` under
+either `jit=True` or `jit=False`. For custom Python per-iteration hooks
+`callback(state)` (return `True` to stop early), pass `jit=False`:
 
 ```python
 from proxax import px
