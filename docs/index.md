@@ -12,16 +12,32 @@ penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
 constrained optimization in **JAX** and **Optax** — covering both convex and
 nonconvex objectives.
 
-Every solver in Proxax:
+## Features
 
-- **Works natively on JAX PyTrees** (`jax.Array`, nested `dict` / `tuple`, or
-  registered dataclasses) without flattening arrays by hand.
-- **Compiles end-to-end** under `jax.jit`, vectorizes across problem batches
-  with `jax.vmap`, and differentiates through solutions via `px.implicit_solve`.
-- **Returns exact stationarity certificates** $(\hat{x}, \hat{p}, \hat{v})$
-  measuring true subdifferential and KKT residuals rather than heuristic step
-  lengths.
-- **Depends only on `jax` and `optax`** at runtime.
+::::{grid} 1 2 2 2
+:gutter: 3
+
+:::{grid-item-card} PyTree-Native
+Works natively on arbitrary JAX PyTrees (`jax.Array`, nested `dict` / `tuple`,
+or registered dataclasses) without flattening arrays by hand.
+:::
+
+:::{grid-item-card} JIT, `vmap` & Differentiable
+Compiles end-to-end under `jax.jit`, vectorizes across problem batches with
+`jax.vmap`, and differentiates through solutions via `px.implicit_solve`.
+:::
+
+:::{grid-item-card} Certified Stationarity
+Returns exact stationarity certificates $(\hat{x}, \hat{p}, \hat{v})$ measuring
+true subdifferential and KKT residuals rather than heuristic step lengths.
+:::
+
+:::{grid-item-card} Pure JAX & Optax
+Depends only on `jax` and `optax` at runtime, with first-class Optax optimizer
+interoperability.
+:::
+
+::::
 
 ---
 
