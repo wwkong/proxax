@@ -29,6 +29,7 @@ and constrained composite suites:
 * [Batched Convex Solves (`proxax` vs. `Clarabel`)](batch_vs_clarabel.md)
 * [Batched Nonconvex Solves (`proxax` vs. `alpaqa`)](batch_vs_alpaqa.md)
 * [Closed-Loop Warm-Started MPC Rollout (`proxax` vs. `Clarabel` & `alpaqa`)](mpc_rollout.md)
+* [End-to-End Differentiable Training Loop (`proxax` vs. `cvxpylayers`)](diff_training_loop.md)
 
 ## Scaling Studies
 
@@ -64,6 +65,7 @@ vmap_implicit_vs_cvxpylayers
 batch_vs_clarabel
 batch_vs_alpaqa
 mpc_rollout
+diff_training_loop
 ```
 
 ```{toctree}
