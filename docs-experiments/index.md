@@ -1,4 +1,4 @@
-# <img src="_static/logo.png" alt="" style="height: 1.15em; vertical-align: -0.18em; margin-right: 0.35em; border-radius: 0.2em;"> Experiment Reports
+# Experiment Reports
 
 [← Back to Proxax Documentation](https://proxax.readthedocs.io/en/latest/)
 
