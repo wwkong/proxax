@@ -35,8 +35,6 @@ DEFAULT_PROBLEMS = (
     "LOTSCHD",
     "QAFIRO",
     "TAME",
-    "ZANGWIL2",
-    "ZECEVIC2",
 )
 
 _SIF_BASE_URL = (
