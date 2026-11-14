@@ -67,6 +67,11 @@ def main() -> int:
       help="Apply Modified Ruiz Equilibration before solving.",
   )
   parser.add_argument(
+      "--sparse",
+      action="store_true",
+      help="Represent P and A matrices using jax.experimental.sparse.BCOO.",
+  )
+  parser.add_argument(
       "--solvers",
       nargs="+",
       default=["IALM", "IAIPAL"],
@@ -90,6 +95,7 @@ def main() -> int:
       solver_names=tuple(args.solvers),
       time_limit=args.time_limit,
       precondition=args.precondition,
+      sparse=args.sparse,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (

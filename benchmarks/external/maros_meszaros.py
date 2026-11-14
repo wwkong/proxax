@@ -12,6 +12,7 @@ import urllib.request
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax.experimental import sparse as jsparse
 
 from benchmarks import harness
 from benchmarks.external import qpsif
@@ -58,10 +59,15 @@ def _fetch_sif(
 
 def to_proxax_problem(
     qp: qpsif.QPSIFProblem,
+    *,
+    sparse: bool = False,
 ) -> tuple[px.CompositeProblem, jax.Array]:
   """Converts a ``QPSIFProblem`` to a Proxax ``CompositeProblem`` and ``x0``."""
   dtype = jnp.float64 if jax.config.jax_enable_x64 else jnp.float32
-  p_mat = jnp.asarray(qp.P, dtype=dtype)
+  p_dense = jnp.asarray(qp.P, dtype=dtype)
+  p_mat: jax.Array | jsparse.BCOO = (
+      jsparse.BCOO.fromdense(p_dense) if sparse else p_dense
+  )
   q_vec = jnp.asarray(qp.q, dtype=dtype)
 
   def _smooth(x: jax.Array) -> jax.Array:
@@ -76,7 +82,10 @@ def to_proxax_problem(
 
   constraints = None
   if qp.A.shape[0] > 0:
-    a_mat = jnp.asarray(qp.A, dtype=dtype)
+    a_dense = jnp.asarray(qp.A, dtype=dtype)
+    a_mat: jax.Array | jsparse.BCOO = (
+        jsparse.BCOO.fromdense(a_dense) if sparse else a_dense
+    )
     if bool(np.allclose(qp.l_con, qp.u_con, rtol=0.0, atol=1e-12)):
       constraints = px.constraints.equality(
           a_mat, rhs=jnp.asarray(qp.l_con, dtype=dtype)
@@ -127,6 +136,7 @@ def run_maros_meszaros(
     solver_names: tuple[str, ...] | None = None,
     time_limit: float | None = None,
     precondition: bool = False,
+    sparse: bool = False,
 ) -> list[harness.BenchmarkResult]:
   """Runs Proxax constrained solvers on a curated Maros-Meszaros QP subset."""
   cache_dir = (
@@ -157,7 +167,7 @@ def run_maros_meszaros(
         eff_opt_tol = opt_tol * min(1.0, float(cost_scale * np.min(d_x)))
       if d_y.size > 0:
         eff_feas_tol = feas_tol * min(1.0, float(np.min(d_y)))
-    prob, x0 = to_proxax_problem(qp)
+    prob, x0 = to_proxax_problem(qp, sparse=sparse)
     solvers_list = (
         [("APD", solvers.APD(opt_tol=eff_opt_tol))]
         if prob.constraints is None
@@ -329,6 +339,11 @@ def main() -> int:
       help="Apply Modified Ruiz Equilibration before solving.",
   )
   parser.add_argument(
+      "--sparse",
+      action="store_true",
+      help="Represent P and A matrices using jax.experimental.sparse.BCOO.",
+  )
+  parser.add_argument(
       "--clarabel",
       action="store_true",
       help="Also run Clarabel as an IPM baseline reference.",
@@ -346,6 +361,7 @@ def main() -> int:
       solver_names=None if args.solvers is None else tuple(args.solvers),
       time_limit=args.time_limit,
       precondition=args.precondition,
+      sparse=args.sparse,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (

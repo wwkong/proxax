@@ -4,6 +4,17 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-11-14
+
+### Added
+- Added native `jax.experimental.sparse.BCOO` support in `MatrixLinearOperator` and `px.constraints.as_linear_operator`, enabling zero-densification sparse `BCOO @ x` and `BCOO.T @ y` matvecs across all `px.constraints` builders (`equality`, `less_equal`, `greater_equal`, `box`, `linear_cone`) and constrained solvers.
+- Added `--sparse` (`BCOO`) support to `benchmarks/external/maros_meszaros.py` and `benchmarks/external/maros_meszaros_medium.py`.
+- Added large-scale sparse `BCOO` vs. dense vs. `Clarabel` external benchmark (`benchmarks/external/sparse_bcoo_vs_clarabel.py`) and report (`docs-experiments/sparse_bcoo_vs_clarabel.md`), showing up to **21.70×** speedup over dense `proxax-IALM` and **8.69×** speedup over `Clarabel` at $n = 4000$.
+- Documented `BCOO` sparse matrices and constraints in `docs/guide/prox_and_constraints.md` and `docs/examples/constrained.md`.
+
+### Fixed
+- Treated `jax.experimental.sparse.BCOO` as an atomic leaf in `_slice_pytree` and `_slice_range_pytree` (`src/proxax/batch.py`) so `px.batch_solve(..., backend="threads")` and `chunk_size > 1` work with batched `BCOO` (`n_batch >= 1`) parameter PyTrees.
+
 ## [0.3.5] - 2026-11-14
 
 ### Added

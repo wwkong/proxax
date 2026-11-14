@@ -233,3 +233,56 @@ for conic/matrix, ordered-regularization, barrier, and sparse problems:
 | **Barriers** | `px.prox.NegEntropy(weight)` | $\mu \sum_i x_i \log x_i$ on $x \ge 0$ (log-space Newton). |
 | **Sparse** | `px.prox.L0(weight)` | Nonconvex $\lambda \lVert x \rVert_0$ hard thresholding. |
 | **Sparse** | `px.prox.CardinalityBall(k)` | Indicator of $\{x : \lVert x \rVert_0 \le k\}$. |
+
+---
+
+## 4. Sparse Matrices (`BCOO`)
+
+For large problems with sparse data or constraint matrices, Proxax natively
+supports `jax.experimental.sparse.BCOO` without densifying:
+
+- **Constraints**: Any constraint builder (`px.constraints.equality`,
+  `less_equal`, `greater_equal`, `box`, `linear_cone`) and
+  `px.constraints.MatrixLinearOperator` accepts a `BCOO` matrix directly and
+  evaluates `A @ x` and `A.T @ y` using sparse kernels.
+- **Smooth objectives**: You can use `BCOO @ x` inside your `smooth` function
+  (e.g., quadratic forms $\frac{1}{2} x^\top P x$ or sparse design matrices
+  $X w$); JAX differentiates through `BCOO` matvecs automatically.
+- **SciPy interoperability**: Convert existing SciPy sparse matrices with
+  `sparse.BCOO.from_scipy_sparse(mat)` (or dense arrays with
+  `sparse.BCOO.fromdense(mat)`).
+
+```python
+import jax
+import jax.numpy as jnp
+from jax.experimental import sparse
+import scipy.sparse as sp
+from proxax import px
+
+# Convert SciPy sparse matrices P and A directly to JAX BCOO
+p_scipy = sp.diags([2.0, 3.0, 4.0, 5.0], format="coo")
+a_scipy = sp.coo_matrix([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]])
+
+p_bcoo = sparse.BCOO.from_scipy_sparse(p_scipy)
+a_bcoo = sparse.BCOO.from_scipy_sparse(a_scipy)
+q_vec = jnp.array([-1.0, -2.0, -1.0, -2.0])
+b_vec = jnp.array([1.0, 1.0])
+
+problem = px.CompositeProblem(
+    smooth=lambda x: 0.5 * jnp.dot(x, p_bcoo @ x) + jnp.dot(q_vec, x),
+    proximal=px.prox.NonNegative(),
+    constraints=px.constraints.less_equal(a_bcoo, rhs=b_vec),
+)
+
+sol = px.solve(problem, jnp.zeros(4), method="ialm", opt_tol=1e-6, feas_tol=1e-6)
+```
+
+Batched `BCOO` matrices (constructed with `n_batch=1`, e.g.,
+`sparse.BCOO.fromdense(stack, n_batch=1)`) also work directly with `jax.vmap`
+and `px.batch_solve(..., backend="vmap" | "threads")`.
+
+> [!TIP]
+> At $n = 4000$ with $1\%$ nonzeros, switching from dense arrays to `BCOO`
+> speeds up `IALM` by **>21×** on CPU (see the
+> [Sparse BCOO vs. Clarabel](https://proxax.readthedocs.io/projects/experiments/en/latest/sparse_bcoo_vs_clarabel.html)
+> benchmark report).

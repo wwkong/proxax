@@ -13,6 +13,7 @@ import weakref
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax.experimental import sparse as jsparse
 
 import proxax.solve as solve_mod
 from proxax import _typing
@@ -54,16 +55,25 @@ def _resolve_backend(backend: str, batch_size: int) -> str:
   return backend
 
 
+def _is_bcoo_or_leaf(val: typing.Any) -> bool:
+  """Treats `BCOO` sparse arrays as atomic leaves when slicing along axis 0."""
+  return isinstance(val, jsparse.BCOO)
+
+
 def _slice_pytree(tree_val: _typing.PyTree, idx: int) -> _typing.PyTree:
   """Extracts element `idx` along axis 0 from every leaf of `tree_val`."""
-  return jax.tree.map(lambda a: a[idx], tree_val)
+  return jax.tree.map(
+      lambda a: a[idx], tree_val, is_leaf=_is_bcoo_or_leaf
+  )
 
 
 def _slice_range_pytree(
     tree_val: _typing.PyTree, start: int, end: int
 ) -> _typing.PyTree:
   """Extracts slice `start:end` along axis 0 from every leaf of `tree_val`."""
-  return jax.tree.map(lambda a: a[start:end], tree_val)
+  return jax.tree.map(
+      lambda a: a[start:end], tree_val, is_leaf=_is_bcoo_or_leaf
+  )
 
 
 _BATCH_SOLVE_CACHE: weakref.WeakKeyDictionary[

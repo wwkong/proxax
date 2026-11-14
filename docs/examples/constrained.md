@@ -69,6 +69,22 @@ problem = px.CompositeProblem(
 )
 ```
 
+For large sparse constraint matrices, pass a `jax.experimental.sparse.BCOO`
+matrix directly to `px.constraints.equality`, `px.constraints.less_equal`,
+`px.constraints.greater_equal`, or `px.constraints.box`—the solver automatically
+uses sparse `BCOO @ x` and `BCOO.T @ y` matvecs without densifying:
+
+```python
+from jax.experimental import sparse as jsparse
+
+a_sparse = jsparse.BCOO.fromdense(a_eq)
+sparse_problem = px.CompositeProblem(
+    smooth=problem.smooth,
+    proximal=problem.proximal,
+    constraints=px.constraints.equality(a_sparse, rhs=rhs_b),
+)
+```
+
 ### Solver Comparison (`opt_tol = feas_tol = 5e-4`)
 
 | Solver | Method Family | Status | Objective | $\|\hat{v}\|_2$ | $\|A_{\text{eq}}\hat{x} - b\|_2$ | $\nabla f$ Evals |

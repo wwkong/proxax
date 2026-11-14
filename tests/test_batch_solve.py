@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import sparse as jsparse
 
 from proxax import px
 from proxax.solvers import IALM
@@ -110,3 +111,36 @@ def test_batch_implicit_solve_threads_matches_vmap() -> None:
     ve, ge = eager_vg(q_batch)
     assert jnp.allclose(v1, ve, atol=1e-5)
     assert jnp.allclose(g1, ge, atol=1e-4)
+
+
+def test_batch_solve_batched_bcoo() -> None:
+  """`batch_solve` supports batched `BCOO` matrices across vmap and threads."""
+  x0 = jnp.zeros(4)
+  a_batch = jsparse.BCOO.fromdense(
+      jnp.stack([jnp.eye(4), 2.0 * jnp.eye(4), 3.0 * jnp.eye(4)]), n_batch=1
+  )
+  solver = IALM(opt_tol=1e-6, feas_tol=1e-6)
+
+  def prob_fn(a: jsparse.BCOO) -> px.CompositeProblem:
+    return px.CompositeProblem(
+        smooth=lambda x: 0.5 * jnp.sum((x - 1.0) ** 2),
+        constraints=px.constraints.equality(a, rhs=jnp.ones(4)),
+    )
+
+  sol_vmap = px.batch_solve(prob_fn, x0, a_batch, solver=solver, backend="vmap")
+  sol_threads = px.batch_solve(
+      prob_fn, x0, a_batch, solver=solver, backend="threads", max_workers=2
+  )
+  sol_chunked = px.batch_solve(
+      prob_fn,
+      x0,
+      a_batch,
+      solver=solver,
+      backend="threads",
+      max_workers=2,
+      chunk_size=2,
+  )
+  assert jnp.allclose(sol_vmap.x, sol_threads.x, atol=1e-6)
+  assert jnp.allclose(sol_vmap.x, sol_chunked.x, atol=1e-6)
+  expected = jnp.stack([jnp.ones(4), 0.5 * jnp.ones(4), jnp.ones(4) / 3.0])
+  assert jnp.allclose(sol_vmap.x, expected, atol=1e-4)
