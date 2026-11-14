@@ -28,6 +28,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinxcontrib.mermaid",
 ]
 
 myst_enable_extensions = [

@@ -158,22 +158,31 @@ these three defaults:
 
 ### Solver Selection Flowchart
 
-```text
-What problem class are you solving?
-├── CompositeProblem (f(x) + h(x))
-│   ├── Unconstrained (constraints=None)
-│   │   ├── Ill-conditioned / quasi-Newton? ──▶ method="panoc" (L-BFGS + FBE)
-│   │   ├── Known curvatures (m, M)?          ──▶ method="aipp" or "nc_fista"
-│   │   └── Parameter-free default?           ──▶ method="apd" (or "adap_fista")
-│   └── Constrained (constraints=...)
-│       ├── Ill-conditioned / conic?          ──▶ method="panoc_alm"
-│       ├── Parameter-free ALM / penalty?     ──▶ method="ialm" / "qp_apd"
-│       └── Known curvatures?                 ──▶ method="iaipal" / "qp_aipp"
-├── SpectralProblem (singular-value penalty)  ──▶ method="da_icg" / "ia_icg"
-├── MinMaxProblem (saddle-point game)
-│   ├── Convex-concave / bilinear?          ──▶ method="extra_gradient" / "pdhg"
-│   └── Weakly nonconvex-strongly concave?    ──▶ method="prox_point"
-└── BlockProblem (multi-block splitting)      ──▶ method="p_adapt_admm" / "dp_admm"
+```{mermaid}
+flowchart LR
+    Q["What problem class are you solving?"]
+    Q --> Comp["CompositeProblem: f(x) + h(x)"]
+    Q --> Spec["SpectralProblem (singular-value penalty)"]
+    Q --> MM["MinMaxProblem (saddle-point game)"]
+    Q --> Blk["BlockProblem (multi-block splitting)"]
+
+    Comp --> Unc["Unconstrained (constraints=None)"]
+    Comp --> Con["Constrained (constraints=...)"]
+
+    Unc -->|"Ill-conditioned / quasi-Newton"| U1["method='panoc' (L-BFGS + FBE)"]
+    Unc -->|"Known curvatures (m, M)"| U2["method='aipp' or 'nc_fista'"]
+    Unc -->|"Parameter-free default"| U3["method='apd' (or 'adap_fista')"]
+
+    Con -->|"Ill-conditioned / conic"| C1["method='panoc_alm'"]
+    Con -->|"Parameter-free ALM / penalty"| C2["method='ialm' / 'qp_apd'"]
+    Con -->|"Known curvatures"| C3["method='iaipal' / 'qp_aipp'"]
+
+    Spec --> S1["method='da_icg' / 'ia_icg'"]
+
+    MM -->|"Convex-concave / bilinear"| M1["method='extra_gradient' / 'pdhg'"]
+    MM -->|"Weakly nonconvex-strongly concave"| M2["method='prox_point'"]
+
+    Blk --> B1["method='p_adapt_admm' / 'dp_admm'"]
 ```
 
 ### Full Solver Catalog at a Glance (`px.solvers`)

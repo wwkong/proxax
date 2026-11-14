@@ -68,6 +68,7 @@ docs = [
   "sphinx-book-theme>=1.1",
   "sphinx-copybutton>=0.5",
   "sphinx-design>=0.6",
+  "sphinxcontrib-mermaid>=0.9",
 ]
 plot = [
   "matplotlib>=3.8",
