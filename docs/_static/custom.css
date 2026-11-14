@@ -124,3 +124,22 @@ th.px-sortable-th[data-sort-dir] .px-sort-indicator {
   opacity: 1;
   color: var(--pst-color-primary);
 }
+
+/* Polished container framing for Mermaid architecture & flow diagrams */
+pre.mermaid,
+div.mermaid {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.5rem;
+  background-color: var(--pst-color-surface);
+  overflow-x: auto;
+}
+
+pre.mermaid svg,
+div.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
