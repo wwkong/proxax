@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import dataclasses
-import time
 
 import jax
 import jax.numpy as jnp
@@ -177,9 +176,7 @@ class QPAPD:
         max_outer_iters=self.max_apd_iters,
         max_inner_iters=self.max_inner_iters,
     )
-    start_wall = (
-        time.perf_counter() if (not jit and time_limit is not None) else 0.0
-    )
+    start_wall = _penalty_common.start_clock(jit=jit, time_limit=time_limit)
 
     def _body(st: QPAPDState) -> QPAPDState:
       pen_oracle = composite.PenalizedOracle(

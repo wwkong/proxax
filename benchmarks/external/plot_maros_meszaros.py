@@ -172,7 +172,9 @@ def _dolan_more_curve(
 
 
 def plot_performance_profiles(
-    rows: list[dict[str, Any]], out_path: Path
+    rows: list[dict[str, Any]],
+    out_path: Path,
+    title_prefix: str = "Maros–Meszaros",
 ) -> None:
     """Plot runtime and gradient-eval Dolan-More performance profiles."""
     problems = list(dict.fromkeys(r["problem"] for r in rows))
@@ -236,14 +238,19 @@ def plot_performance_profiles(
 
     axes[0].legend(frameon=False, loc="lower right", ncol=2)
     fig.suptitle(
-        r"Maros–Meszaros QP Profiles (15 problems, tol = $10^{-6}$)",
+        f"{title_prefix} QP Profiles "
+        f"({len(problems)} problems, tol = $10^{{-6}}$)",
         fontsize=12,
     )
     fig.savefig(out_path, format="svg")
     plt.close(fig)
 
 
-def plot_breakdown(rows: list[dict[str, Any]], out_path: Path) -> None:
+def plot_breakdown(
+    rows: list[dict[str, Any]],
+    out_path: Path,
+    title_prefix: str = "Maros–Meszaros",
+) -> None:
     """Plot per-problem runtimes and gradient-eval vs runtime Pareto scatter."""
     problems = list(dict.fromkeys(r["problem"] for r in rows))
     short_labels = [p.split(" ")[0] for p in problems]
@@ -305,8 +312,8 @@ def plot_breakdown(rows: list[dict[str, Any]], out_path: Path) -> None:
     ax_left.set_xlabel("Steady-state runtime (ms)")
     ax_left.set_title("Per-Problem Runtime (solid = converged, X = max iter)")
     ax_left.xaxis.set_major_formatter(mticker.ScalarFormatter())
-    ax_left.set_xticks([0.01, 0.1, 1, 10, 100, 1000])
-    ax_left.set_xticklabels(["0.01", "0.1", "1", "10", "100", "1000"])
+    ax_left.set_xticks([0.01, 0.1, 1, 10, 100, 1000, 10000])
+    ax_left.set_xticklabels(["0.01", "0.1", "1", "10", "100", "1k", "10k"])
     ax_left.legend(frameon=False, loc="lower right", ncol=2)
 
     ax_right = axes[1]
@@ -338,7 +345,8 @@ def plot_breakdown(rows: list[dict[str, Any]], out_path: Path) -> None:
     ax_right.set_title("Oracle Cost vs. Runtime (Converged Runs)")
 
     fig.suptitle(
-        r"Maros–Meszaros Breakdown (15 QPs, float64 CPU, tol = $10^{-6}$)",
+        f"{title_prefix} Breakdown "
+        f"({len(problems)} QPs, float64 CPU, tol = $10^{{-6}}$)",
         fontsize=12,
     )
     fig.savefig(out_path, format="svg")
@@ -436,6 +444,16 @@ def main() -> None:
         default=DEFAULT_PLOTS_DIR,
         help="Directory to write SVG plots.",
     )
+    parser.add_argument(
+        "--prefix",
+        default="maros_meszaros",
+        help="Output filename prefix for SVG plots.",
+    )
+    parser.add_argument(
+        "--title-prefix",
+        default="Maros–Meszaros",
+        help="Title prefix for generated plots.",
+    )
     args = parser.parse_args()
 
     _apply_mocha_style()
@@ -447,9 +465,15 @@ def main() -> None:
     )
 
     plot_performance_profiles(
-        rows, args.plots_dir / "maros_meszaros_profile.svg"
+        rows,
+        args.plots_dir / f"{args.prefix}_profile.svg",
+        title_prefix=args.title_prefix,
     )
-    plot_breakdown(rows, args.plots_dir / "maros_meszaros_breakdown.svg")
+    plot_breakdown(
+        rows,
+        args.plots_dir / f"{args.prefix}_breakdown.svg",
+        title_prefix=args.title_prefix,
+    )
     if args.traj_json is not None:
         plot_qafiro_trajectory(
             args.traj_json,

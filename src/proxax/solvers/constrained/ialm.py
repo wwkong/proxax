@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import dataclasses
-import time
 
 import jax
 import jax.numpy as jnp
 
+from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -170,7 +170,7 @@ class IALM:
           "IALM requires a constrained `CompositeProblem` (`constraints` "
           "must not be None); use `APD`, `AIPP`, or `proxax.solve` instead."
       )
-    if not jit and time_limit is not None and time_limit < 0:
+    if time_limit is not None and time_limit < 0:
       raise ValueError("`time_limit` must be non-negative.")
 
     base_oracle = problem.oracle
@@ -327,7 +327,7 @@ class IALM:
         max_iters=self.max_subproblem_iters,
     )
     start_wall = (
-        time.perf_counter() if (not jit and time_limit is not None) else 0.0
+        _loop.start_clock(jit=jit) if time_limit is not None else 0.0
     )
 
     def _body(st: IALMState) -> IALMState:
@@ -338,9 +338,7 @@ class IALM:
           penalty=st.penalty,
           dampen=self.dampen,
       )
-      rem_time: float | None = None
-      if not jit and time_limit is not None:
-        rem_time = max(0.0, time_limit - (time.perf_counter() - start_wall))
+      rem_time = _loop.remaining_time(jit, time_limit, start_wall)
 
       if use_apd:
         apd_st = apd_solver.solve_oracle(

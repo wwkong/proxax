@@ -368,7 +368,8 @@ def solve(
       `callback` and `time_limit`.
     callback: Optional per-outer-iteration callback (`jit=False` only, except
       `HistoryTracker` which also supports `jit=True`).
-    time_limit: Optional wall-clock limit in seconds (`jit=False` only).
+    time_limit: Optional wall-clock limit in seconds (supported for both
+      `jit=True` and `jit=False`).
     track_history: If True, records per-iteration objective and residual history
       into `solution.history` for `solution.plot()` (works with `jit=True`).
 

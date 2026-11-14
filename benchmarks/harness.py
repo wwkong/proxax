@@ -51,6 +51,7 @@ def time_proxax_solve(
     opt_tol: float,
     feas_tol: float | None = None,
     repeats: int = 1,
+    time_limit: float | None = None,
 ) -> BenchmarkResult:
   """Times a Proxax solver on a problem, separating JIT compile and run."""
   dtype_str = "float64" if jax.config.jax_enable_x64 else "float32"
@@ -60,6 +61,7 @@ def time_proxax_solve(
         "solver": solver,
         "opt_tol": opt_tol,
         "jit": True,
+        "time_limit": time_limit,
     }
     if feas_tol is not None and isinstance(prob, px.CompositeProblem):
       kwargs["feas_tol"] = feas_tol

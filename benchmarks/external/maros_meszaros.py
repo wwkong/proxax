@@ -122,6 +122,8 @@ def run_maros_meszaros(
     limit: int | None = None,
     opt_tol: float = 1e-4,
     feas_tol: float = 1e-4,
+    solver_names: tuple[str, ...] | None = None,
+    time_limit: float | None = None,
 ) -> list[harness.BenchmarkResult]:
   """Runs Proxax constrained solvers on a curated Maros-Meszaros QP subset."""
   cache_dir = (
@@ -150,6 +152,9 @@ def run_maros_meszaros(
         if prob.constraints is None
         else _qp_solvers(opt_tol, feas_tol)
     )
+    if solver_names is not None:
+      allowed = set(solver_names)
+      solvers_list = [(k, v) for k, v in solvers_list if k in allowed]
     for solver_name, solver in solvers_list:
       res = harness.time_proxax_solve(
           suite="maros_meszaros",
@@ -160,6 +165,7 @@ def run_maros_meszaros(
           solver=solver,
           opt_tol=opt_tol,
           feas_tol=None if prob.constraints is None else feas_tol,
+          time_limit=time_limit,
       )
       results.append(res)
       print(
@@ -299,6 +305,7 @@ def main() -> int:
   parser.add_argument("--limit", type=int, default=None)
   parser.add_argument("--opt-tol", type=float, default=1e-4)
   parser.add_argument("--feas-tol", type=float, default=1e-4)
+  parser.add_argument("--time-limit", type=float, default=None)
   parser.add_argument(
       "--clarabel",
       action="store_true",
@@ -314,6 +321,7 @@ def main() -> int:
       limit=args.limit,
       opt_tol=args.opt_tol,
       feas_tol=args.feas_tol,
+      time_limit=args.time_limit,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (

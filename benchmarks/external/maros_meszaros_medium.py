@@ -60,6 +60,13 @@ def main() -> int:
   parser.add_argument("--limit", type=int, default=None)
   parser.add_argument("--opt-tol", type=float, default=1e-6)
   parser.add_argument("--feas-tol", type=float, default=1e-6)
+  parser.add_argument("--time-limit", type=float, default=10.0)
+  parser.add_argument(
+      "--solvers",
+      nargs="+",
+      default=["IALM", "IAIPAL", "SProxALM"],
+      help="Proxax solver names to run.",
+  )
   parser.add_argument(
       "--clarabel",
       action="store_true",
@@ -75,6 +82,8 @@ def main() -> int:
       limit=args.limit,
       opt_tol=args.opt_tol,
       feas_tol=args.feas_tol,
+      solver_names=tuple(args.solvers),
+      time_limit=args.time_limit,
   )
   if args.clarabel:
     cache_dir = args.data_dir or (

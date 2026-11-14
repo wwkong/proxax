@@ -22,6 +22,7 @@ and constrained composite suites:
 * [`PANOC-ALM` Constrained Solver Benchmarks](panoc_alm_benchmarks.md)
 * [Conic Optimization Benchmarks (`ExpCone`, `SOC`, `Spectrahedron`)](conic_benchmarks.md)
 * [Maros–Meszaros QP Benchmarks](maros_meszaros.md)
+* [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md)
 
 ## Scaling Studies
 
@@ -50,6 +51,7 @@ panoc_benchmarks
 panoc_alm_benchmarks
 conic_benchmarks
 maros_meszaros
+maros_meszaros_medium
 ```
 
 ```{toctree}

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import time
 import typing
 
 import jax
 import jax.numpy as jnp
 
+from proxax import _loop
 from proxax import _typing
 from proxax import certificates
 from proxax import problem as problem_mod
@@ -30,7 +30,7 @@ def validate_constrained_problem(
         f"{solver_name} requires a constrained `CompositeProblem` "
         "(`constraints` must not be None); use `proxax.solve` instead."
     )
-  if not jit and time_limit is not None and time_limit < 0:
+  if time_limit is not None and time_limit < 0:
     raise ValueError("`time_limit` must be non-negative.")
 
   base_oracle = problem.oracle
@@ -93,15 +93,20 @@ def init_penalty_tracker(
   return c0, ref0, tracker0
 
 
+def start_clock(*, jit: bool, time_limit: float | None) -> float | jax.Array:
+  """Captures a wall-clock timestamp when `time_limit` is active."""
+  if time_limit is None:
+    return 0.0
+  return _loop.start_clock(jit=jit)
+
+
 def remaining_time(
     jit: bool,
-    time_limit: float | None,
-    start_wall: float,
+    time_limit: float | jax.Array | None,
+    start_wall: float | jax.Array,
 ) -> float | None:
-  """Computes remaining wall-clock budget for an eager inner stage."""
-  if not jit and time_limit is not None:
-    return max(0.0, time_limit - (time.perf_counter() - start_wall))
-  return None
+  """Computes remaining wall-clock budget for an inner stage."""
+  return _loop.remaining_time(jit, time_limit, start_wall)
 
 
 def advance_penalty_stage(
