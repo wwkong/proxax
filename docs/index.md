@@ -1,4 +1,6 @@
-# <img src="_static/logo.png" alt="" style="height: 1.15em; vertical-align: -0.18em; margin-right: 0.35em; border-radius: 0.2em;"> Proxax: Certified Composite Optimization in JAX
+# Proxax
+
+**Certified Composite Optimization in JAX**
 
 [![PyPI](https://img.shields.io/pypi/v/proxax)](https://pypi.org/project/proxax/)
 [![Python](https://img.shields.io/pypi/pyversions/proxax)](https://pypi.org/project/proxax/)
