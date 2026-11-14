@@ -4,6 +4,15 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-11-14
+
+### Added
+- Added a dedicated [Sparsity User Guide](docs/guide/sparsity.md) covering native `BCOO` objectives/constraints, zero-densification `px.ruiz_equilibrate` / `px.solve_preconditioned`, `px.layers.QPLayer`, and `px.batch_solve` / `px.batch_implicit_solve`.
+- Included `IAIPAL` in `maros_meszaros_large` plots and `docs-experiments/maros_meszaros_large.md`.
+
+### Fixed
+- Switched outer and inner loops in `ADMM`, `DPADMM`, and `PAdaptADMM` (`src/proxax/solvers/block/`) to `_loop.while_loop`, fixing `TracerBoolConversionError` when calling `px.solve(..., time_limit=...)` under `jax.jit` or eager `jit=False`.
+
 ## [0.3.8] - 2026-11-14
 
 ### Added
