@@ -8,6 +8,7 @@ from collections import abc
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import sparse as jsparse
 
 from proxax import _typing
 from proxax import tree
@@ -82,7 +83,7 @@ identity: typing.Final = IdentityLinearOperator()
 class MatrixLinearOperator:
   """Dense or BCOO matrix operator `x -> matrix @ x`."""
 
-  matrix: jax.Array
+  matrix: jax.Array | jsparse.BCOO
   norm_sq_bound: jax.Array | float | None = dataclasses.field(
       default=None,
       metadata={"static": False},
@@ -95,11 +96,11 @@ class MatrixLinearOperator:
 
   def matvec(self, x: jax.Array) -> jax.Array:
     """Computes `matrix @ x`."""
-    return self.matrix @ x
+    return typing.cast(jax.Array, self.matrix @ x)
 
   def rmatvec(self, y: jax.Array) -> jax.Array:
     """Computes `matrix.T @ y`."""
-    return self.matrix.T @ y
+    return typing.cast(jax.Array, self.matrix.T @ y)
 
   def bind(self, x_example: _typing.PyTree) -> MatrixLinearOperator:
     """Returns `self` (`matrix.T` needs no primal shape metadata)."""
@@ -177,7 +178,10 @@ jax.tree_util.register_dataclass(
 
 
 OperatorLike: typing.TypeAlias = (
-    LinearOperator | jax.Array | abc.Callable[[_typing.PyTree], _typing.PyTree]
+    LinearOperator
+    | jax.Array
+    | jsparse.BCOO
+    | abc.Callable[[_typing.PyTree], _typing.PyTree]
 )
 
 
@@ -190,7 +194,7 @@ def as_linear_operator(
   """Coerces a matrix, callable, or `LinearOperator` into a `LinearOperator`."""
   if isinstance(op, LinearOperator):
     return op
-  if isinstance(op, jax.Array):
+  if isinstance(op, (jax.Array, jsparse.BCOO)):
     return MatrixLinearOperator(matrix=op, norm_sq_bound=operator_norm_sq)
   if callable(op):
     return CallableLinearOperator(

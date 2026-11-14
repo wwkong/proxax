@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import sparse
 
 from proxax import certificates
 from proxax import constraints
+from proxax import implicit
 from proxax import oracle
 from proxax import problem as problem_mod
 from proxax import prox
+from proxax import px
 from proxax import tree
 
 
@@ -93,3 +96,59 @@ def test_refine_produces_exact_subdifferential_certificate() -> None:
       assert abs(g_i - weight * (1.0 if x_i > 0 else -1.0)) < 1e-5
     else:
       assert abs(g_i) <= weight + 1e-5
+
+
+def test_bcoo_sparse_matrix_operator_and_solve() -> None:
+  a_dense = jnp.array([
+      [1.5, 0.0, -0.5, 0.0],
+      [0.0, 2.0, 0.0, -1.0],
+      [-0.5, 0.0, 1.0, 0.5],
+  ])
+  a_bcoo = sparse.BCOO.fromdense(a_dense)
+  x = jnp.array([0.4, -0.3, 0.8, 0.2])
+  y = jnp.array([1.1, -0.6, 0.9])
+
+  op = constraints.as_linear_operator(a_bcoo).bind(x)
+  assert jnp.allclose(op.matvec(x), a_dense @ x, atol=1e-6)
+  assert jnp.allclose(op.rmatvec(y), a_dense.T @ y, atol=1e-6)
+  assert jnp.isclose(
+      tree.vdot(op.matvec(x), y), tree.vdot(x, op.rmatvec(y)), atol=1e-6
+  )
+
+  b = jnp.array([0.5, 0.6, 0.4])
+  q = jnp.array([0.2, -0.8, 0.5, -0.3])
+  x0 = jnp.zeros(4)
+
+  def _make_prob(
+      mat: jax.Array | sparse.BCOO, q_vec: jax.Array
+  ) -> problem_mod.CompositeProblem:
+    return problem_mod.CompositeProblem(
+        smooth=lambda z: 0.5 * jnp.dot(z, z) + jnp.dot(q_vec, z),
+        proximal=prox.NonNegative(),
+        constraints=constraints.less_equal(mat, b),
+    )
+
+  sol_dense = px.solve(
+      _make_prob(a_dense, q), x0, method="ialm", opt_tol=1e-5, feas_tol=1e-5
+  )
+  sol_bcoo = px.solve(
+      _make_prob(a_bcoo, q), x0, method="ialm", opt_tol=1e-5, feas_tol=1e-5
+  )
+  assert jnp.allclose(sol_dense.x, sol_bcoo.x, atol=1e-4)
+
+  def _loss(mat: jax.Array | sparse.BCOO, q_vec: jax.Array) -> jax.Array:
+    x_hat = implicit.implicit_solve(
+        lambda qv: _make_prob(mat, qv),
+        x0,
+        q_vec,
+        method="ialm",
+        opt_tol=1e-5,
+        feas_tol=1e-5,
+        linear_tol=1e-5,
+    )
+    return 0.5 * jnp.sum(x_hat**2)
+
+  v_d, g_d = jax.jit(jax.value_and_grad(lambda qv: _loss(a_dense, qv)))(q)
+  v_s, g_s = jax.jit(jax.value_and_grad(lambda qv: _loss(a_bcoo, qv)))(q)
+  assert jnp.isclose(v_d, v_s, atol=1e-4)
+  assert jnp.allclose(g_d, g_s, atol=1e-3)
