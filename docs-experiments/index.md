@@ -23,6 +23,9 @@ Comparisons against external optimization and differentiable-layer libraries
 
 | Benchmark | Baseline | Problem Regime | Headline Result (`proxax` vs. Baseline) | Notes / Limits |
 | :--- | :--- | :--- | :--- | :--- |
+| [Conic Optimization (`SOC`, `ExpCone`, `SDP`)](conic_vs_clarabel_scs.md) | `Clarabel`, `SCS`, `CVXPY` | `SOCP` ($n \le 512$), `ExpCone` ($k \le 64$), `Spectrahedron SDP` ($n \le 48$) | **2.6×–11.8× faster** than `Clarabel` on SDP ($n \ge 24$); beats `CVXPY` on `ExpCone` | `SCS (direct)` is fastest on single CPU SDP (`29.7 ms` vs. `IALM` `71.8 ms`) |
+| [Convex–Concave Min–Max](minmax_convex_concave.md) | `Clarabel`, `SCS`, `CVXPY` | Matrix games & bilinear saddle QPs ($n, m \le 256$) | `PDHG` **2.2×–20.7× faster** at $256 \times 256$ (`12.8–20.7 ms`) | Dualized IPM (`Clarabel`) scales cubically (`265.6 ms` at $256 \times 256$) |
+| [Nonconvex–Concave Min–Max](minmax_nonconvex_concave.md) | `Optax` GDA | Kong–Monteiro NC–C QP ($n \le 256$, $m_y \in [0.05, 1]$) | `PDHG` **2.5×–3.8× faster** (`1.15–95.4 ms`); `ProxPointMinMax` lower obj | `Optax GDA` hits `MAX_ITERS` (`opt_res = 4.45e-3`) at $n=256$ |
 | [Large-Scale Matrix-Free Operators](large_matrix_free.md) | `Clarabel` | 1D Circulant LASSO & 2D FFT Deblur ($n \le 65{,}536$) | **20.9×–2,388× faster** (`352 ms` at $n=65{,}536$) | `Clarabel` hits KKT fill-in wall ($>225\text{ s}$) at $n \ge 16{,}384$ on 2D deblur |
 | [Large-Scale Sparse `BCOO` Benchmarks](sparse_bcoo_vs_clarabel.md) | `Clarabel` | Sparse QP & Sparse Logistic Regression ($n \le 4{,}000$, $1\%$ nnz) | **6.3×–8.7×** (`sparse_logreg`), **1.52×** (`sparse_qp_n4000`) | `BCOO` is **5.2×–21.7× faster** than dense `jax.Array` in `proxax` |
 | [Matrix-Free CPU Benchmarks](matrix_free_vs_clarabel.md) | `Clarabel` | Factor QPs ($n \le 3{,}000$), LogReg-Simplex, Dense QP | **75.9×–326.7×** (`FactorQP`), **1.2×–4.0×** (`LogReg`), **4.1×** (`DenseQP-1000`) | `DenseQP-1500` (`18 MB`) spills CPU L3 cache ($>10\text{ s}$ vs. `Clarabel` `1.10 s`) |
@@ -37,6 +40,9 @@ Comparisons against external optimization and differentiable-layer libraries
 
 ### Reports
 
+* [Conic Optimization (`proxax` vs. `Clarabel`, `SCS`, `CVXPY`)](conic_vs_clarabel_scs.md)
+* [Convex–Concave Min–Max (`proxax` vs. `Clarabel`, `SCS`, `CVXPY`)](minmax_convex_concave.md)
+* [Nonconvex–Concave Min–Max (`proxax` vs. `Optax` GDA)](minmax_nonconvex_concave.md)
 * [Large-Scale Matrix-Free Operators (`proxax` vs. `Clarabel`)](large_matrix_free.md)
 * [Large-Scale Sparse `BCOO` Benchmarks (`proxax` vs. `Clarabel`)](sparse_bcoo_vs_clarabel.md)
 * [Matrix-Free CPU Benchmarks (`proxax` vs. `Clarabel`)](matrix_free_vs_clarabel.md)
@@ -112,6 +118,9 @@ Reproductions of published benchmark tables using `proxax`:
 :hidden:
 :caption: External Benchmarks
 
+conic_vs_clarabel_scs
+minmax_convex_concave
+minmax_nonconvex_concave
 large_matrix_free
 sparse_bcoo_vs_clarabel
 matrix_free_vs_clarabel

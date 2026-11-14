@@ -48,7 +48,10 @@ Issues = "https://github.com/wwkong/proxax/issues"
 
 [project.optional-dependencies]
 benchmarks = [
+  "clarabel>=0.11",
+  "cvxpy>=1.6",
   "matplotlib>=3.8",
+  "scs>=3.2",
 ]
 cuda12 = [
   "jax[cuda12]>=0.4.30",
@@ -122,5 +125,10 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["optax", "matplotlib", "matplotlib.*", "cycler", "clarabel", "scipy", "scipy.*", "alpaqa", "cvxpy", "cvxpylayers", "cvxpylayers.*"]
+module = ["optax", "matplotlib", "matplotlib.*", "cycler", "clarabel", "scipy", "scipy.*", "scs", "alpaqa", "cvxpylayers", "cvxpylayers.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["cvxpy", "cvxpy.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
