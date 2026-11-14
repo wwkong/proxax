@@ -30,12 +30,14 @@ JAX_ENABLE_X64=1 uv run python -m benchmarks.external.maros_meszaros_medium --op
 
 ### Modified Ruiz Preconditioning (`IALM` + `IAIPAL`, Original-Space Tolerances)
 
-Running with `--precondition` (Modified Ruiz Equilibration, scaling tolerances by `min(1, c * min(d_x))` and `min(1, min(d_y))` to certify `1e-6` in original coordinates):
+Running with `--precondition --time-limit 2.0` (Modified Ruiz Equilibration, scaling tolerances by `min(1, c * min(d_x))` and `min(1, min(d_y))` to certify `1e-6` in original coordinates, with `IAIPAL` at `max_outer_iters=1_000_000`):
 
 | Solver | Converged | Avg Runtime (ms) | Max Runtime (ms) |
 | :--- | ---: | ---: | ---: |
-| `IALM` (Ruiz + orig-tol) | 18 / 23 | 2562.24 | 10036.62 |
-| `IAIPAL` (Ruiz + orig-tol) | 5 / 23 | 2323.04 | 10044.88 |
+| `IALM` (Ruiz + orig-tol, 2 s limit) | 17 / 23 | 817.90 | 2118.87 |
+| `IAIPAL` (Ruiz + orig-tol, 2 s limit) | 7 / 23 | 1461.43 | 2075.89 |
+
+Note: At a 10 s time limit, `IALM` also converges on `PRIMALC8` (`18 / 23`), and `IAIPAL` converges on `MOSARQP2` (`8 / 23`). At 2 s, `IAIPAL` still solves `DPKLO1` (`75.78 ms`) and `GOULDQP3` (`868.93 ms`), both of which time out under `IALM`.
 
 * **`IALM` highlights:** Solves `PRIMALC1` (`1,594.60 ms` vs. `>10 s` timeout / `157 s` without limit), `PRIMALC2` (`328.33 ms` vs. `>10 s`), and `PRIMALC5` (`385.62 ms` vs. `>10 s`), and speeds up `DUALC2` (`14.69 ms` vs. `55.22 ms`), `DUALC8` (`7.31 ms` vs. `99.93 ms`), and `MOSARQP2` (`1,953.82 ms` vs. `3,058.77 ms`).
 * **`IAIPAL` note:** Solves `DPKLO1`, `GENHS28`, `GOULDQP3`, `HS35MOD`, `ZECEVIC2` with Ruiz scaling, whereas unpreconditioned `IAIPAL` solves more problems (`10 / 23`) overall.

@@ -30,6 +30,15 @@ JAX_ENABLE_X64=1 uv run python -m benchmarks.external.maros_meszaros --opt-tol 1
 | `QPAIPP` | 13 / 15 | 195.17 | 2294.20 |
 | `SProxALM` | 7 / 15 | 3.16 | 17.74 |
 
+### Modified Ruiz Preconditioning (`IALM` + `IAIPAL`, Original-Space Tolerances)
+
+Running with `--precondition --time-limit 2.0` (Modified Ruiz Equilibration, scaling tolerances by `min(1, c * min(d_x))` and `min(1, min(d_y))` to certify `1e-6` in original coordinates, with `IAIPAL` at `max_outer_iters=1_000_000`):
+
+| Solver | Converged | Avg Runtime (ms) | Max Runtime (ms) |
+| :--- | ---: | ---: | ---: |
+| `IALM` (Ruiz + orig-tol, 2 s limit) | 15 / 15 | 6.90 | 35.10 |
+| `IAIPAL` (Ruiz + orig-tol, 2 s limit) | 14 / 15 | 237.11 | 2000.47 |
+
 ## Plots
 
 ### Dolan–Moré Performance Profiles
