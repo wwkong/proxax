@@ -130,3 +130,129 @@ def test_animate_phase_trajectory_empty_raises() -> None:
   """`animate_phase_trajectory` raises `ValueError` on empty trajectories."""
   with pytest.raises(ValueError, match="empty"):
     plotting.animate_phase_trajectory({"a": ([], [])})
+
+
+def test_adap_fista_nonfinite_backtrack_recovers() -> None:
+  """`AdapFISTA` shrinks `lam` when a trial step hits `inf`."""
+  from proxax.solvers.unconstrained import adap_fista
+
+  def smooth(x: jax.Array) -> jax.Array:
+    # Blows up to inf for ||x|| > 5, smooth quadratic inside.
+    r2 = jnp.sum(x**2)
+    return jnp.where(r2 > 25.0, jnp.inf, 0.5 * r2 + jnp.sum(x))
+
+  prob = px.CompositeProblem(smooth=smooth, proximal=prox.Zero())
+  sol = px.solve(
+      prob,
+      jnp.array([2.0, 2.0]),
+      solver=adap_fista.AdapFISTA(opt_tol=1e-4, lipschitz_init=0.1),
+  )
+  assert sol.status_enum == px.SolveStatus.CONVERGED
+  assert jnp.allclose(sol.x, -jnp.ones(2), atol=1e-3)
+
+
+def test_iaipal_large_penalty_no_int32_overflow() -> None:
+  """`IAIPAL` clamps `k0_period` cleanly under large penalty / tiny `A`."""
+  from proxax.solvers.constrained import iaipal
+
+  a_mat = 1e-8 * jnp.eye(2)
+  prob = px.CompositeProblem(
+      smooth=lambda x: 0.5 * jnp.sum(x**2),
+      proximal=prox.Box(lower=-1.0, upper=1.0),
+      constraints=constraints.equality(a_mat, rhs=jnp.zeros(2)),
+  )
+  sol = px.solve(
+      prob,
+      jnp.array([0.5, -0.5]),
+      solver=iaipal.IAIPAL(
+          opt_tol=1e-3,
+          feas_tol=1e-3,
+          penalty_init=1e4,
+          max_outer_iters=3,
+          max_inner_iters=20,
+      ),
+  )
+  assert jnp.all(jnp.isfinite(sol.x))
+
+
+def test_optax_compat_rejects_ls_fail_and_nonfinite() -> None:
+  """`_subproblems` helpers reject `LINE_SEARCH_FAILED` and `NaN`s."""
+  from proxax.optax_compat import _subproblems
+  from proxax.solvers import base as solver_base
+  from proxax.solvers.inner import acg
+  from proxax.solvers.inner import pf_acg
+
+  acg_ls_fail = acg.ACGState(
+      x=jnp.zeros(2),
+      y=jnp.zeros(2),
+      x0=jnp.zeros(2),
+      psi_x0=jnp.array(1.0),
+      psi_y=jnp.array(0.0),
+      u=jnp.zeros(2),
+      eta=jnp.array(0.0),
+      a_sum=jnp.array(1.0),
+      lipschitz=jnp.array(1.0),
+      iteration=jnp.array(1, dtype=jnp.int32),
+      status=jnp.array(int(acg.ACGStatus.LINE_SEARCH_FAILED), dtype=jnp.int32),
+      counts=solver_base.OracleCounts.zeros(),
+  )
+  assert bool(
+      _subproblems._check_aipp_rejection(
+          acg_ls_fail,
+          center=jnp.ones(2),
+          center_obj=jnp.array(1.0),
+          phi_y=jnp.array(0.0),
+          lam=jnp.array(1.0),
+          inv_lam=jnp.array(1.0),
+          sigma=0.5,
+          use_adaptive=True,
+      )
+  )
+
+  pf_ls_fail = pf_acg.PFACGState(
+      x=jnp.zeros(2),
+      y=jnp.zeros(2),
+      y0=jnp.zeros(2),
+      psi_y0=jnp.array(1.0),
+      psi_y=jnp.array(0.0),
+      r=jnp.zeros(2),
+      a_sum=jnp.array(1.0),
+      lipschitz=jnp.array(1.0),
+      iteration=jnp.array(1, dtype=jnp.int32),
+      status=jnp.array(
+          int(pf_acg.PFACGStatus.LINE_SEARCH_FAILED), dtype=jnp.int32
+      ),
+      counts=solver_base.OracleCounts.zeros(),
+  )
+  rej, _, _ = _subproblems._evaluate_apd_subproblem(
+      pf_ls_fail,
+      center=jnp.ones(2),
+      center_obj=jnp.array(1.0),
+      phi_y=jnp.array(0.0),
+      u_cand=jnp.zeros(2),
+      v_cand=jnp.zeros(2),
+      m_hat=jnp.array(1.0),
+      theta=0.5,
+      eff_rho=0.5,
+      done_flag=jnp.array(False),
+  )
+  assert bool(rej)
+
+
+def test_pdhg_final_iter_eval_every() -> None:
+  """`PDHG` evaluates certificates on the final iter when `eval_every` > cap."""
+  from proxax.oracle import minmax as minmax_mod
+  from proxax.solvers.minmax import pdhg
+
+  prob = minmax_mod.MinMaxProblem(
+      coupling=lambda x, y: (
+          jnp.dot(x, y) - 0.5 * jnp.sum(y**2) + 0.5 * jnp.sum(x**2)
+      ),
+  )
+  sol = px.solve(
+      prob,
+      (jnp.ones(2), jnp.ones(2)),
+      solver=pdhg.PDHG(opt_tol=1e-4, max_iters=3, eval_every=10),
+  )
+  assert jnp.isfinite(sol.stats.opt_residual)
+  assert sol.stats.outer_iters == 3
