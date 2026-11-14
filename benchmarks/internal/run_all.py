@@ -10,7 +10,7 @@ import pathlib
 import jax
 
 from benchmarks import harness
-from benchmarks import suites
+from benchmarks.internal import suites
 from proxax import solvers
 from proxax.solvers import base
 
