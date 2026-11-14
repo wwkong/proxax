@@ -10,6 +10,7 @@ from proxax import layers
 from proxax import optax_compat
 from proxax import oracle
 from proxax import plotting
+from proxax import precondition
 from proxax import problem as _problem
 from proxax import prox
 from proxax import px
@@ -27,6 +28,7 @@ HistoryTracker = solvers.HistoryTracker
 KKTResiduals = _problem.KKTResiduals
 MinMaxOracle = oracle.MinMaxOracle
 MinMaxProblem = oracle.MinMaxProblem
+PreconditionedProblem = precondition.PreconditionedProblem
 Solution = solvers.Solution
 SolveStats = solvers.SolveStats
 SolveStatus = solvers.SolveStatus
@@ -37,7 +39,9 @@ StoppingConfig = solvers.StoppingConfig
 batch_implicit_solve = _batch.batch_implicit_solve
 batch_solve = _batch.batch_solve
 implicit_solve = implicit.implicit_solve
+ruiz_equilibrate = precondition.ruiz_equilibrate
 solve = _solve.solve
+solve_preconditioned = precondition.solve_preconditioned
 
 __all__ = [
     "BlockProblem",
@@ -47,6 +51,7 @@ __all__ = [
     "KKTResiduals",
     "MinMaxOracle",
     "MinMaxProblem",
+    "PreconditionedProblem",
     "Solution",
     "SolveStats",
     "SolveStatus",
@@ -65,9 +70,12 @@ __all__ = [
     "optax_compat",
     "oracle",
     "plotting",
+    "precondition",
     "prox",
     "px",
+    "ruiz_equilibrate",
     "solve",
+    "solve_preconditioned",
     "solvers",
     "tree",
     "typing",

@@ -4,6 +4,16 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-11-14
+
+### Added
+- Added built-in Modified Ruiz Equilibration (`px.ruiz_equilibrate`, `px.solve_preconditioned`, `px.PreconditionedProblem` in `proxax.precondition`), supporting both dense `jax.Array` and sparse `jax.experimental.sparse.BCOO` matrices without densification, plus User Guide and API documentation.
+- Added `BCOO` support to `px.layers.QPLayer` (`Q` and `A` type annotations and tests).
+- Added zero-densification sparse QPSIF loader (`load_qpsif_sparse`, `ruiz_equilibrate_sparse`), vectorized sparse `Clarabel` setup, and large-scale Maros–Mészáros benchmark (`benchmarks/external/maros_meszaros_large.py`).
+
+### Fixed
+- Fixed `px.batch_implicit_solve(..., backend="threads")` with batched `BCOO` (`n_batch >= 1`) parameters by unwrapping `BCOO` cotangents before `jax.vmap` unbatching and reconstructing `float0`-indexed `BCOO` cotangents in `_bwd`.
+
 ## [0.3.6] - 2026-11-14
 
 ### Added
