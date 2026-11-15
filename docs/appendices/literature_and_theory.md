@@ -1,7 +1,7 @@
 # Appendix A: Literature Review & Algorithm Deep Dives
 
 This appendix summarizes the first-order optimization literature, worst-case
-oracle complexity bounds, and algorithmic mechanics behind the 22 solvers in
+oracle complexity bounds, and algorithmic mechanics behind the solvers in
 Proxax.
 
 ---

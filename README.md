@@ -80,7 +80,7 @@ x = [0.06000032 0.93999994 0.        ]
 | Multi-block splitting | `px.BlockProblem` | `ADMM`, `DPADMM`, `PAdaptADMM` |
 | Min–max saddle point | `px.MinMaxProblem` | `PDHG`, `ExtraGradient`, `ProxPointMinMax` |
 
-Plus single-step Optax wrappers in `px.optax_compat`, Modified Ruiz Equilibration (`px.ruiz_equilibrate`), and differentiable layers (`px.layers`, `px.implicit_solve`). See [Problem Classes](https://proxax.readthedocs.io/en/latest/foundations/problem_classes.html) and the [API Reference](https://proxax.readthedocs.io/en/latest/api.html) for the full list of 23 solver classes.
+Plus single-step Optax wrappers in `px.optax_compat`, Modified Ruiz Equilibration (`px.ruiz_equilibrate`), and differentiable layers (`px.layers`, `px.implicit_solve`). See [Problem Classes](https://proxax.readthedocs.io/en/latest/foundations/problem_classes.html) and the [API Reference](https://proxax.readthedocs.io/en/latest/api.html) for the full list of solver classes.
 
 ## Examples
 
