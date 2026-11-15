@@ -53,7 +53,9 @@ $\operatorname{dom} h := \{x \in \mathcal{X} : h(x) < +\infty\}$ if
 $x \mapsto h(x) - \frac{\mu}{2}\|x\|_2^2$ is proper, lower semicontinuous, and
 convex. Its **convex subdifferential** at $x \in \operatorname{dom} h$ is:
 
-$$\partial h(x) := \left\{ s \in \mathcal{X} \;:\; h(y) \ge h(x) + \langle s, y - x \rangle + \frac{\mu}{2}\|y - x\|_2^2 \quad \forall y \in \mathcal{X} \right\}.$$
+$$\partial h(x) := \left\{ s \in \mathcal{X} \;:\; h(y) \ge h(x) + \langle s, y - x \rangle \quad \forall y \in \mathcal{X} \right\}.$$
+
+When $h$ is $\mu$-strongly convex ($\mu \ge 0$), every subgradient $s \in \partial h(x)$ satisfies the stronger inequality $h(y) \ge h(x) + \langle s, y - x \rangle + \frac{\mu}{2}\|y - x\|_2^2$ for all $y \in \mathcal{X}$.
 
 When $h = \delta_K$ is the $\{0, +\infty\}$ **indicator function** of a nonempty
 closed convex set $K \subseteq \mathcal{X}$, $\operatorname{dom} h = K$ and
@@ -82,7 +84,10 @@ $$\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}), \qquad \|\hat{v}\| \le \r
 
 ### 2. Set- and Cone-Constrained (`CompositeProblem`)
 
-$$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+\begin{align*}
+\min_{x \in \mathcal{X}} \quad & f(x) + h(x) \\
+\text{s.t.} \quad & \mathcal{A}(x) \in \mathcal{C}
+\end{align*}
 
 where $\mathcal{A} : \mathcal{X} \to \mathcal{Y}$ is a linear map with adjoint
 $\mathcal{A}^*$ and $\mathcal{C} \subseteq \mathcal{Y}$ is a closed convex set
@@ -104,7 +109,10 @@ $$\hat{v} \in \nabla f(\hat{x}) + \partial h(\hat{x}) + \mathcal{A}^*(\hat{p}), 
 
 ### 3. Block-Constrained Splitting (`BlockProblem`)
 
-$$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \qquad \text{s.t.} \qquad \sum_{i=1}^K \mathcal{A}_i(x_i) = b.$$
+\begin{align*}
+\min_{x_1, \dots, x_K} \quad & \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \\
+\text{s.t.} \quad & \sum_{i=1}^K \mathcal{A}_i(x_i) = b.
+\end{align*}
 
 Block ADMM solvers (`ADMM`, `DPADMM`, `PAdaptADMM`) return blocks
 $\hat{x} = (\hat{x}_1, \dots, \hat{x}_K)$, dual $\hat{y}$, and subgradients

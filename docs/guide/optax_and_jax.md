@@ -115,7 +115,10 @@ For problems with linear or cone constraints $\mathcal{A}(w) \in \mathcal{C}$,
 `px.optax_compat.ialm` (along with `qp_apd` and `qp_aipp`) updates both `params`
 and the Lagrange multipliers `state.dual` inside an Optax step function:
 
-$$\min_{w \in [0, 1]^3} \; \frac{1}{2}\big(3 w_1^2 - w_2^2 + 2 w_3^2\big) - w_1 \quad \text{s.t.} \quad \sum_{i=1}^3 w_i = 1$$
+\begin{align*}
+\min_{w \in [0, 1]^3} \quad & \frac{1}{2}\big(3 w_1^2 - w_2^2 + 2 w_3^2\big) - w_1 \\
+\text{s.t.} \quad & \sum_{i=1}^3 w_i = 1
+\end{align*}
 
 ```python
 import jax

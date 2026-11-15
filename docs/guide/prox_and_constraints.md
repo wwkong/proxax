@@ -139,7 +139,10 @@ to materialize huge Kronecker or block matrices for matrix variables or nested
 dictionaries. Proxax computes the adjoint $\mathcal{A}^*$ automatically via
 `jax.linear_transpose`. For example, the consensus matrix problem
 
-$$\min_{X \in \mathbb{R}^{4 \times 4},\; Y \in [0, 0.8]^{4 \times 4}} \; \frac{1}{2}\|X - \mathbf{1}\|_F^2 + 0.5 \|X\|_* \quad \text{s.t.} \quad X - Y = 0$$
+\begin{align*}
+\min_{X \in \mathbb{R}^{4 \times 4},\; Y \in [0, 0.8]^{4 \times 4}} \quad & \frac{1}{2}\|X - \mathbf{1}\|_F^2 + 0.5 \|X\|_* \\
+\text{s.t.} \quad & X - Y = 0
+\end{align*}
 
 can be written directly over a dictionary PyTree:
 
@@ -182,7 +185,10 @@ Python `dict`, `tuple`, or `list` of `Constraint` objects directly to
 into a `ProductConstraint` and returns `sol.dual` with the **exact same
 keys/structure**:
 
-$$\min_{x \in \mathbb{R}_+^3} \; \frac{1}{2}\|x - (2, 0.5, -0.5)^\top\|_2^2 \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1, \quad x_1 + x_2 \le 0.8$$
+\begin{align*}
+\min_{x \in \mathbb{R}_+^3} \quad & \frac{1}{2}\|x - (2, 0.5, -0.5)^\top\|_2^2 \\
+\text{s.t.} \quad & \sum_{i=1}^3 x_i = 1, \quad x_1 + x_2 \le 0.8
+\end{align*}
 
 ```python
 import jax.numpy as jnp
@@ -281,8 +287,9 @@ Batched `BCOO` matrices (constructed with `n_batch=1`, e.g.,
 `sparse.BCOO.fromdense(stack, n_batch=1)`) also work directly with `jax.vmap`
 and `px.batch_solve(..., backend="vmap" | "threads")`.
 
-> [!TIP]
-> At $n = 4000$ with $1\%$ nonzeros, switching from dense arrays to `BCOO`
-> speeds up `IALM` by **>21×** on CPU (see the
-> [Sparse BCOO vs. Clarabel](https://proxax.readthedocs.io/projects/experiments/en/latest/sparse_bcoo_vs_clarabel.html)
-> benchmark report).
+:::{tip}
+At $n = 4000$ with $1\%$ nonzeros, switching from dense arrays to `BCOO`
+speeds up `IALM` by **>21×** on CPU (see the
+[Sparse BCOO vs. Clarabel](https://proxax.readthedocs.io/projects/experiments/en/latest/sparse_bcoo_vs_clarabel.html)
+benchmark report).
+:::

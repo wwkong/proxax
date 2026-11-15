@@ -25,7 +25,10 @@ uv run python examples/constrained.py
 We minimize an indefinite quadratic over the intersection of the probability
 simplex $\Delta^n$ and an affine subspace $A_{\text{eq}} x = b$:
 
-$$\min_{x \in \mathbb{R}^n} \; \frac{\tau}{2}\|C x - d\|_2^2 - \frac{\xi}{2}\|D B x\|_2^2 + \delta_{\Delta^n}(x) \quad \text{s.t.} \quad A_{\text{eq}} x = b$$
+\begin{align*}
+\min_{x \in \mathbb{R}^n} \quad & \frac{\tau}{2}\|C x - d\|_2^2 - \frac{\xi}{2}\|D B x\|_2^2 + \delta_{\Delta^n}(x) \\
+\text{s.t.} \quad & A_{\text{eq}} x = b
+\end{align*}
 
 Every constrained solver returns $(\hat{x}, \hat{p}, \hat{v})$ satisfying exact
 Lagrangian subdifferential membership:
@@ -106,7 +109,10 @@ $k$-Fantope $\mathcal{F}^k = \{\Pi \in \mathbb{S}_+^p : 0 \preceq \Pi \preceq I,
 $\ell_1$ part $\nu \|\Phi\|_1$ and smooth $1/b$-weakly convex concave part
 $q_{b,\nu}(\Phi)$ yields a two-block consensus problem:
 
-$$\min_{\Pi, \Phi \in \mathbb{R}^{p \times p}} \; -\langle \widehat{\Sigma}, \Pi \rangle + q_{b,\nu}(\Phi) + \delta_{\mathcal{F}^k}(\Pi) + \nu \|\Phi\|_1 \quad \text{s.t.} \quad \Pi - \Phi = 0$$
+\begin{align*}
+\min_{\Pi, \Phi \in \mathbb{R}^{p \times p}} \quad & -\langle \widehat{\Sigma}, \Pi \rangle + q_{b,\nu}(\Phi) + \delta_{\mathcal{F}^k}(\Pi) + \nu \|\Phi\|_1 \\
+\text{s.t.} \quad & \Pi - \Phi = 0
+\end{align*}
 
 where $q_{b,\nu}(t) = -t^2 / (2b)$ if $|t| \le b \nu$ and
 $\frac{1}{2} b \nu^2 - \nu |t|$ otherwise.
@@ -178,7 +184,10 @@ IALM -> status=CONVERGED, stat=8.49e-04, ||Pi - Phi||_F=5.29e-04, subspace_cos=1
 When matrix entries represent bounded ratings in $[0, 2]$ under an entrywise
 smooth nonconvex log-penalty:
 
-$$\min_{X \in \mathbb{R}^{m \times n}} \; \frac{1}{2}\|P_\Omega(X - M_{\text{obs}})\|_F^2 + \mu \beta \sum_{i,j} \log\!\left(1 + \frac{\sqrt{X_{ij}^2 + \epsilon^2}}{\theta}\right) \quad \text{s.t.} \quad 0 \le X_{ij} \le 2$$
+\begin{align*}
+\min_{X \in \mathbb{R}^{m \times n}} \quad & \frac{1}{2}\|P_\Omega(X - M_{\text{obs}})\|_F^2 + \mu \beta \sum_{i,j} \log\!\left(1 + \frac{\sqrt{X_{ij}^2 + \epsilon^2}}{\theta}\right) \\
+\text{s.t.} \quad & 0 \le X_{ij} \le 2
+\end{align*}
 
 we can enforce the box constraint via `px.constraints.box` and solve
 parameter-free with `QPAPD`:

@@ -46,7 +46,10 @@ interoperability.
 Minimize an indefinite (nonconvex) quadratic over the unit box with a linear
 equality constraint:
 
-$$\min_{x \in [0, 1]^3} \; \frac{1}{2} x^\top Q x + \langle c, x \rangle \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1$$
+\begin{align*}
+\min_{x \in [0, 1]^3} \quad & \frac{1}{2} x^\top Q x + \langle c, x \rangle \\
+\text{s.t.} \quad & \sum_{i=1}^3 x_i = 1
+\end{align*}
 
 ```python
 import jax.numpy as jnp

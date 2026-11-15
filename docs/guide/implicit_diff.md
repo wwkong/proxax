@@ -12,7 +12,10 @@ unrolling solver iterations.
 
 Given a parametric problem
 
-$$x^*(\theta) \in \arg\min_{x \in \mathcal{X}} \; f(x; \theta) + h(x; \theta) \quad \text{s.t.} \quad \mathcal{A}(x; \theta) \in \mathcal{C},$$
+\begin{align*}
+x^*(\theta) \in \arg\min_{x \in \mathcal{X}} \quad & f(x; \theta) + h(x; \theta) \\
+\text{s.t.} \quad & \mathcal{A}(x; \theta) \in \mathcal{C},
+\end{align*}
 
 pass a callable `problem_fn(params)` that builds a `CompositeProblem`,
 `BlockProblem`, or `MinMaxProblem` from any PyTree `params = θ`, along with an
@@ -107,7 +110,10 @@ In `examples/bilevel_optax.py`, `px.implicit_solve` is combined with
 `optax.adam` to learn per-coordinate Elastic-Net hyperparameters
 $\theta = (\theta_1, \theta_2) \in \mathbb{R} \times \mathbb{R}^d$:
 
-$$\min_{\theta_1 \in \mathbb{R},\; \theta_2 \in \mathbb{R}^d} \; \frac{1}{2}\|A_{\text{val}} \hat{x}(\theta) - y_{\text{val}}\|_2^2 \quad \text{s.t.} \quad \hat{x}(\theta) = \arg\min_{x \in \mathbb{R}^d} \; \frac{1}{2}\|A_{\text{train}} x - y_{\text{train}}\|_2^2 + \frac{1}{2}\sum_{j=1}^d e^{\theta_{2,j}} x_j^2 + e^{\theta_1}\|x\|_1$$
+\begin{align*}
+\min_{\theta_1 \in \mathbb{R},\; \theta_2 \in \mathbb{R}^d} \quad & \frac{1}{2}\|A_{\text{val}} \hat{x}(\theta) - y_{\text{val}}\|_2^2 \\
+\text{s.t.} \quad & \hat{x}(\theta) = \arg\min_{x \in \mathbb{R}^d} \; \frac{1}{2}\|A_{\text{train}} x - y_{\text{train}}\|_2^2 + \frac{1}{2}\sum_{j=1}^d e^{\theta_{2,j}} x_j^2 + e^{\theta_1}\|x\|_1
+\end{align*}
 
 (See also `examples/implicit_solve.py`, `examples/diff_capped_simplex.py`, and
 `examples/nn_structured_layer.py`):

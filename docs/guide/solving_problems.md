@@ -25,7 +25,10 @@ You only need a single import line (`from proxax import px`, or equivalently
 
 `px.CompositeProblem` models composite optimization problems of the form
 
-$$\min_{x \in \mathcal{X}} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
+\begin{align*}
+\min_{x \in \mathcal{X}} \quad & f(x) + h(x) \\
+\text{s.t.} \quad & \mathcal{A}(x) \in \mathcal{C}
+\end{align*}
 
 where `smooth` represents $f$, `proximal` represents $h$, and `constraints`
 represents $\mathcal{A}(x) \in \mathcal{C}$. For example, to solve the
@@ -105,7 +108,10 @@ print(sol.x["w"], sol.x["b"])
 - **`px.BlockProblem(blocks=(...), rhs=...)`:** Multi-block splitting using
   `BlockTerm` and `ADMM` / `DPADMM` / `PAdaptADMM` (see {doc}`../examples/block`):
 
-  $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
+  \begin{align*}
+  \min_{x_1, \dots, x_K} \quad & \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \\
+  \text{s.t.} \quad & \sum_{i=1}^K \mathcal{A}_i(x_i) = b
+  \end{align*}
 
 ---
 

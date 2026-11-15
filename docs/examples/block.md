@@ -3,7 +3,10 @@
 This page demonstrates linearly-coupled multi-block optimization in Proxax using
 `px.BlockProblem` and `px.BlockTerm`:
 
-$$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
+\begin{align*}
+\min_{x_1, \dots, x_K} \quad & \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \\
+\text{s.t.} \quad & \sum_{i=1}^K \mathcal{A}_i(x_i) = b
+\end{align*}
 
 All three block solvers (`ADMM`, `DPADMM`, and `PAdaptADMM`) return exact
 primal-dual KKT stationarity and feasibility certificates.
