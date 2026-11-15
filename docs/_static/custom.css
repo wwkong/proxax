@@ -132,3 +132,10 @@ th.px-sortable-th[data-sort-dir] .px-sort-indicator {
   background-color: var(--pst-color-surface);
   margin: 1.25rem 0;
 }
+
+/* Allow right (secondary) sidebar to collapse cleanly on wide screens */
+@media (min-width: 1200px) {
+  #pst-secondary-sidebar.pst-sidebar-hidden {
+    display: none !important;
+  }
+}
