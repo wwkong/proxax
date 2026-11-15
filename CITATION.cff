@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: Kong
     given-names: Weiwei
-version: "0.4.0"
-date-released: "2026-11-14"
+version: "0.4.1"
+date-released: "2026-11-15"
 license: MIT
 repository-code: "https://github.com/wwkong/proxax"
 url: "https://proxax.readthedocs.io/"

@@ -4,6 +4,12 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-15
+
+### Fixed
+- **Documentation & Sidebar Toggles**: Fixed `sphinx-book-theme` desktop left/right sidebar collapse toggles (`sidebar_toggle.js`, `custom.css`), formatted constrained problem definitions with `{align*}`, corrected the convex subdifferential definition in `problem_classes.md`, and fixed MyST `:::{tip}` admonition syntax in `prox_and_constraints.md`.
+- **PyPI Packaging**: Synced the simplified `README.md` with PyPI for the `0.4.1` release.
+
 ## [0.4.0] - 2026-11-14
 
 ### Fixed
