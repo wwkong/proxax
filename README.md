@@ -9,46 +9,29 @@
 [![Documentation Status](https://img.shields.io/readthedocs/proxax)](https://proxax.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Proxax** is a Python library of **certified first-order proximal, spectral,
-penalty, and augmented Lagrangian solvers** for smooth, nonsmooth, and
-constrained optimization in **JAX** and **Optax**.
+**Proxax** is a pure-JAX/Optax library of **certified first-order solvers** for
+convex and $(m, M)$-weakly convex composite, constrained, spectral,
+multi-block, and min–max optimization.
 
-*   **Certified stationarity:** Solvers handle both convex and $(m, M)$-weakly
-    convex (nonconvex) objectives and return exact subdifferential and KKT
-    certificates $(\hat{x}, \hat{p}, \hat{v})$ rather than heuristic step-size
-    checks.
-*   **JAX-native & scalable:** Operates directly on arbitrary JAX PyTrees
-    (`jax.Array`, nested `dict`/`tuple`, or registered dataclasses), compiles
-    end-to-end under `jax.jit`, vectorizes across batches via `jax.vmap`, and
-    differentiates through solutions via `px.implicit_solve`.
-*   **Modular & lightweight:** Clean single-facade API (`from proxax import px`),
-    single-step `optax.GradientTransformation` wrappers in `px.optax_compat`,
-    and only `jax` and `optax` as runtime dependencies.
+* **Certified KKT stationarity:** Refinement-based subdifferential and feasibility checks across all problem classes.
+* **JAX-native & scalable:** Arbitrary PyTrees, `jax.jit`, sparse `BCOO` & matrix-free linear operators, `px.batch_solve` (`threads` / `vmap`), and differentiable layers (`px.implicit_solve`, `px.layers`).
+* **Lightweight:** Clean facade (`from proxax import px`), `optax.GradientTransformation` wrappers (`px.optax_compat`), and only `jax` + `optax` as runtime dependencies.
 
 [Documentation](https://proxax.readthedocs.io/en/latest/) ·
+[Quickstart](https://proxax.readthedocs.io/en/latest/quickstart.html) ·
 [User Guide](https://proxax.readthedocs.io/en/latest/guide/solving_problems.html) ·
 [API Reference](https://proxax.readthedocs.io/en/latest/api.html) ·
-[Changelog](https://github.com/wwkong/proxax/blob/main/CHANGELOG.md) ·
-[Open an Issue](https://github.com/wwkong/proxax/issues)
+[Changelog](https://github.com/wwkong/proxax/blob/main/CHANGELOG.md)
 
 ## Installation
 
 ```bash
-pip install proxax
-```
-
-Or with `uv`:
-
-```bash
-uv add proxax
+pip install proxax   # or: uv add proxax
 ```
 
 ## Quick Example
 
-Minimize an indefinite (nonconvex) quadratic over the unit box with a linear
-equality constraint:
-
-$$\min_{x \in [0, 1]^3} \; \frac{1}{2} x^\top Q x + \langle c, x \rangle \quad \text{s.t.} \quad \sum_{i=1}^3 x_i = 1$$
+Minimize a nonconvex quadratic over $[0, 1]^3$ subject to $\sum_{i=1}^3 x_i = 1$:
 
 ```python
 import jax.numpy as jnp
@@ -57,13 +40,8 @@ from proxax import px
 q_mat = jnp.array([[4.0, -1.5, 0.5], [-1.5, -2.0, 0.3], [0.5, 0.3, 2.5]])
 c_vec = jnp.array([-0.6, 0.2, -0.4])
 
-
-def smooth_fn(x):
-  return 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x)
-
-
 problem = px.CompositeProblem(
-    smooth=smooth_fn,
+    smooth=lambda x: 0.5 * jnp.dot(x, q_mat @ x) + jnp.dot(c_vec, x),
     proximal=px.prox.Box(lower=0.0, upper=1.0),
     constraints=px.constraints.equality(jnp.sum, rhs=1.0),
 )
@@ -76,8 +54,6 @@ sol = px.solve(
 print(sol)
 print("x =", sol.x)
 ```
-
-**Output:**
 
 ```text
 Solution(
@@ -94,78 +70,28 @@ Solution(
 x = [0.06000032 0.93999994 0.        ]
 ```
 
-## Problem Classes
+## Problem Classes & Solvers
 
-1. **Unconstrained Composite Optimization (`px.CompositeProblem`):**
+| Problem Class | Container | Representative Solvers |
+| :--- | :--- | :--- |
+| Unconstrained composite | `px.CompositeProblem` | `PANOC`, `APD`, `AIPP`, `ACACG`, `AdapFISTA`, `NCFISTA` |
+| Set- & cone-constrained | `px.CompositeProblem` | `IALM` (`PANOC-ALM`), `IAIPAL`, `SProxALM`, `QPAPD`, `QPAIPP` |
+| Matrix spectral | `px.SpectralProblem` | `DAICG`, `IAICG` |
+| Multi-block splitting | `px.BlockProblem` | `ADMM`, `DPADMM`, `PAdaptADMM` |
+| Min–max saddle point | `px.MinMaxProblem` | `PDHG`, `ExtraGradient`, `ProxPointMinMax` |
 
-   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x)$$
+Plus single-step Optax wrappers in `px.optax_compat`, Modified Ruiz Equilibration (`px.ruiz_equilibrate`), and differentiable layers (`px.layers`, `px.implicit_solve`). See [Problem Classes](https://proxax.readthedocs.io/en/latest/foundations/problem_classes.html) and the [API Reference](https://proxax.readthedocs.io/en/latest/api.html) for the full list of 23 solver classes.
 
-   where $f$ (`smooth`) is differentiable and $(m, M)$-weakly convex/smooth,
-   $h$ (`proximal`) is proper, closed, convex, and proximable, and $x$ can be a
-   vector in $\mathbb{R}^n$ or any JAX PyTree of arrays.
+## Examples
 
-2. **Set- and Cone-Constrained Optimization (`px.CompositeProblem`):**
+Runnable scripts live in [`examples/`](https://github.com/wwkong/proxax/tree/main/examples):
 
-   $$\min_{x \in \mathbb{R}^n} \; f(x) + h(x) \quad \text{s.t.} \quad \mathcal{A}(x) \in \mathcal{C}$$
-
-   where $\mathcal{A}: \mathbb{R}^n \to \mathbb{R}^m$ is a matrix or callable
-   PyTree linear map and $\mathcal{C} \subseteq \mathbb{R}^m$ is a closed convex
-   set with Euclidean projection $\Pi_{\mathcal{C}}$.
-
-3. **Min-Max & Saddle-Point Optimization (`px.MinMaxProblem`):**
-
-   $$\min_{x \in \mathcal{X}} \max_{y \in \mathcal{Y}} \; \Phi(x, y) + h(x) - g(y)$$
-
-   where $\Phi(x, y)$ (`coupling`) is differentiable and $(h, g)$ (`prox_x`,
-   `prox_y`) are proper, closed, convex, and proximable over arbitrary JAX
-   PyTrees $(x, y)$.
-
-4. **Matrix Spectral Composite Optimization (`px.SpectralProblem`):**
-
-   $$\min_{X \in \mathbb{R}^{p \times q}} \; f_1(X) + (f_2^{\mathcal{V}} \circ \sigma)(X) + (h^{\mathcal{V}} \circ \sigma)(X)$$
-
-   where $\sigma(X)$ denotes the singular values of $X$ and $(f_2^{\mathcal{V}},
-   h^{\mathcal{V}})$ are absolutely symmetric functions on
-   $\mathbb{R}^{\min(p, q)}$.
-
-5. **Block-Constrained Composite Optimization (`px.BlockProblem`):**
-
-   $$\min_{x_1, \dots, x_K} \; \sum_{i=1}^K \big(f_i(x_i) + h_i(x_i)\big) \quad \text{s.t.} \quad \sum_{i=1}^K \mathcal{A}_i(x_i) = b$$
-
-   where each block is a `px.BlockTerm` over arbitrary JAX PyTrees coupled
-   through linear maps $\mathcal{A}_i$.
-
-## Available Solvers (`px.solvers`)
-
-*   **Unconstrained Composite (`px.CompositeProblem`):** `APD`, `AIPP`, `ACACG`,
-    `AdapFISTA`, `NCFISTA`, `AdapAPG`, `UPFAG`, `AG`, `ECG`
-*   **Set / Cone-Constrained (`px.CompositeProblem` with `constraints`):**
-    `IALM`, `QPAPD`, `QPAIPP`, `IAIPAL`, `SProxALM`
-*   **Block-Constrained Splitting (`px.BlockProblem`):** `ADMM`, `DPADMM`,
-    `PAdaptADMM`
-*   **Min-Max & Saddle-Point (`px.MinMaxProblem`):** `ExtraGradient`, `PDHG`,
-    `ProxPointMinMax`
-*   **Matrix Spectral (`px.SpectralProblem` / `px.prox.NuclearNorm`):** `DAICG`,
-    `IAICG`
-*   **Optax Single-Step Transforms (`px.optax_compat`):** `proximal`, `apd`,
-    `aipp`, `ialm`, `qp_apd`, `qp_aipp`
-
-## Runnable Examples
-
-Self-contained benchmark scripts live in
-[`examples/`](https://github.com/wwkong/proxax/tree/main/examples):
-
-*   [`examples/unconstrained.py`](https://github.com/wwkong/proxax/blob/main/examples/unconstrained.py) — univariate convex QP, nonconvex simplex QP across 7 solvers, and nonconvex `tanh` margin classification.
-*   [`examples/constrained.py`](https://github.com/wwkong/proxax/blob/main/examples/constrained.py) — linearly-constrained nonconvex simplex QP across all 5 constrained solvers, MCP Sparse PCA on the $k$-Fantope, and box-constrained matrix completion.
-*   [`examples/minmax.py`](https://github.com/wwkong/proxax/blob/main/examples/minmax.py) — bilinear zero-sum matrix game over simplices (`ExtraGradient`, `PDHG`) and weakly nonconvex–strongly concave minimax (`ProxPointMinMax`).
-*   [`examples/block.py`](https://github.com/wwkong/proxax/blob/main/examples/block.py) — two-block Lasso consensus splitting and three-block nonconvex quadratic splitting (`ADMM`, `DPADMM`, `PAdaptADMM`).
-*   [`examples/spectral_matrix_completion.py`](https://github.com/wwkong/proxax/blob/main/examples/spectral_matrix_completion.py) — nonconvex log-sum spectral matrix completion (`DAICG`, `IAICG`, `APD`) vs convex `NuclearNorm`.
-*   [`examples/optax_and_vmap.py`](https://github.com/wwkong/proxax/blob/main/examples/optax_and_vmap.py) — single-step trajectory tracking with `px.optax_compat` and parallel solving via `jax.jit(jax.vmap(...))`.
-*   [`examples/implicit_solve.py`](https://github.com/wwkong/proxax/blob/main/examples/implicit_solve.py) — bilevel $\ell_1$ hyperparameter tuning with `optax.adam` and primal-dual KKT sensitivity via `px.implicit_solve`.
+* [`constrained.py`](https://github.com/wwkong/proxax/blob/main/examples/constrained.py) — linearly constrained nonconvex QP, sparse PCA on the $k$-Fantope, and matrix completion.
+* [`batch_solve_and_threads.py`](https://github.com/wwkong/proxax/blob/main/examples/batch_solve_and_threads.py) — parallel CPU threads vs. `jax.vmap` batching.
+* [`layers_training.py`](https://github.com/wwkong/proxax/blob/main/examples/layers_training.py) — end-to-end training through `px.layers` and `px.implicit_solve`.
+* [`optax_and_vmap.py`](https://github.com/wwkong/proxax/blob/main/examples/optax_and_vmap.py) — single-step `px.optax_compat` trajectories and `vmap` sweeps.
 
 ## Citing Proxax
-
-If Proxax was helpful for a publication, please cite this repository:
 
 ```bibtex
 @software{proxax2026github,
