@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for Proxax vs. alpaqa benchmarks."""
+"""Generate ggplot SVG plots for Proxax vs. alpaqa benchmarks."""
 
 from __future__ import annotations
 
@@ -15,30 +15,33 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
-    "alpaqa-PANOC": "#94e2d5",
-    "alpaqa-ALM(PANOC)": "#94e2d5",
-    "proxax-PANOC": "#89b4fa",
-    "proxax-IALM(apd)": "#89b4fa",
-    "proxax-IALM(panoc)": "#cba6f7",
-    "proxax-IAIPAL": "#a6e3a1",
+    "alpaqa-PANOC": "#1B9E77",
+    "alpaqa-ALM(PANOC)": "#1B9E77",
+    "proxax-PANOC": "#0072B2",
+    "proxax-IALM(apd)": "#0072B2",
+    "proxax-IALM(panoc)": "#88419D",
+    "proxax-IAIPAL": "#009E73",
 }
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -101,7 +104,7 @@ def plot_runtime(out_path: Path) -> None:
             ha="center",
             va="bottom",
             fontsize=7.5,
-            color="#cdd6f4",
+            color="#222222",
         )
     ax.set_yscale("log")
     ax.set_xticks(x)
@@ -146,11 +149,11 @@ def plot_speedup(out_path: Path) -> None:
       1.68 / 0.77,
       9.17 / 2.18,
   ]
-  colors = ["#a6e3a1" if s >= 1.0 else "#f38ba8" for s in speedups]
+  colors = ["#009E73" if s >= 1.0 else "#D55E00" for s in speedups]
 
   y = np.arange(len(labels))
   bars = ax.barh(y, speedups, color=colors, height=0.6, zorder=3)
-  ax.axvline(1.0, color="#f9e2af", linestyle="--", linewidth=1.2, zorder=4)
+  ax.axvline(1.0, color="#B8860B", linestyle="--", linewidth=1.2, zorder=4)
 
   for bar, s in zip(bars, speedups, strict=True):
     ax.text(
@@ -160,7 +163,7 @@ def plot_speedup(out_path: Path) -> None:
         va="center",
         ha="left",
         fontsize=9,
-        color="#cdd6f4",
+        color="#222222",
     )
 
   ax.set_yticks(y)

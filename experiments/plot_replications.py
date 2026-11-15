@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for small-scale literature replications."""
+"""Generate ggplot SVG plots for small-scale literature replications."""
 
 from __future__ import annotations
 
@@ -15,19 +15,19 @@ DATA_DIR = Path("/tmp/proxax_repl")
 
 plt.rcParams.update(
     {
-        "figure.facecolor": "#1e1e2e",
-        "axes.facecolor": "#181825",
-        "axes.edgecolor": "#45475a",
-        "axes.labelcolor": "#cdd6f4",
-        "axes.titlecolor": "#cdd6f4",
-        "text.color": "#cdd6f4",
-        "xtick.color": "#bac2de",
-        "ytick.color": "#bac2de",
-        "grid.color": "#313244",
-        "legend.facecolor": "#1e1e2e",
-        "legend.edgecolor": "#45475a",
-        "savefig.facecolor": "#1e1e2e",
-        "savefig.edgecolor": "#1e1e2e",
+        "figure.facecolor": "#ffffff",
+        "axes.facecolor": "#ebebeb",
+        "axes.edgecolor": "#999999",
+        "axes.labelcolor": "#222222",
+        "axes.titlecolor": "#222222",
+        "text.color": "#222222",
+        "xtick.color": "#444444",
+        "ytick.color": "#444444",
+        "grid.color": "#ffffff",
+        "legend.facecolor": "#ffffff",
+        "legend.edgecolor": "#999999",
+        "savefig.facecolor": "#ffffff",
+        "savefig.edgecolor": "#ffffff",
         "font.size": 10,
         "axes.titlesize": 11,
         "axes.labelsize": 10,
@@ -41,7 +41,7 @@ plt.rcParams.update(
     }
 )
 
-PALETTE = ["#89b4fa", "#f38ba8", "#a6e3a1", "#fab387", "#cba6f7", "#94e2d5"]
+PALETTE = ["#0072B2", "#D55E00", "#009E73", "#E69F00", "#88419D", "#1B9E77"]
 MARKERS = ["o", "s", "^", "D", "v", "P"]
 
 
@@ -157,7 +157,7 @@ def _plot_kong2024_dpadmm() -> None:
         ax.set_yscale("log")
         ax.axhline(
             1e-3,
-            color="#bac2de",
+            color="#444444",
             linestyle="--",
             linewidth=1.0,
             alpha=0.7,
@@ -192,7 +192,7 @@ def _plot_kong2022_spectral() -> None:
     axes[0].set_yscale("log")
     axes[0].axhline(
         1e-3,
-        color="#bac2de",
+        color="#444444",
         linestyle="--",
         linewidth=1.0,
         alpha=0.7,
@@ -233,7 +233,7 @@ def _plot_kong2021_minmax() -> None:
     axes[0].set_yscale("log")
     axes[0].axhline(
         1e-4,
-        color="#bac2de",
+        color="#444444",
         linestyle="--",
         linewidth=1.0,
         alpha=0.7,
@@ -297,7 +297,7 @@ def _plot_dqp_pair(
         ax.set_yscale("log")
         ax.axhline(
             1e-3,
-            color="#bac2de",
+            color="#444444",
             linestyle="--",
             linewidth=1.0,
             alpha=0.7,
@@ -331,7 +331,7 @@ def _plot_dqp_trajectories_dpadmm_wins() -> None:
 
 
 def main() -> None:
-    """Generates Mocha-themed SVG plots for available JSON outputs."""
+    """Generates ggplot SVG plots for available JSON outputs."""
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     for name, fn in [
         ("kong2024_spectrahedron", _plot_kong2024_spectrahedron),

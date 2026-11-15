@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for Proxax vs. Clarabel batch benchmarks."""
+"""Generate ggplot SVG plots for Proxax vs. Clarabel batch benchmarks."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
-    "Clarabel(threads)": "#94e2d5",
-    "proxax-IAIPAL(vmap)": "#89b4fa",
-    "proxax-IAIPAL(threads)": "#a6e3a1",
-    "proxax-IALM(threads)": "#fab387",
-    "proxax-PANOC(vmap)": "#cba6f7",
-    "proxax-PANOC(threads)": "#f9e2af",
+    "Clarabel(threads)": "#1B9E77",
+    "proxax-IAIPAL(vmap)": "#0072B2",
+    "proxax-IAIPAL(threads)": "#009E73",
+    "proxax-IALM(threads)": "#E69F00",
+    "proxax-PANOC(vmap)": "#88419D",
+    "proxax-PANOC(threads)": "#B8860B",
 }
 SOLVER_MARKERS = {
     "Clarabel(threads)": "P",
@@ -32,20 +32,23 @@ SOLVER_MARKERS = {
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -108,7 +111,7 @@ def plot_scaling(out_path: Path) -> None:
 
 
 def plot_dolan_more_profile(out_path: Path) -> None:
-  """Generates a Mocha-themed Dolan-More runtime profile across all 6 cases."""
+  """Generates a ggplot Dolan-More runtime profile across all 6 cases."""
   _apply_mocha_style()
   fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
 
@@ -128,10 +131,10 @@ def plot_dolan_more_profile(out_path: Path) -> None:
       "Clarabel (threads)": [c for _, _, c in cases],
   }
   colors = {
-      "proxax (auto: min of vmap/threads)": "#a6e3a1",
-      "proxax (threads)": "#f9e2af",
-      "proxax (vmap)": "#89b4fa",
-      "Clarabel (threads)": "#94e2d5",
+      "proxax (auto: min of vmap/threads)": "#009E73",
+      "proxax (threads)": "#B8860B",
+      "proxax (vmap)": "#0072B2",
+      "Clarabel (threads)": "#1B9E77",
   }
 
   best = [min(v, t, c) for v, t, c in cases]

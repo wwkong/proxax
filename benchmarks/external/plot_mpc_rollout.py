@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for closed-loop MPC rollout benchmarks."""
+"""Generate ggplot SVG plots for closed-loop MPC rollout benchmarks."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
-    "Clarabel": "#94e2d5",
-    "alpaqa-PANOC(warm)": "#cba6f7",
-    "proxax-PANOC(cold)": "#89b4fa",
-    "proxax-PANOC(warm)": "#a6e3a1",
-    "proxax-PANOC(warm,threads)": "#fab387",
-    "proxax-IAIPAL(cold)": "#f9e2af",
-    "proxax-IAIPAL(warm)": "#a6e3a1",
-    "proxax-IAIPAL(warm,threads)": "#fab387",
+    "Clarabel": "#1B9E77",
+    "alpaqa-PANOC(warm)": "#88419D",
+    "proxax-PANOC(cold)": "#0072B2",
+    "proxax-PANOC(warm)": "#009E73",
+    "proxax-PANOC(warm,threads)": "#E69F00",
+    "proxax-IAIPAL(cold)": "#B8860B",
+    "proxax-IAIPAL(warm)": "#009E73",
+    "proxax-IAIPAL(warm,threads)": "#E69F00",
 }
 SOLVER_MARKERS = {
     "Clarabel": "P",
@@ -36,20 +36,23 @@ SOLVER_MARKERS = {
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -125,7 +128,7 @@ def plot_scaling(out_path: Path) -> None:
 
 
 def plot_dolan_more_profile(out_path: Path) -> None:
-  """Generates a Mocha-themed Dolan-More profile across all 8 MPC cases."""
+  """Generates a ggplot Dolan-More profile across all 8 MPC cases."""
   _apply_mocha_style()
   fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
 
@@ -147,10 +150,10 @@ def plot_dolan_more_profile(out_path: Path) -> None:
       "Clarabel (Python loop)": [cl for _, _, _, cl in cases],
   }
   colors = {
-      "proxax (warm, threads for B>1)": "#fab387",
-      "proxax (warm, vmap)": "#a6e3a1",
-      "proxax (cold, vmap)": "#89b4fa",
-      "Clarabel (Python loop)": "#94e2d5",
+      "proxax (warm, threads for B>1)": "#E69F00",
+      "proxax (warm, vmap)": "#009E73",
+      "proxax (cold, vmap)": "#0072B2",
+      "Clarabel (Python loop)": "#1B9E77",
   }
 
   best = [min(c, w, wt, cl) for c, w, wt, cl in cases]

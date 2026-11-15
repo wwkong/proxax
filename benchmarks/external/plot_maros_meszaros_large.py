@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for Large-Scale Maros-Meszaros QPs."""
+"""Generate ggplot SVG plots for Large-Scale Maros-Meszaros QPs."""
 
 from __future__ import annotations
 
@@ -18,20 +18,23 @@ DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -51,13 +54,13 @@ def plot_maros_large(
   x = np.arange(len(problems))
   has_iaipal = any(r["solver_name"] == "IAIPAL" for r in rows)
   series = [
-      ("IALM", "proxax-IALM (BCOO+Ruiz)", "#f38ba8"),
+      ("IALM", "proxax-IALM (BCOO+Ruiz)", "#D55E00"),
       *(
-          [("IAIPAL", "proxax-IAIPAL (BCOO+Ruiz)", "#fab387")]
+          [("IAIPAL", "proxax-IAIPAL (BCOO+Ruiz)", "#E69F00")]
           if has_iaipal
           else []
       ),
-      ("Clarabel", "Clarabel (IPM)", "#94e2d5"),
+      ("Clarabel", "Clarabel (IPM)", "#1B9E77"),
   ]
   width = 0.26 if has_iaipal else 0.36
   offsets = np.linspace(
@@ -84,7 +87,7 @@ def plot_maros_large(
     ]
     ax1.bar(x + offset, feas, width, label=label, color=color)
   ax1.axhline(
-      1e-6, color="#f9e2af", linestyle="--", linewidth=1.2, label="tol = 1e-6"
+      1e-6, color="#B8860B", linestyle="--", linewidth=1.2, label="tol = 1e-6"
   )
   ax1.set_yscale("log")
   ax1.set_xticks(x)

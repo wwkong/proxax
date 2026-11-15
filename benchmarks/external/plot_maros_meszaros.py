@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for Maros-Meszaros QP benchmark results."""
+"""Generate ggplot SVG plots for Maros-Meszaros QP benchmark results."""
 
 from __future__ import annotations
 
@@ -29,13 +29,13 @@ SOLVER_ORDER = [
     "SProxALM",
 ]
 SOLVER_COLORS = {
-    "Clarabel": "#94e2d5",
-    "IALM": "#89b4fa",
-    "IALM (BCOO)": "#f9e2af",
-    "IAIPAL": "#a6e3a1",
-    "QPAPD": "#fab387",
-    "QPAIPP": "#cba6f7",
-    "SProxALM": "#f38ba8",
+    "Clarabel": "#1B9E77",
+    "IALM": "#0072B2",
+    "IALM (BCOO)": "#B8860B",
+    "IAIPAL": "#009E73",
+    "QPAPD": "#E69F00",
+    "QPAIPP": "#88419D",
+    "SProxALM": "#D55E00",
 }
 SOLVER_MARKERS = {
     "Clarabel": "P",
@@ -61,15 +61,15 @@ def _apply_mocha_style() -> None:
         {
             "figure.facecolor": "#1e1e2e",
             "axes.facecolor": "#181825",
-            "axes.edgecolor": "#45475a",
-            "axes.labelcolor": "#cdd6f4",
-            "axes.titlecolor": "#cdd6f4",
-            "text.color": "#cdd6f4",
-            "xtick.color": "#bac2de",
-            "ytick.color": "#bac2de",
-            "grid.color": "#313244",
+            "axes.edgecolor": "#999999",
+            "axes.labelcolor": "#222222",
+            "axes.titlecolor": "#222222",
+            "text.color": "#222222",
+            "xtick.color": "#444444",
+            "ytick.color": "#444444",
+            "grid.color": "#dddddd",
             "legend.facecolor": "#1e1e2e",
-            "legend.edgecolor": "#45475a",
+            "legend.edgecolor": "#999999",
             "savefig.facecolor": "#1e1e2e",
             "savefig.edgecolor": "#1e1e2e",
             "font.size": 10,
@@ -410,7 +410,7 @@ def plot_qafiro_trajectory(traj_path: Path, out_path: Path) -> None:
             )
 
         ax.axhline(
-            1e-6, color="#bac2de", linestyle="--", linewidth=1.1, alpha=0.75
+            1e-6, color="#444444", linestyle="--", linewidth=1.1, alpha=0.75
         )
         ax.set_xscale("log")
         ax.set_yscale("log")

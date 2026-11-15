@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for Matrix-Free vs. Clarabel benchmarks."""
+"""Generate ggplot SVG plots for Matrix-Free vs. Clarabel benchmarks."""
 
 from __future__ import annotations
 
@@ -18,9 +18,9 @@ DEFAULT_MD = REPO_ROOT / "docs-experiments" / "matrix_free_vs_clarabel.md"
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
-    "Clarabel": "#94e2d5",
-    "IALM": "#89b4fa",
-    "IAIPAL": "#a6e3a1",
+    "Clarabel": "#1B9E77",
+    "IALM": "#0072B2",
+    "IAIPAL": "#009E73",
 }
 SOLVER_MARKERS = {
     "Clarabel": "P",
@@ -36,20 +36,23 @@ _ROW_RE = re.compile(
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -124,7 +127,7 @@ def plot_scaling(
               [y],
               s=130,
               facecolors="none",
-              edgecolors="#f38ba8",
+              edgecolors="#D55E00",
               linewidths=2.0,
               zorder=5,
           )
@@ -134,7 +137,7 @@ def plot_scaling(
               textcoords="offset points",
               xytext=(-6, -15),
               fontsize=8,
-              color="#f38ba8",
+              color="#D55E00",
               ha="center",
           )
 
@@ -202,15 +205,15 @@ def plot_speedup(
       )
       sp = cb_ms / best_ms
       speedups.append(sp)
-      colors.append("#f38ba8")
+      colors.append("#D55E00")
       notes.append(f"Clarabel wins ({cb_ms:.0f} ms vs 10s cap)")
 
   fig, ax = plt.subplots(figsize=(10.5, 4.8), constrained_layout=True)
   y_pos = list(range(len(labels)))
-  ax.barh(y_pos, speedups, color=colors, height=0.62, edgecolor="#45475a")
+  ax.barh(y_pos, speedups, color=colors, height=0.62, edgecolor="#999999")
   ax.axvline(
       1.0,
-      color="#94e2d5",
+      color="#1B9E77",
       linestyle="--",
       linewidth=1.6,
       label="Clarabel (1.0×)",
@@ -240,11 +243,11 @@ def plot_speedup(
           va="center",
           ha="left",
           fontsize=9,
-          color="#cdd6f4",
+          color="#222222",
       )
     else:
       ax.text(
-          1.15, y, note, va="center", ha="left", fontsize=9, color="#f38ba8"
+          1.15, y, note, va="center", ha="left", fontsize=9, color="#D55E00"
       )
 
   ax.legend(loc="lower right", frameon=True)

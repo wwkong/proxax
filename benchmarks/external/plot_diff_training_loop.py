@@ -1,4 +1,4 @@
-"""Generate Mocha-themed SVG plots for differentiable training benchmarks."""
+"""Generate ggplot SVG plots for differentiable training benchmarks."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_COLORS = {
-    "cvxpylayers": "#94e2d5",
-    "proxax(jit-scan)": "#a6e3a1",
-    "proxax(threads)": "#89b4fa",
+    "cvxpylayers": "#1B9E77",
+    "proxax(jit-scan)": "#009E73",
+    "proxax(threads)": "#0072B2",
 }
 SOLVER_MARKERS = {
     "cvxpylayers": "P",
@@ -26,20 +26,23 @@ SOLVER_MARKERS = {
 
 
 def _apply_mocha_style() -> None:
+  plt.style.use("ggplot")
   plt.rcParams.update({
-      "figure.facecolor": "#1e1e2e",
-      "axes.facecolor": "#181825",
-      "axes.edgecolor": "#45475a",
-      "axes.labelcolor": "#cdd6f4",
-      "axes.titlecolor": "#cdd6f4",
-      "text.color": "#cdd6f4",
-      "xtick.color": "#bac2de",
-      "ytick.color": "#bac2de",
-      "grid.color": "#313244",
-      "grid.linestyle": "--",
-      "grid.linewidth": 0.7,
-      "legend.facecolor": "#181825",
-      "legend.edgecolor": "#45475a",
+      "figure.facecolor": "#ffffff",
+      "savefig.facecolor": "#ffffff",
+      "savefig.edgecolor": "#ffffff",
+      "axes.facecolor": "#ebebeb",
+      "axes.edgecolor": "#ffffff",
+      "axes.labelcolor": "#222222",
+      "axes.titlecolor": "#111111",
+      "text.color": "#222222",
+      "xtick.color": "#444444",
+      "ytick.color": "#444444",
+      "grid.color": "#ffffff",
+      "grid.linestyle": "-",
+      "grid.linewidth": 0.9,
+      "legend.facecolor": "#ffffff",
+      "legend.edgecolor": "#cccccc",
       "font.size": 10,
   })
 
@@ -101,7 +104,7 @@ def plot_scaling(out_path: Path) -> None:
 
 
 def plot_dolan_more_profile(out_path: Path) -> None:
-  """Generates a Mocha-themed Dolan-More profile across the 4 training cases."""
+  """Generates a ggplot Dolan-More profile across the 4 training cases."""
   _apply_mocha_style()
   fig, ax = plt.subplots(figsize=(7.6, 4.4), constrained_layout=True)
 
@@ -118,9 +121,9 @@ def plot_dolan_more_profile(out_path: Path) -> None:
       "cvxpylayers (eager Python)": [c for _, _, c in cases],
   }
   colors = {
-      "proxax (threads)": "#89b4fa",
-      "proxax (jit-scan)": "#a6e3a1",
-      "cvxpylayers (eager Python)": "#94e2d5",
+      "proxax (threads)": "#0072B2",
+      "proxax (jit-scan)": "#009E73",
+      "cvxpylayers (eager Python)": "#1B9E77",
   }
 
   best = [min(t, p, c) for t, p, c in cases]
