@@ -23,6 +23,7 @@ from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
+from proxax.solvers.constrained import qpalm
 from proxax.solvers.constrained import s_prox_alm
 from proxax.solvers.minmax import extra_gradient
 from proxax.solvers.minmax import pdhg
@@ -110,6 +111,7 @@ _COMPOSITE_METHODS: dict[str, _SolverFactory] = {
     "sproxalm": lambda ot, ft: s_prox_alm.SProxALM(opt_tol=ot, feas_tol=ft),
     "iaipal": lambda ot, ft: iaipal.IAIPAL(opt_tol=ot, feas_tol=ft),
     "iapial": lambda ot, ft: iaipal.IAIPAL(opt_tol=ot, feas_tol=ft),
+    "qpalm": lambda ot, ft: qpalm.QPALM(opt_tol=ot, feas_tol=ft),
 }
 
 

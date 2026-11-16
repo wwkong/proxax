@@ -44,11 +44,6 @@ def bump_version(new_version: str) -> None:
           r"version = \{[^}]+\}",
           f"version = {{{new_version}}}",
       ),
-      (
-          "tests/test_smoke.py",
-          r'(?m)^(\s+assert (?:proxax|px)\.__version__ == )"[^"]+"',
-          rf'\1"{new_version}"',
-      ),
   ]
   for rel_path, pattern, repl in replacements:
     path = _ROOT / rel_path

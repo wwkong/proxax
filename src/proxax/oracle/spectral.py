@@ -367,6 +367,9 @@ jax.tree_util.register_dataclass(
 )
 
 
+_ArrayTriple = tuple[jax.Array, jax.Array, jax.Array]
+
+
 def delta_mu(
     oracle: SpectralOracle,
     *,
@@ -381,7 +384,7 @@ def delta_mu(
     s_mat: jax.Array,
     s_vec: jax.Array,
     v_mat: jax.Array,
-) -> tuple[jax.Array, jax.Array, jax.Array]:
+) -> _ArrayTriple:
   """Computes `Delta_mu(S; Y, Y0, V)` in cancellation-free proximal units."""
   diff_s_y0 = s_mat - y0_mat
   diff_y_y0 = y_mat - y0_mat
@@ -453,7 +456,7 @@ def refine_icg(
   else:
     m2_init = jnp.maximum(m2_est, xi)
 
-    def _vec_trial(m2_p: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+    def _vec_trial(m2_p: jax.Array) -> _ArrayTriple:
       nu_t = lam / (lam * m2_p + 1.0)
       w_t = lam * g2_z - (v_vec + x0_vec - z_vec)
       zc_t = z_vec - (nu_t / lam) * w_t

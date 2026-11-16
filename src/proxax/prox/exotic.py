@@ -14,6 +14,8 @@ from proxax import _typing
 from proxax import tree
 from proxax.constraints import sets as constraint_sets
 
+_PavaCarry = tuple[jax.Array, jax.Array, jax.Array]
+
 
 def _pava_nondecreasing(y: jax.Array) -> jax.Array:
   """Pool Adjacent Violators Algorithm for non-decreasing isotonic fit."""
@@ -25,22 +27,17 @@ def _pava_nondecreasing(y: jax.Array) -> jax.Array:
   counts = jnp.zeros(n, dtype=jnp.int32)
   top = jnp.asarray(-1, dtype=jnp.int32)
 
-  def _push(
-      i: jax.Array,
-      carry: tuple[jax.Array, jax.Array, jax.Array],
-  ) -> tuple[jax.Array, jax.Array, jax.Array]:
+  def _push(i: jax.Array, carry: _PavaCarry) -> _PavaCarry:
     v_buf, c_buf, t = carry
     t = t + 1
     v_buf = v_buf.at[t].set(y[i])
     c_buf = c_buf.at[t].set(1)
 
-    def _cond(st: tuple[jax.Array, jax.Array, jax.Array]) -> jax.Array:
+    def _cond(st: _PavaCarry) -> jax.Array:
       vb, _, tp = st
       return (tp > 0) & (vb[tp - 1] > vb[tp])
 
-    def _merge(
-        st: tuple[jax.Array, jax.Array, jax.Array],
-    ) -> tuple[jax.Array, jax.Array, jax.Array]:
+    def _merge(st: _PavaCarry) -> _PavaCarry:
       vb, cb, tp = st
       c_prev = cb[tp - 1]
       c_curr = cb[tp]

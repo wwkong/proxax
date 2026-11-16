@@ -130,6 +130,15 @@ def _qp_solvers(
       ("QPAPD", solvers.QPAPD(opt_tol=opt_tol, feas_tol=feas_tol)),
       ("QPAIPP", solvers.QPAIPP(opt_tol=opt_tol, feas_tol=feas_tol)),
       ("SProxALM", solvers.SProxALM(opt_tol=opt_tol, feas_tol=feas_tol)),
+      (
+          "QPALM",
+          solvers.QPALM(
+              opt_tol=opt_tol,
+              feas_tol=feas_tol,
+              linear_solver="qdldl_ffi",
+              equilibrate=False,
+          ),
+      ),
   ]
 
 
@@ -171,6 +180,7 @@ def run_maros_meszaros(
     if n > max_dim:
       continue
     ran += 1
+    qp_orig = qp
     eff_opt_tol = opt_tol
     eff_feas_tol = feas_tol
     if precondition:
@@ -183,6 +193,11 @@ def run_maros_meszaros(
       if d_y.size > 0:
         eff_feas_tol = feas_tol * min(1.0, float(np.min(d_y)))
     prob, x0 = to_proxax_problem(qp, sparse=sparse)
+    prob_orig, x0_orig = (
+        to_proxax_problem(qp_orig, sparse=sparse)
+        if precondition
+        else (prob, x0)
+    )
     solvers_list = (
         [("APD", solvers.APD(opt_tol=eff_opt_tol))]
         if prob.constraints is None
@@ -192,15 +207,30 @@ def run_maros_meszaros(
       allowed = set(solver_names)
       solvers_list = [(k, v) for k, v in solvers_list if k in allowed]
     for solver_name, solver in solvers_list:
+      use_orig = solver_name == "QPALM" and precondition
+      run_solver = (
+          solvers.QPALM(
+              opt_tol=opt_tol,
+              feas_tol=feas_tol,
+              linear_solver="qdldl_ffi",
+              equilibrate=False,
+          )
+          if use_orig
+          else solver
+      )
       res = harness.time_proxax_solve(
           suite="maros_meszaros",
           problem_name=f"{qp.name} (n={n},m={m})",
           solver_name=solver_name,
-          prob=prob,
-          x0=x0,
-          solver=solver,
-          opt_tol=eff_opt_tol,
-          feas_tol=None if prob.constraints is None else eff_feas_tol,
+          prob=prob_orig if use_orig else prob,
+          x0=x0_orig if use_orig else x0,
+          solver=run_solver,
+          opt_tol=opt_tol if use_orig else eff_opt_tol,
+          feas_tol=(
+              None
+              if prob.constraints is None
+              else (feas_tol if use_orig else eff_feas_tol)
+          ),
           time_limit=time_limit,
       )
       results.append(res)

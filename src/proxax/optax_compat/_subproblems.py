@@ -591,6 +591,9 @@ def _initial_lower_curvature(
   )
 
 
+_PFACGFinishResult = tuple[jax.Array, jax.Array, jax.Array]
+
+
 def _evaluate_apd_subproblem(
     pf_out: pf_acg.PFACGState,
     *,
@@ -603,7 +606,7 @@ def _evaluate_apd_subproblem(
     theta: float,
     eff_rho: float,
     done_flag: jax.Array,
-) -> tuple[jax.Array, jax.Array, jax.Array]:
+) -> _PFACGFinishResult:
   """Returns `(rejected, dist_sq, M_from_acg)` for finished `PF.ACG` run."""
   dtype = center_obj.dtype
   eps_val = tree.eps(dtype)

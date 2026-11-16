@@ -21,6 +21,7 @@ DEFAULT_PLOTS_DIR = REPO_ROOT / "docs-experiments" / "_static" / "plots"
 
 SOLVER_ORDER = [
     "Clarabel",
+    "QPALM",
     "IALM",
     "IALM (BCOO)",
     "IAIPAL",
@@ -30,6 +31,7 @@ SOLVER_ORDER = [
 ]
 SOLVER_COLORS = {
     "Clarabel": "#1B9E77",
+    "QPALM": "#E7298A",
     "IALM": "#0072B2",
     "IALM (BCOO)": "#B8860B",
     "IAIPAL": "#009E73",
@@ -39,6 +41,7 @@ SOLVER_COLORS = {
 }
 SOLVER_MARKERS = {
     "Clarabel": "P",
+    "QPALM": "X",
     "IALM": "o",
     "IALM (BCOO)": "*",
     "IAIPAL": "s",

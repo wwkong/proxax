@@ -40,6 +40,7 @@ Comparisons against external optimization and differentiable-layer libraries
 | [Nonconvex CPU Benchmarks](panoc_vs_alpaqa.md) | `alpaqa` | Single-solve Box QP, Linear QP, Nonlinear-Ball QP | **1.31×–4.21× faster** on constrained (`lin_qp`, `nl_ball_qp`) | C++ `alpaqa-PANOC` is ~1.8× faster on larger single-solve `box_qp` ($n=200, 500$) |
 | [Maros–Meszaros QP Benchmarks](maros_meszaros.md) | `Clarabel` | 15 small classic sparse QPs | **15/15 converged** (`2.38 ms` avg vs. `Clarabel` `0.61 ms` avg) | Sparse direct IPM is ~4× faster on small stiff QPs |
 | [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md) | `Clarabel` | 23 medium sparse QPs ($n \le 300$) | `IALM` (Ruiz + orig-tol): **17/23** in 2 s (**18/23** in 10 s) | First-order ALM trails sparse IPM on ill-conditioned QPs |
+| [`QPALM` (`qdldl_ffi` + `BCOO` + Ruiz)](qpalm_qdldl_ffi.md) | `Clarabel`, `QPALM (dense)` | 23 medium sparse QPs ($n \le 900, m \le 1{,}001$) | **23/23 converged** (`3.16 ms` SGM vs. `45.88 ms` dense, `2.04 ms` `Clarabel`) | `14.5×` SGM & `209×` avg speedup over dense; Ruiz cuts ill-cond iters `2–35×` |
 | [Maros–Meszaros Large-Scale QP Benchmarks](maros_meszaros_large.md) | `Clarabel` | 8 large sparse QPs ($n \in [1{,}000, 10{,}197]$) | `IAIPAL` (`BCOO`+Ruiz): **4/8** in 10 s (`CVXQP2_M`, `MOSARQP1`, `STCQP1`, `STCQP2`) | `Clarabel` solves **8/8** (`8.3–1,486 ms`); primal feas bottlenecks timeouts |
 
 ### Reports
@@ -61,6 +62,7 @@ Comparisons against external optimization and differentiable-layer libraries
 * [Nonconvex CPU Benchmarks (`proxax` vs. `alpaqa`)](panoc_vs_alpaqa.md)
 * [Maros–Meszaros QP Benchmarks](maros_meszaros.md)
 * [Maros–Meszaros Medium-Scale QP Benchmarks](maros_meszaros_medium.md)
+* [`QPALM` with `qdldl_ffi`, `BCOO` Sparsity, and Built-in Ruiz Equilibration](qpalm_qdldl_ffi.md)
 * [Maros–Meszaros Large-Scale QP Benchmarks](maros_meszaros_large.md)
 
 ## Internal Benchmarks
@@ -145,6 +147,7 @@ mpc_rollout
 panoc_vs_alpaqa
 maros_meszaros
 maros_meszaros_medium
+qpalm_qdldl_ffi
 maros_meszaros_large
 ```
 

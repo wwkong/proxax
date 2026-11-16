@@ -4,6 +4,13 @@ All notable changes to **Proxax** are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-15
+
+### Added
+- **`QPALM` Solver & `qdldl_ffi` Sparse KKT Backend**: Added `proxax.solvers.QPALM` (`method="qpalm"`) with dense JAX solves, a custom C++ XLA FFI `QDLDL` sparse $LDL^\top$ solver (`_sparse_ldl_ffi.py` with Greedy Minimum Degree ordering, `m_dense` 2×2 KKT border refinement, `thread_local` symbolic caching, and zero-copy `Li` indexing), native `BCOO` sparse dispatch, and optional built-in Ruiz equilibration (`equilibrate=True`) with unscaled KKT residual checks.
+- **Maros–Meszaros Benchmarks & Experiment**: Updated [maros_meszaros.py](benchmarks/external/maros_meszaros.py), [plot_maros_meszaros.py](benchmarks/external/plot_maros_meszaros.py), [plot_maros_meszaros_large.py](benchmarks/external/plot_maros_meszaros_large.py), and [reproduce_mpc.py](benchmarks/papers/reproduce_mpc.py) to include `QPALM` (`46/46` solved across small, medium, and large suites), and added [experiments/qpalm_qdldl_ffi/run.py](experiments/qpalm_qdldl_ffi/run.py) + [docs-experiments/qpalm_qdldl_ffi.md](docs-experiments/qpalm_qdldl_ffi.md).
+- **Tests**: Added [tests/test_qpalm.py](tests/test_qpalm.py) covering dense, `qdldl_ffi` + `BCOO`, built-in Ruiz equilibration, and `px.solve(..., method="qpalm")`.
+
 ## [0.4.1] - 2026-11-15
 
 ### Fixed

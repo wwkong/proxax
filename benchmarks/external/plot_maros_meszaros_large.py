@@ -53,6 +53,7 @@ def plot_maros_large(
   short_names = [p.split(" ")[0] for p in problems]
   x = np.arange(len(problems))
   has_iaipal = any(r["solver_name"] == "IAIPAL" for r in rows)
+  has_qpalm = any(r["solver_name"] == "QPALM" for r in rows)
   series = [
       ("IALM", "proxax-IALM (BCOO+Ruiz)", "#D55E00"),
       *(
@@ -60,9 +61,14 @@ def plot_maros_large(
           if has_iaipal
           else []
       ),
+      *(
+          [("QPALM", "proxax-QPALM (qdldl_ffi)", "#E7298A")]
+          if has_qpalm
+          else []
+      ),
       ("Clarabel", "Clarabel (IPM)", "#1B9E77"),
   ]
-  width = 0.26 if has_iaipal else 0.36
+  width = 0.80 / len(series)
   offsets = np.linspace(
       -(len(series) - 1) * width / 2,
       (len(series) - 1) * width / 2,

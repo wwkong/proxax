@@ -98,7 +98,7 @@ Runnable scripts live in [`examples/`](https://github.com/wwkong/proxax/tree/mai
   author = {Weiwei Kong},
   title = {{Proxax}: Certified first-order proximal point methods for composite optimization in JAX and Optax.},
   url = {https://github.com/wwkong/proxax},
-  version = {0.4.1},
+  version = {0.4.2},
   year = {2026},
 }
 ```

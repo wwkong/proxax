@@ -6,6 +6,7 @@ from proxax.solvers.constrained import iaipal
 from proxax.solvers.constrained import ialm
 from proxax.solvers.constrained import qp_aipp
 from proxax.solvers.constrained import qp_apd
+from proxax.solvers.constrained import qpalm
 from proxax.solvers.constrained import s_prox_alm
 
 IAIPAL = iaipal.IAIPAL
@@ -16,6 +17,8 @@ QPAIPP = qp_aipp.QPAIPP
 QPAIPPState = qp_aipp.QPAIPPState
 QPAPD = qp_apd.QPAPD
 QPAPDState = qp_apd.QPAPDState
+QPALM = qpalm.QPALM
+QPALMState = qpalm.QPALMState
 SProxALM = s_prox_alm.SProxALM
 SProxALMState = s_prox_alm.SProxALMState
 
@@ -28,6 +31,8 @@ __all__ = [
     "QPAIPPState",
     "QPAPD",
     "QPAPDState",
+    "QPALM",
+    "QPALMState",
     "SProxALM",
     "SProxALMState",
 ]
