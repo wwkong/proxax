@@ -879,14 +879,20 @@ def _ensure_registered() -> tuple[str, str]:
     )
 
   lib = ctypes.CDLL(str(so_path))
+  cap_dense = jax.ffi.pycapsule(  # type: ignore[no-untyped-call]
+      lib.ProxaxQdldlKktSolve
+  )
   jax.ffi.register_ffi_target(
       target_dense,
-      jax.ffi.pycapsule(lib.ProxaxQdldlKktSolve),
+      cap_dense,
       platform="cpu",
+  )
+  cap_bcoo = jax.ffi.pycapsule(  # type: ignore[no-untyped-call]
+      lib.ProxaxQdldlKktSolveBcoo
   )
   jax.ffi.register_ffi_target(
       target_bcoo,
-      jax.ffi.pycapsule(lib.ProxaxQdldlKktSolveBcoo),
+      cap_bcoo,
       platform="cpu",
   )
   _REGISTERED = True
@@ -903,10 +909,12 @@ def qdldl_kkt_solve(
   """Calls the XLA FFI C++ QDLDL KKT solver for `(H_f, A, w_c, diag_add, rhs)`."""
   target_dense, _ = _ensure_registered()
   n = int(rhs.shape[0])
-  return jax.ffi.ffi_call(
-      target_dense,
-      jax.ShapeDtypeStruct((n,), jnp.float64),
-  )(h_f, a_mat, w_c, diag_add, rhs)
+  out_struct = jax.ShapeDtypeStruct(  # type: ignore[no-untyped-call]
+      (n,), jnp.float64
+  )
+  return jax.ffi.ffi_call(target_dense, out_struct)(
+      h_f, a_mat, w_c, diag_add, rhs
+  )
 
 
 def qdldl_kkt_solve_bcoo(
@@ -920,7 +928,9 @@ def qdldl_kkt_solve_bcoo(
   """Calls the XLA FFI C++ QDLDL KKT solver for sparse BCOO `A`."""
   _, target_bcoo = _ensure_registered()
   n = int(rhs.shape[0])
-  return jax.ffi.ffi_call(
-      target_bcoo,
-      jax.ShapeDtypeStruct((n,), jnp.float64),
-  )(h_f, a_data, a_indices.astype(jnp.int32), w_c, diag_add, rhs)
+  out_struct = jax.ShapeDtypeStruct(  # type: ignore[no-untyped-call]
+      (n,), jnp.float64
+  )
+  return jax.ffi.ffi_call(target_bcoo, out_struct)(
+      h_f, a_data, a_indices.astype(jnp.int32), w_c, diag_add, rhs
+  )

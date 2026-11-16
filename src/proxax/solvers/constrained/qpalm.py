@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
+from collections.abc import Callable
 
 import jax
 import jax.flatten_util
@@ -51,7 +53,9 @@ class QPALMState(base.ConstrainedTrackerMixin):
   tracker: base.ConstrainedTracker
 
 
-def _to_flat_array(x: _typing.PyTree) -> tuple[jax.Array, callable]:
+def _to_flat_array(
+    x: _typing.PyTree,
+) -> tuple[jax.Array, Callable[[jax.Array], _typing.PyTree]]:
   """Flattens a PyTree into a 1D array and returns `(flat, unflatten)`."""
   if isinstance(x, jax.Array) and x.ndim == 1:
     return x, lambda v: v
@@ -67,7 +71,7 @@ def _project_bound_c(
     return bound_c.target_set.project(z)
   return jax.tree.map(
       lambda c, zi: c.target_set.project(zi),
-      bound_c.constraints,
+      typing.cast(typing.Any, bound_c).constraints,
       z,
       is_leaf=linear_op._is_constraint,
   )
@@ -96,7 +100,7 @@ def _diag_at_w_a(
 
 
 def _exact_1d_linesearch_cached(
-    psi_prime_fn,
+    psi_prime_fn: Callable[[jax.Array], jax.Array],
     psi0: jax.Array,
     *,
     dtype: jnp.dtype,
@@ -109,7 +113,7 @@ def _exact_1d_linesearch_cached(
       jnp.abs(psi0), jnp.asarray(1.0, dtype=dtype)
   )
 
-  def _do_search(_: None) -> jax.Array:
+  def _do_search(_unused: None) -> jax.Array:
     def _bracket_cond(st: _BracketState) -> jax.Array:
       _, psi_hi, k = st
       return jnp.logical_and(psi_hi < 0.0, k < 20)
@@ -171,11 +175,16 @@ def _exact_1d_linesearch_cached(
     )
     return jnp.where(k_f > 0, t_mid_f, 0.5 * (t_lo_f + t_hi_f))
 
-  return jax.lax.cond(
-      jnp.logical_or(psi0 >= 0.0, jnp.abs(psi1) <= tol),
-      lambda _: jnp.where(psi0 >= 0.0, jnp.asarray(0.0, dtype=dtype), tau_one),
-      _do_search,
-      None,
+  return typing.cast(
+      jax.Array,
+      jax.lax.cond(
+          jnp.logical_or(psi0 >= 0.0, jnp.abs(psi1) <= tol),
+          lambda _: jnp.where(
+              psi0 >= 0.0, jnp.asarray(0.0, dtype=dtype), tau_one
+          ),
+          _do_search,
+          None,
+      ),
   )
 
 
@@ -238,9 +247,15 @@ class QPALM:
     assert bound_c is not None
     has_prox = not isinstance(problem.proximal, prox_base.Zero)
 
+    smooth = problem.smooth
+    assert smooth is not None
+
     def _f_val_and_grad(x_arr: jax.Array) -> tuple[jax.Array, jax.Array]:
       x_pt = unflatten(x_arr)
-      val, g_pt = problem.smooth.value_and_grad(x_pt)
+      if callable(smooth):
+        val, g_pt = jax.value_and_grad(smooth)(x_pt)
+      else:
+        val, g_pt = smooth.value_and_grad(x_pt)
       g_arr, _ = _to_flat_array(g_pt)
       return jnp.asarray(val, dtype=dtype), g_arr
 
@@ -280,8 +295,15 @@ class QPALM:
       h_f_const = None
       q_lin = None
 
+    _sparse_solve_cb: Callable[..., np.ndarray] | None = None
     if use_sparse_cb and h_f_const is not None and a_dense is not None:
-      def _sparse_solve_cb(h_f_np, a_np, w_c_np, diag_add_np, rhs_np):
+      def _sparse_solve_impl(
+          h_f_np: np.ndarray,
+          a_np: np.ndarray,
+          w_c_np: np.ndarray,
+          diag_add_np: np.ndarray,
+          rhs_np: np.ndarray,
+      ) -> np.ndarray:
         h_f_csc = sp.csc_matrix(np.asarray(h_f_np, dtype=np.float64))
         a_csc = sp.csc_matrix(np.asarray(a_np, dtype=np.float64))
         w_c_arr = np.asarray(w_c_np, dtype=np.float64)
@@ -292,9 +314,12 @@ class QPALM:
             + a_csc.T @ (sp.diags(w_c_arr) @ a_csc)
             + sp.diags(diag_arr)
         )
-        return spla.spsolve(h_csc, rhs_arr).astype(np.asarray(rhs_np).dtype)
-    else:
-      _sparse_solve_cb = None
+        return typing.cast(
+            np.ndarray,
+            spla.spsolve(h_csc, rhs_arr).astype(np.asarray(rhs_np).dtype),
+        )
+
+      _sparse_solve_cb = _sparse_solve_impl
 
     def _proj_x(z_arr: jax.Array) -> jax.Array:
       if not has_prox:
@@ -309,12 +334,14 @@ class QPALM:
         self.equilibrate and h_f_const is not None and a_mat is not None
     )
     if is_equilibrated:
+      assert h_f_const is not None and a_mat is not None
+      assert q_lin is not None
       m_c = int(a_mat.shape[0])
       d_x = jnp.ones((n,), dtype=dtype)
       d_y = jnp.ones((m_c,), dtype=dtype)
       cost_scale = jnp.ones((), dtype=dtype)
       h_abs = jnp.abs(h_f_const)
-      if a_is_bcoo:
+      if isinstance(a_mat, jsparse.BCOO):
         a_rows = a_mat.indices[:, 0]
         a_cols = a_mat.indices[:, 1]
         a_abs = jnp.abs(a_mat.data)
@@ -325,7 +352,7 @@ class QPALM:
         h_col_norm = jnp.max(
             (cost_scale * d_x[:, None]) * h_abs * d_x[None, :], axis=0
         )
-        if a_is_bcoo:
+        if isinstance(a_mat, jsparse.BCOO):
           scaled_a = d_y[a_rows] * a_abs * d_x[a_cols]
           a_row_norm = jnp.zeros((m_c,), dtype=dtype).at[a_rows].max(scaled_a)
           a_col_norm = jnp.zeros((n,), dtype=dtype).at[a_cols].max(scaled_a)
@@ -355,7 +382,7 @@ class QPALM:
       h_f_const = (cost_scale * d_x[:, None]) * h_f_const * d_x[None, :]
       h_f_const = 0.5 * (h_f_const + h_f_const.T)
       q_lin = cost_scale * d_x * q_lin
-      if a_is_bcoo:
+      if isinstance(a_mat, jsparse.BCOO):
         a_mat = jsparse.BCOO(
             (a_mat.data * d_y[a_rows] * d_x[a_cols], a_mat.indices),
             shape=a_mat.shape,
@@ -453,6 +480,7 @@ class QPALM:
           gf: jax.Array,
           ax_val: jax.Array,
       ) -> jax.Array:
+        assert a_mat is not None
         zc = ax_val + yc / sc
         pc = sc * (zc - _proj_c_work(zc))
         g_c = a_mat.T @ pc
@@ -461,7 +489,7 @@ class QPALM:
           zx = x_arr + yx / sx
           px = sx * (zx - _proj_x_work(zx))
           g_tot = g_tot + px
-        return g_tot
+        return typing.cast(jax.Array, g_tot)
 
       def _phi_grad(x_arr: jax.Array) -> jax.Array:
         gf = (
@@ -482,7 +510,7 @@ class QPALM:
           zx = x_arr + yx / sx
           px = sx * (zx - _proj_x(zx))
           g_tot = g_tot + px
-        return g_tot
+        return typing.cast(jax.Array, g_tot)
 
       ax_new_cached = None
       g_fx_new = None
@@ -535,7 +563,7 @@ class QPALM:
           n_diff = jnp.sum(jnp.abs(dw) > 0.0)
           can_wb = jnp.logical_and(has_fac, n_diff <= k_max)
 
-          def _solve_wb(_: None) -> _WoodburyStep:
+          def _solve_wb(_unused: None) -> _WoodburyStep:
             _, top_idx = jax.lax.top_k(jnp.abs(dw), k_max)
             dw_top = dw[top_idx]
             u_mat = u_all[top_idx, :].T  # (n, k_max)
@@ -549,7 +577,7 @@ class QPALM:
             d_wb = z0 - z_mat @ y_k
             return d_wb, prev_w, prev_fac
 
-          def _solve_full(_: None) -> _WoodburyStep:
+          def _solve_full(_unused: None) -> _WoodburyStep:
             h_mat = h_f_const + (a_dense.T * w_c) @ a_dense
             diag_add = inv_gamma + (w_x if has_prox else 0.0)
             idx = jnp.arange(n)
@@ -634,7 +662,7 @@ class QPALM:
             )
             diag_add = diag_add + sx * j_x
           if use_qdldl_ffi:
-            if a_is_bcoo:
+            if isinstance(a_mat, jsparse.BCOO):
               d = _sparse_ldl_ffi.qdldl_kkt_solve_bcoo(
                   h_f_const,
                   a_mat.data,
@@ -644,6 +672,7 @@ class QPALM:
                   -g_cur,
               )
             else:
+              assert a_dense is not None
               d = _sparse_ldl_ffi.qdldl_kkt_solve(
                   h_f_const,
                   a_dense,
@@ -652,9 +681,12 @@ class QPALM:
                   -g_cur,
               )
           elif _sparse_solve_cb is not None:
+            out_struct = jax.ShapeDtypeStruct(  # type: ignore[no-untyped-call]
+                (n,), dtype
+            )
             d = jax.pure_callback(
                 _sparse_solve_cb,
-                jax.ShapeDtypeStruct((n,), dtype),
+                out_struct,
                 h_f_const,
                 a_dense,
                 w_c,
@@ -662,6 +694,7 @@ class QPALM:
                 -g_cur,
             )
           else:
+            assert a_dense is not None
             h_mat = h_f_const + (a_dense.T * w_c) @ a_dense
             idx = jnp.arange(n)
             h_mat = h_mat.at[idx, idx].add(diag_add)
@@ -730,7 +763,7 @@ class QPALM:
           else:
             def _hvp(v: jax.Array) -> jax.Array:
               _, hv = jax.jvp(_phi_grad, (x_cur,), (v,))
-              return hv
+              return typing.cast(jax.Array, hv)
 
             if use_chol:
               h_mat = jax.vmap(_hvp)(jnp.eye(n, dtype=dtype))
@@ -761,7 +794,7 @@ class QPALM:
               inv_diag = 1.0 / jnp.maximum(
                   diag_h, jnp.asarray(1e-8, dtype=dtype)
               )
-              d, _ = jax.scipy.sparse.linalg.cg(
+              d, _ = jax.scipy.sparse.linalg.cg(  # type: ignore[no-untyped-call]
                   _hvp,
                   -g_cur,
                   M=lambda v: inv_diag * v,
@@ -846,6 +879,7 @@ class QPALM:
       )
 
       if is_equilibrated:
+        assert a_mat is not None
         x_orig = d_x * x_new
         x_orig_pt = unflatten(x_orig)
         yc_orig = (yc_new * d_y) / cost_scale
@@ -862,6 +896,7 @@ class QPALM:
         e_x_orig = e_x_work
         cand_obj, gf_new = _f_val_and_grad(x_new)
         if use_q_cached:
+          assert a_mat is not None
           aty, _ = _to_flat_array(a_mat.T @ yc_new)
         else:
           aty, _ = _to_flat_array(bound_c.adjoint(yc_new))
