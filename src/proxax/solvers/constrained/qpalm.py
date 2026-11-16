@@ -266,6 +266,11 @@ class QPALM:
     use_woodbury = self.linear_solver == "woodbury"
     use_sparse_cb = self.linear_solver == "sparse_callback"
     use_qdldl_ffi = self.linear_solver == "qdldl_ffi"
+    if use_qdldl_ffi and dtype != jnp.float64:
+      raise ValueError(
+          "QPALM linear_solver='qdldl_ffi' requires float64 "
+          "(set JAX_ENABLE_X64=1)."
+      )
     use_chol = (
         self.linear_solver == "cholesky"
         or use_woodbury

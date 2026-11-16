@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
+import pytest
 from jax.experimental import sparse as jsparse
 
 import proxax
 from proxax import constraints
 from proxax import prox
 from proxax import solvers
+
+_TOL = 1e-6 if jax.config.jax_enable_x64 else 1e-3
 
 
 def test_qpalm_dense_box_and_equality() -> None:
@@ -20,17 +24,21 @@ def test_qpalm_dense_box_and_equality() -> None:
       proximal=prox.Box(lower=0.0, upper=0.7),
       constraints=constraints.equality(a_mat, b_vec),
   )
-  solver = solvers.QPALM(opt_tol=1e-6, feas_tol=1e-6, linear_solver="dense")
+  solver = solvers.QPALM(opt_tol=_TOL, feas_tol=_TOL, linear_solver="dense")
   fin = solver.solve_state(prob, jnp.zeros(2))
 
   assert int(fin.status) == int(proxax.SolveStatus.CONVERGED)
-  assert float(fin.best_opt_res) <= 1e-6
-  assert float(fin.best_feas_res) <= 1e-6
+  assert float(fin.best_opt_res) <= _TOL
+  assert float(fin.best_feas_res) <= _TOL
   kkt = prob.evaluate_residuals(fin.best_x, fin.best_subgrad)
-  assert float(kkt.primal_residual_norm) <= 1e-6
-  assert float(kkt.stationarity_norm) <= 1e-6
+  assert float(kkt.primal_residual_norm) <= _TOL
+  assert float(kkt.stationarity_norm) <= _TOL
 
 
+@pytest.mark.skipif(
+    not jax.config.jax_enable_x64,
+    reason="qdldl_ffi requires float64 (JAX_ENABLE_X64=1)",
+)
 def test_qpalm_qdldl_ffi_bcoo_box_inequality() -> None:
   p_dense = jnp.array([
       [3.0, -1.0, 0.0, 0.0],
@@ -65,6 +73,10 @@ def test_qpalm_qdldl_ffi_bcoo_box_inequality() -> None:
   assert float(fin.best_feas_res) <= 1e-6
 
 
+@pytest.mark.skipif(
+    not jax.config.jax_enable_x64,
+    reason="qdldl_ffi requires float64 (JAX_ENABLE_X64=1)",
+)
 def test_qpalm_equilibrate_ill_conditioned_qp() -> None:
   scales = jnp.array([1e5, 1.0, 1e-3])
   p_mat = jnp.diag(scales)
@@ -105,8 +117,8 @@ def test_qpalm_px_solve_method_dispatch() -> None:
       constraints=constraints.less_equal(a_mat, jnp.array([1.0])),
   )
   sol = proxax.solve(
-      prob, jnp.zeros(2), method="qpalm", opt_tol=1e-6, feas_tol=1e-6
+      prob, jnp.zeros(2), method="qpalm", opt_tol=_TOL, feas_tol=_TOL
   )
   assert int(sol.status) == int(proxax.SolveStatus.CONVERGED)
-  assert float(sol.stats.opt_residual) <= 1e-6
-  assert float(sol.stats.feas_residual) <= 1e-6
+  assert float(sol.stats.opt_residual) <= _TOL
+  assert float(sol.stats.feas_residual) <= _TOL
